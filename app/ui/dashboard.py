@@ -105,7 +105,16 @@ with st.sidebar:
     st.title("🛡️ Mana-Archive")
     page = st.radio("Navigation", ["Full Collection", "Pending Placement", "Physical Drawer Map", "Commander Decks", "Deck Builder", "Data Import", "Transaction History", "Physical Audit", "Fuzzy Lookup"])
     st.divider()
-    sort_pref = st.selectbox("Global Sort Preference", ["Numerical (Set/Collector #)", "Alphabetical (Name)", "Mana Value (Highest First)", "Mana Value (Lowest First)", "Color Identity", "Card Type"])
+    sort_pref = st.selectbox("Global Sort Preference", [
+        "Numerical (Set/Collector #)", 
+        "Alphabetical (Name)", 
+        "Price (Highest First)",
+        "Price (Lowest First)",
+        "Mana Value (Highest First)", 
+        "Mana Value (Lowest First)", 
+        "Color Identity", 
+        "Card Type"
+    ])
     with Session(engine) as session:
         val = session.exec(select(func.sum(Card.current_price * Inventory.quantity)).join(Inventory)).one() or 0
         qty = session.exec(select(func.sum(Inventory.quantity))).one() or 0
@@ -143,18 +152,27 @@ with Session(engine) as session:
         
         cards = session.exec(stmt).all()
         color_order = {"W": 1, "U": 2, "B": 3, "R": 4, "G": 5, "": 6}
-        if sort_pref == "Alphabetical (Name)": cards.sort(key=lambda x: x.name)
-        elif "Mana Value" in sort_pref: cards.sort(key=lambda x: x.cmc or 0, reverse=("Highest" in sort_pref))
-        elif sort_pref == "Card Type": cards.sort(key=lambda x: (x.type_line or "", x.name))
-        elif sort_pref == "Color Identity": cards.sort(key=lambda x: (len(x.colors or ""), color_order.get(x.colors[0] if x.colors else "", 7), x.name))
-        else: cards.sort(key=lambda x: (x.set_code, natural_key(x.collector_number)))
+        
+        if sort_pref == "Alphabetical (Name)": 
+            cards.sort(key=lambda x: x.name)
+        elif "Price" in sort_pref:
+            cards.sort(key=lambda x: x.current_price or 0, reverse=("Highest" in sort_pref))
+        elif "Mana Value" in sort_pref: 
+            cards.sort(key=lambda x: x.cmc or 0, reverse=("Highest" in sort_pref))
+        elif sort_pref == "Card Type": 
+            cards.sort(key=lambda x: (x.type_line or "", x.name))
+        elif sort_pref == "Color Identity": 
+            cards.sort(key=lambda x: (len(x.colors or ""), color_order.get(x.colors[0] if x.colors else "", 7), x.name))
+        else: 
+            cards.sort(key=lambda x: (x.set_code, natural_key(x.collector_number)))
         
         cols = st.columns(6)
         for idx, card in enumerate(cards):
             with cols[idx % 6]:
                 st.image(card.image_url if card.image_url else PLACEHOLDER_IMG)
                 st.write(f"**{card.name}**")
-                st.caption(f"#{card.collector_number} ({card.set_code.upper()}) | ${card.current_price:.2f}")
+                price_disp = f"${card.current_price:,.2f}" if card.current_price > 0 else "N/A"
+                st.caption(f"#{card.collector_number} ({card.set_code.upper()}) | {price_disp}")
 
     elif page == "Deck Builder":
         st.title("⚒️ Deck Builder")
@@ -237,15 +255,39 @@ with Session(engine) as session:
         st.dataframe(pd.DataFrame([l.model_dump() for l in logs]), use_container_width=True)
 
     elif page == "Commander Decks":
-        st.title("⚔️ Decks")
-        items = session.exec(select(Inventory).where(Inventory.location_type == "Commander Deck")).all()
-        for d in sorted(list(set([i.section for i in items if i.section]))):
-            with st.expander(d):
-                cur = [i for i in items if i.section == d]
-                cols = st.columns(6)
-                for i, inv in enumerate(cur):
-                    with cols[i % 6]: st.image(inv.card.image_url); st.caption(inv.card.name)
-
+        st.title("⚔️ Commander Decks")
+        # Query all items currently assigned to a deck
+        deck_items = session.exec(select(Inventory).where(Inventory.location_type == "Commander Deck")).all()
+        
+        # Get unique deck names
+        deck_names = sorted(list(set([i.section for i in deck_items if i.section])))
+        
+        if not deck_names:
+            st.info("No decks assembled yet. Use the Deck Builder to pull cards from your drawers.")
+        else:
+            for deck in deck_names:
+                # Filter items for this specific deck
+                current_deck_cards = [i for i in deck_items if i.section == deck]
+                
+                # Logical Aggregation: Calculate total value and card count
+                deck_value = sum((i.card.current_price or 0) * i.quantity for i in current_deck_cards)
+                deck_count = sum(i.quantity for i in current_deck_cards)
+                
+                # UI Layout: Use an expander with metrics in the header
+                with st.expander(f"{deck}"):
+                    m1, m2 = st.columns(2)
+                    m1.metric("Estimated Value", f"${deck_value:,.2f}")
+                    m2.metric("Card Count", f"{deck_count}/100")
+                    
+                    st.divider()
+                    
+                    # Grid display of cards in the deck
+                    cols = st.columns(6)
+                    for idx, inv in enumerate(current_deck_cards):
+                        with cols[idx % 6]:
+                            st.image(inv.card.image_url if inv.card.image_url else PLACEHOLDER_IMG)
+                            st.write(f"**{inv.card.name}**")
+                            st.caption(f"${inv.card.current_price:,.2f}")
     elif page == "Data Import":
         st.title("📥 Import")
         it = st.selectbox("Dest", ["Drawer", "Deck"])
