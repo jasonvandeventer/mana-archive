@@ -1,0 +1,6 @@
+[tool.ruff]
+line-length = 120
+lint.select = ["E", "F", "I"] # Error, Pyflakes, Isort
+
+[tool.ruff.lint.isort]
+known-first-party = ["app"]
