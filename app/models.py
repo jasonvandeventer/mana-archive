@@ -5,6 +5,7 @@ from sqlmodel import Field, Relationship, SQLModel
 
 
 class Card(SQLModel, table=True):
+    __table_args__ = {"extend_existing": True}
     id: Optional[int] = Field(default=None, primary_key=True)
     name: str = Field(index=True)
     set_code: str = Field(index=True)
@@ -19,6 +20,7 @@ class Card(SQLModel, table=True):
 
 
 class Inventory(SQLModel, table=True):
+    __table_args__ = {"extend_existing": True}
     id: Optional[int] = Field(default=None, primary_key=True)
     card_id: int = Field(foreign_key="card.id")
     location_type: str = "Drawer"
@@ -32,6 +34,7 @@ class Inventory(SQLModel, table=True):
 
 
 class TransactionLog(SQLModel, table=True):
+    __table_args__ = {"extend_existing": True}
     id: Optional[int] = Field(default=None, primary_key=True)
     timestamp: datetime = Field(default_factory=datetime.utcnow)
     action: str
