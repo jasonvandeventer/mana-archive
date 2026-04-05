@@ -62,6 +62,8 @@ class CardBase(SQLModel):
     image_uri: Optional[str] = None
     price_usd: Optional[float] = None
     price_usd_foil: Optional[float] = None
+    price_source: Optional[str] = None
+    price_last_updated_at: Optional[datetime] = None
     oracle_text: Optional[str] = None
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 

@@ -102,9 +102,3 @@ collector/
         ├── deck_builder.py       # Pull cards into decks UI
         └── audit_log.py          # Transaction history UI
 ```
-
-
-## Runtime configuration
-
-- `JUSTTCG_API_KEY`: enables JustTCG price refreshes.
-- `DATABASE_URL`: optional. Defaults to local SQLite. Set this to a PostgreSQL connection string when you are ready to migrate.

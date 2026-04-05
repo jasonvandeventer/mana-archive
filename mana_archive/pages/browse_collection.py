@@ -1,6 +1,9 @@
 """Browse Collection page – search, filter, and explore the inventory."""
 from __future__ import annotations
 
+from datetime import datetime, timedelta
+from html import escape
+
 import streamlit as st
 from sqlalchemy import Integer, func
 from sqlmodel import Session, select
@@ -116,6 +119,8 @@ def _query_inventory(
                     "colors": card.colors,
                     "image_uri": card.image_uri,
                     "scryfall_id": card.scryfall_id,
+                    "price_source": card.price_source,
+                    "price_last_updated_at": card.price_last_updated_at,
                     "updated_at": card.updated_at,
                 }
             )
@@ -201,10 +206,9 @@ def render() -> None:
 
         st.markdown("#### Refresh Card Metadata")
         st.caption(
-            "Re-fetches the latest prices from JustTCG (set JUSTTCG_API_KEY). "
-            "If no key is set, falls back to Scryfall for full metadata. "
-            "After prices refresh, the collection is automatically re-sorted so "
-            "cards move into the correct drawers based on current value."
+            "Refreshes cached prices only for cards with missing or stale pricing. "
+            "Runs are capped to fit JustTCG free-tier limits and automatically "
+            "re-sort cards after repricing."
         )
         if st.button("Refresh Metadata", key="btn_refresh_meta"):
             progress_bar = st.progress(0.0, text="Starting…")
@@ -214,18 +218,15 @@ def render() -> None:
                 progress_bar.progress(frac, text=f"({current}/{total}) {card_name}")
 
             with get_session() as session:
-                meta_result = refresh_card_metadata(
-                    session,
-                    progress_callback=_on_progress,
-                    resort_inventory=True,
-                )
+                meta_result = refresh_card_metadata(session, progress_callback=_on_progress)
 
             progress_bar.empty()
             st.success(
                 f"Refresh complete: **{meta_result['updated']}** updated, "
                 f"**{meta_result['failed']}** failed out of "
-                f"{meta_result['total']} cards. "
-                f"Re-sort moved **{meta_result.get('moved', 0)}** card(s)."
+                f"**{meta_result['total']}** targeted cards; "
+                f"**{meta_result['skipped']}** fresh cards skipped; "
+                f"**{meta_result['moved']}** cards re-sorted after repricing."
             )
             st.rerun()
 
@@ -334,15 +335,47 @@ def render() -> None:
 
     # ── Responsive CSS-grid card gallery ──────────────────────────────────
     card_items_html = []
+    stale_cutoff = datetime.utcnow() - timedelta(hours=24)
+
     for card in rows:
         placed_icon = "✅" if card["is_placed"] else "⏳"
-        price_str = f"${card['price_usd']:.2f}" if card["price_usd"] else "—"
+        price_str = f"${card['price_usd']:.2f}" if card["price_usd"] is not None else "—"
         drawer_label = DRAWER_LABELS.get(card["drawer"], f"Drawer {card['drawer']}")
 
-        if card["image_uri"]:
+        name_html = escape(card["name"])
+        set_name_html = escape(card["set_name"])
+        set_code_html = escape(card["set_code"].upper())
+        image_uri = escape(card["image_uri"]) if card["image_uri"] else None
+        scryfall_url = f"https://scryfall.com/card/{card['set_code'].lower()}/{card['collector_number']}"
+
+        price_updated = card.get("price_last_updated_at")
+        price_source = escape((card.get("price_source") or "unknown").title())
+        stale_badge = ""
+        if card["price_usd"] is None and card["price_usd_foil"] is None:
+            stale_badge = (
+                '<span style="display:inline-block;margin-top:6px;padding:2px 8px;border-radius:999px;'
+                'background:#4b2b2b;color:#ffb3b3;font-size:0.72rem;font-weight:600;">'
+                'Price missing</span>'
+            )
+        elif price_updated is None or price_updated <= stale_cutoff:
+            age_text = "Stale"
+            if price_updated is not None:
+                age = datetime.utcnow() - price_updated
+                hours_old = max(1, int(age.total_seconds() // 3600))
+                if hours_old >= 48:
+                    age_text = f"Stale · {hours_old // 24}d old"
+                else:
+                    age_text = f"Stale · {hours_old}h old"
+            stale_badge = (
+                '<span style="display:inline-block;margin-top:6px;padding:2px 8px;border-radius:999px;'
+                'background:#4a4020;color:#f3d27a;font-size:0.72rem;font-weight:600;">'
+                f'{age_text}</span>'
+            )
+
+        if image_uri:
             img_html = (
-                f'<img src="{card["image_uri"]}" '
-                f'alt="{card["name"]}" '
+                f'<img src="{image_uri}" '
+                f'alt="{name_html}" '
                 f'style="width:100%;border-radius:6px 6px 0 0;display:block;">'
             )
         else:
@@ -366,11 +399,11 @@ def render() -> None:
                 {img_html}
                 <div style="padding:8px 10px;font-size:0.78rem;line-height:1.5;color:#ddd;">
                     <div style="font-weight:600;font-size:0.85rem;color:#fff;margin-bottom:2px;">
-                        {placed_icon} {card["name"]}
+                        {placed_icon} <a href="{scryfall_url}" target="_blank" rel="noopener noreferrer" style="color:#8ec5ff;text-decoration:none;">{name_html}</a>
                     </div>
                     <div style="color:#aaa;">
-                        {card["set_name"]}&nbsp;&middot;&nbsp;
-                        {card["set_code"].upper()}&nbsp;#{card["position"]}
+                        {set_name_html}&nbsp;&middot;&nbsp;
+                        {set_code_html}&nbsp;#{card["position"]}
                     </div>
                     <div>
                         {card["finish"].capitalize()}&nbsp;&middot;&nbsp;
@@ -378,6 +411,8 @@ def render() -> None:
                         <strong style="color:#e8c96a;">{price_str}</strong>
                     </div>
                     <div style="color:#888;margin-top:2px;">{drawer_label}</div>
+                    <div style="color:#777;margin-top:2px;font-size:0.72rem;">Price source: {price_source}</div>
+                    {stale_badge}
                 </div>
             </div>
             """

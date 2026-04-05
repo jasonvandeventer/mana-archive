@@ -993,35 +993,60 @@ def undo_last_batch(session: Session) -> dict:
 def refresh_card_metadata(
     session: Session,
     progress_callback=None,
-    resort_inventory: bool = False,
+    stale_after_hours: int = 24,
+    max_cards: int = 100,
 ) -> dict[str, int]:
     """
-    Re-fetch prices for every Card record from JustTCG.
+    Refresh cached pricing for a limited subset of cards.
 
-    Uses JustTCG for current market prices (updated every 6 hours). Requires
-    JUSTTCG_API_KEY in the environment. If the key is missing, falls back to
-    Scryfall for a full metadata refresh (prices, images, oracle text).
+    With a JustTCG API key configured, this targets only cards whose prices are
+    missing or stale, and caps each run to a manageable batch size for the free
+    tier. If no key is set, it falls back to Scryfall and refreshes the same
+    subset of cards for full metadata.
 
     Parameters
     ----------
     session           : Active SQLModel session.
     progress_callback : Optional callable(current, total, card_name) for UI.
+    stale_after_hours : Age threshold for considering cached prices stale.
+    max_cards         : Maximum number of cards to refresh in one run.
 
     Returns
     -------
-    dict with keys "updated", "failed", "total", and optionally drawer move
-    counts when resort_inventory=True.
+    dict with keys "updated", "failed", "total", "moved", and "skipped".
     """
+    from datetime import timedelta
+
     from mana_archive.justtcg import fetch_prices_by_scryfall_ids, _get_api_key
     from mana_archive.scryfall import fetch_by_scryfall_id, parse_card_data
 
-    cards = list(session.exec(select(Card)).all())
+    now = datetime.utcnow()
+    stale_before = now - timedelta(hours=stale_after_hours)
+
+    all_cards = list(session.exec(select(Card)).all())
+    eligible: list[Card] = []
+    fresh_skipped = 0
+
+    for card in all_cards:
+        has_any_price = card.price_usd is not None or card.price_usd_foil is not None
+        if not has_any_price or card.price_last_updated_at is None or card.price_last_updated_at <= stale_before:
+            eligible.append(card)
+        else:
+            fresh_skipped += 1
+
+    eligible.sort(key=lambda c: (c.price_last_updated_at or datetime.min, c.name.lower()))
+    cards = eligible[:max_cards]
+
     total = len(cards)
     updated = 0
     failed = 0
+    moved = 0
+
+    if total == 0:
+        log.info("Metadata refresh skipped: all %d cards are still fresh.", len(all_cards))
+        return {"updated": 0, "failed": 0, "total": 0, "moved": 0, "skipped": fresh_skipped}
 
     if _get_api_key():
-        # JustTCG path: batch fetch prices only
         ids = [c.scryfall_id for c in cards]
         prices = fetch_prices_by_scryfall_ids(ids)
 
@@ -1029,22 +1054,22 @@ def refresh_card_metadata(
             if progress_callback:
                 progress_callback(idx + 1, total, card.name)
             if card.scryfall_id not in prices:
+                failed += 1
                 continue
             p = prices[card.scryfall_id]
             if p.get("price_usd") is not None:
                 card.price_usd = p["price_usd"]
             if p.get("price_usd_foil") is not None:
                 card.price_usd_foil = p["price_usd_foil"]
-            card.updated_at = datetime.utcnow()
+            card.price_source = "justtcg"
+            card.price_last_updated_at = now
+            card.updated_at = now
             session.add(card)
             updated += 1
 
             if updated % 50 == 0:
                 session.flush()
-
-        failed = total - len(prices)
     else:
-        # Fallback: Scryfall for full metadata
         for idx, card in enumerate(cards):
             if progress_callback:
                 progress_callback(idx + 1, total, card.name)
@@ -1058,27 +1083,37 @@ def refresh_card_metadata(
             card_data = parse_card_data(raw)
             for key, value in card_data.items():
                 setattr(card, key, value)
-            card.updated_at = datetime.utcnow()
+            card.price_source = "scryfall"
+            card.price_last_updated_at = now
+            card.updated_at = now
             session.add(card)
             updated += 1
 
             if updated % 50 == 0:
                 session.flush()
 
-    session.flush()
-    result = {"updated": updated, "failed": failed, "total": total}
-    if resort_inventory:
+    if updated:
+        session.flush()
         resort_result = re_sort_collection(session)
-        result.update({
-            "moved": resort_result["moved"],
-            "unchanged": resort_result["unchanged"],
-        })
+        moved = resort_result["moved"]
+    else:
+        session.flush()
 
     log.info(
-        "Metadata refresh complete: %d updated, %d failed out of %d total.",
-        updated, failed, total,
+        "Metadata refresh complete: %d updated, %d failed out of %d targeted cards (%d fresh skipped, %d moved after repricing).",
+        updated,
+        failed,
+        total,
+        fresh_skipped,
+        moved,
     )
-    return result
+    return {
+        "updated": updated,
+        "failed": failed,
+        "total": total,
+        "moved": moved,
+        "skipped": fresh_skipped,
+    }
 
 
 def reset_database(engine) -> None:

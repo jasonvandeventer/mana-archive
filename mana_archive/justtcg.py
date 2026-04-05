@@ -18,14 +18,13 @@ from mana_archive.logging_config import get_logger
 log = get_logger(__name__)
 
 BASE_URL = "https://api.justtcg.com/v1"
-REQUEST_DELAY = 0.5  # seconds between batch requests
-BATCH_SIZE = 10  # free tier limit; paid plans support 100
 DEFAULT_CONDITION = "NM"
+REQUEST_DELAY = 6.5  # free tier supports 10 requests / minute
+BATCH_SIZE = 20  # maximize cards per request on the free tier
+MAX_RETRIES = 3
+BACKOFF_SECONDS = 15.0
 SESSION = requests.Session()
-SESSION.headers.update({
-    "User-Agent": "ManaArchive/1.0 (personal-collection-tool)",
-    "Accept": "application/json",
-})
+SESSION.headers.update({"User-Agent": "ManaArchive/1.0 (personal-collection-tool)"})
 
 
 def _get_api_key() -> str | None:
@@ -35,21 +34,14 @@ def _get_api_key() -> str | None:
 
 def _parse_variants(variants: list[dict[str, Any]]) -> tuple[float | None, float | None]:
     """
-    Extract deterministic Normal and Foil prices from a variant list.
+    Extract Normal and Foil prices from variant list.
 
-    JustTCG can return multiple variants for the same card across printings and
-    conditions. We explicitly prefer Near Mint variants and choose the highest
-    numeric price within each printing bucket so response ordering cannot change
-    the result.
+    Returns (price_usd, price_usd_foil). Chooses the highest matching price per
+    printing type to avoid response-order dependence.
     """
     normal_prices: list[float] = []
     foil_prices: list[float] = []
-
     for v in variants:
-        condition = (v.get("condition") or "").strip().lower()
-        if condition and condition not in {"near mint", "nm"}:
-            continue
-
         p = v.get("price")
         if p is None:
             continue
@@ -57,16 +49,15 @@ def _parse_variants(variants: list[dict[str, Any]]) -> tuple[float | None, float
             price_val = float(p)
         except (TypeError, ValueError):
             continue
-
         printing = (v.get("printing") or "").strip().lower()
-        if "foil" in printing:
+        if "foil" in printing or printing == "foil":
             foil_prices.append(price_val)
         else:
             normal_prices.append(price_val)
-
-    price_usd = max(normal_prices) if normal_prices else None
-    price_usd_foil = max(foil_prices) if foil_prices else None
-    return (price_usd, price_usd_foil)
+    return (
+        max(normal_prices) if normal_prices else None,
+        max(foil_prices) if foil_prices else None,
+    )
 
 
 def fetch_prices_by_scryfall_ids(
@@ -78,7 +69,7 @@ def fetch_prices_by_scryfall_ids(
 
     Parameters
     ----------
-    scryfall_ids     : List of Scryfall UUIDs.
+    scryfall_ids      : List of Scryfall UUIDs.
     progress_callback : Optional callable(processed_count, total) for UI.
 
     Returns
@@ -99,83 +90,72 @@ def fetch_prices_by_scryfall_ids(
     result: dict[str, dict[str, float | None]] = {}
     total = len(scryfall_ids)
 
-    max_retries = 3
-backoff = 1.0
-
-for attempt in range(max_retries):
-    try:
-        resp = SESSION.post(
-            f"{BASE_URL}/cards",
-            json=payload,
-            headers=headers,
-            timeout=15,
-        )
-
-        # Handle rate limiting BEFORE raise_for_status
-        if resp.status_code == 429:
-            if attempt < max_retries - 1:
-                sleep_time = backoff * (2 ** attempt)
-                log.warning(f"Rate limited. Retrying in {sleep_time:.1f}s...")
-                time.sleep(sleep_time)
-                continue
-            else:
-                log.warning("Rate limited after retries. Skipping batch.")
-                break
-
-        resp.raise_for_status()
-        data = resp.json()
-
-        # success → break retry loop
-        break
-
-    except requests.RequestException as exc:
-        if attempt < max_retries - 1:
-            sleep_time = backoff * (2 ** attempt)
-            log.warning(f"Request failed. Retrying in {sleep_time:.1f}s... Error: {exc}")
-            time.sleep(sleep_time)
-        else:
-            log.warning("JustTCG batch request failed after retries: %s", exc)
-            data = None
-
-# If still no data, skip
-if not data:
-    continue
-
-# normal processing continues here
-   ''' for i in range(0, total, BATCH_SIZE):
+    for i in range(0, total, BATCH_SIZE):
         chunk = scryfall_ids[i : i + BATCH_SIZE]
         payload = [{"scryfallId": sid, "condition": DEFAULT_CONDITION} for sid in chunk]
-        try:
-            resp = SESSION.post(
-                f"{BASE_URL}/cards",
-                json=payload,
-                headers=headers,
-                timeout=15,
-            )
-            time.sleep(REQUEST_DELAY)
-            resp.raise_for_status()
-            data = resp.json()
-        except requests.RequestException as exc:
-            log.warning("JustTCG batch request failed: %s", exc)
+        data: dict[str, Any] | None = None
+
+        for attempt in range(MAX_RETRIES):
+            try:
+                resp = SESSION.post(
+                    f"{BASE_URL}/cards",
+                    json=payload,
+                    headers=headers,
+                    timeout=15,
+                )
+
+                if resp.status_code == 429:
+                    if attempt < MAX_RETRIES - 1:
+                        sleep_time = BACKOFF_SECONDS * (attempt + 1)
+                        log.warning(
+                            "JustTCG rate limit hit for batch starting at %d. Retrying in %.1fs.",
+                            i,
+                            sleep_time,
+                        )
+                        time.sleep(sleep_time)
+                        continue
+                    log.warning("JustTCG batch request failed after retries: 429 Too Many Requests")
+                    break
+
+                resp.raise_for_status()
+                data = resp.json()
+                break
+            except requests.RequestException as exc:
+                if attempt < MAX_RETRIES - 1:
+                    sleep_time = BACKOFF_SECONDS * (attempt + 1)
+                    log.warning(
+                        "JustTCG batch request failed (attempt %d/%d): %s. Retrying in %.1fs.",
+                        attempt + 1,
+                        MAX_RETRIES,
+                        exc,
+                        sleep_time,
+                    )
+                    time.sleep(sleep_time)
+                else:
+                    log.warning("JustTCG batch request failed after retries: %s", exc)
+
+        # Respect published per-minute limits even after successful requests.
+        time.sleep(REQUEST_DELAY)
+
+        if not data:
             continue
-    '''
+
         cards = data.get("data", [])
-        returned_ids: set[str] = set()
+        returned_ids = set()
         for card in cards:
             sid = card.get("scryfallId")
             if not sid:
                 continue
+            returned_ids.add(sid)
             variants = card.get("variants", [])
             price_usd, price_usd_foil = _parse_variants(variants)
             result[sid] = {"price_usd": price_usd, "price_usd_foil": price_usd_foil}
-            returned_ids.add(sid)
 
-        missing_ids = sorted(set(chunk) - returned_ids)
+        missing_ids = set(chunk) - returned_ids
         if missing_ids:
             log.warning(
-                "JustTCG returned no pricing payload for %d/%d requested cards in batch.",
+                "JustTCG returned no price payload for %d card(s) in current batch.",
                 len(missing_ids),
-                len(chunk),
             )
 
         if progress_callback:
