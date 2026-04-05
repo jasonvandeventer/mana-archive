@@ -18,8 +18,8 @@ from mana_archive.logging_config import get_logger
 log = get_logger(__name__)
 
 BASE_URL = "https://api.justtcg.com/v1"
-REQUEST_DELAY = 0.15  # seconds between batch requests
-BATCH_SIZE = 20  # free tier limit; paid plans support 100
+REQUEST_DELAY = 0.5  # seconds between batch requests
+BATCH_SIZE = 10  # free tier limit; paid plans support 100
 DEFAULT_CONDITION = "NM"
 SESSION = requests.Session()
 SESSION.headers.update({
@@ -99,7 +99,50 @@ def fetch_prices_by_scryfall_ids(
     result: dict[str, dict[str, float | None]] = {}
     total = len(scryfall_ids)
 
-    for i in range(0, total, BATCH_SIZE):
+    max_retries = 3
+backoff = 1.0
+
+for attempt in range(max_retries):
+    try:
+        resp = SESSION.post(
+            f"{BASE_URL}/cards",
+            json=payload,
+            headers=headers,
+            timeout=15,
+        )
+
+        # Handle rate limiting BEFORE raise_for_status
+        if resp.status_code == 429:
+            if attempt < max_retries - 1:
+                sleep_time = backoff * (2 ** attempt)
+                log.warning(f"Rate limited. Retrying in {sleep_time:.1f}s...")
+                time.sleep(sleep_time)
+                continue
+            else:
+                log.warning("Rate limited after retries. Skipping batch.")
+                break
+
+        resp.raise_for_status()
+        data = resp.json()
+
+        # success → break retry loop
+        break
+
+    except requests.RequestException as exc:
+        if attempt < max_retries - 1:
+            sleep_time = backoff * (2 ** attempt)
+            log.warning(f"Request failed. Retrying in {sleep_time:.1f}s... Error: {exc}")
+            time.sleep(sleep_time)
+        else:
+            log.warning("JustTCG batch request failed after retries: %s", exc)
+            data = None
+
+# If still no data, skip
+if not data:
+    continue
+
+# normal processing continues here
+   ''' for i in range(0, total, BATCH_SIZE):
         chunk = scryfall_ids[i : i + BATCH_SIZE]
         payload = [{"scryfallId": sid, "condition": DEFAULT_CONDITION} for sid in chunk]
         try:
@@ -115,7 +158,7 @@ def fetch_prices_by_scryfall_ids(
         except requests.RequestException as exc:
             log.warning("JustTCG batch request failed: %s", exc)
             continue
-
+    '''
         cards = data.get("data", [])
         returned_ids: set[str] = set()
         for card in cards:
