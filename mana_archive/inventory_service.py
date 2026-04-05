@@ -7,7 +7,7 @@ from __future__ import annotations
 import csv
 import io
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any
 
 from sqlalchemy import update
@@ -323,7 +323,7 @@ def import_from_csv(
     # Phase 2: batch fetch JustTCG prices and merge
     if to_import:
         ids = [t[0]["scryfall_id"] for t in to_import]
-        prices = fetch_prices_by_scryfall_ids(ids)
+        prices, _missing_ids, _failed_ids = fetch_prices_by_scryfall_ids(ids)
         for card_data, _fin, _qty, _name in to_import:
             merge_prices_into_card_data(card_data, prices)
 
@@ -990,6 +990,79 @@ def undo_last_batch(session: Session) -> dict:
     }
 
 
+def remove_inventory_entry(
+    session: Session,
+    inventory_id: int,
+    quantity: int | None = None,
+    reason: str = "Sold / traded away",
+) -> dict[str, Any]:
+    """
+    Remove some or all copies from a collection inventory entry.
+
+    The entry is deleted when *quantity* is None or equals the full quantity.
+    Remaining cards in the drawer are re-indexed automatically.
+    """
+    stmt = select(Inventory).where(Inventory.id == inventory_id)
+    inventory = session.exec(stmt).first()
+    if inventory is None:
+        raise ValueError(f"Inventory entry {inventory_id} not found.")
+    if inventory.drawer == DECK_DRAWER:
+        raise ValueError("Use deck return logic for deck entries.")
+
+    card_stmt = select(Card).where(Card.id == inventory.card_id)
+    card = session.exec(card_stmt).first()
+    if card is None:
+        raise ValueError(f"Card {inventory.card_id} not found.")
+
+    qty_to_remove = inventory.quantity if quantity is None else quantity
+    if qty_to_remove < 1 or qty_to_remove > inventory.quantity:
+        raise ValueError(
+            f"Cannot remove {qty_to_remove}x from entry with only {inventory.quantity} copies."
+        )
+
+    old_drawer = inventory.drawer
+    old_position = inventory.position
+    old_qty = inventory.quantity
+
+    if qty_to_remove == inventory.quantity:
+        _nullify_tx_refs(session, inventory.id)
+        session.delete(inventory)
+        session.flush()
+        _reindex_drawer(session, old_drawer)
+        new_qty = 0
+    else:
+        inventory.quantity -= qty_to_remove
+        session.add(inventory)
+        session.flush()
+        new_qty = inventory.quantity
+
+    _log_transaction(
+        session,
+        card_id=card.id,
+        inventory_id=None if new_qty == 0 else inventory.id,
+        kind=TransactionKind.QUANTITY_UPDATE,
+        detail=f"{reason}: removed {qty_to_remove}x from drawer {old_drawer}",
+        old_drawer=old_drawer,
+        old_position=old_position,
+        quantity_delta=-qty_to_remove,
+    )
+    log.info(
+        "%s: removed %dx '%s' from drawer %d (qty %d -> %d).",
+        reason,
+        qty_to_remove,
+        card.name,
+        old_drawer,
+        old_qty,
+        new_qty,
+    )
+    return {
+        "name": card.name,
+        "removed": qty_to_remove,
+        "remaining": new_qty,
+        "drawer": old_drawer,
+    }
+
+
 def refresh_card_metadata(
     session: Session,
     progress_callback=None,
@@ -1013,10 +1086,8 @@ def refresh_card_metadata(
 
     Returns
     -------
-    dict with keys "updated", "failed", "total", "moved", and "skipped".
+    dict with keys "updated", "failed", "no_data", "total", "moved", and "skipped".
     """
-    from datetime import timedelta
-
     from mana_archive.justtcg import fetch_prices_by_scryfall_ids, _get_api_key
     from mana_archive.scryfall import fetch_by_scryfall_id, parse_card_data
 
@@ -1029,6 +1100,12 @@ def refresh_card_metadata(
 
     for card in all_cards:
         has_any_price = card.price_usd is not None or card.price_usd_foil is not None
+        checked_recently = (
+            card.price_last_updated_at is not None and card.price_last_updated_at > stale_before
+        )
+        if card.price_source == "justtcg_missing" and checked_recently:
+            fresh_skipped += 1
+            continue
         if not has_any_price or card.price_last_updated_at is None or card.price_last_updated_at <= stale_before:
             eligible.append(card)
         else:
@@ -1040,19 +1117,30 @@ def refresh_card_metadata(
     total = len(cards)
     updated = 0
     failed = 0
+    no_data = 0
     moved = 0
 
     if total == 0:
         log.info("Metadata refresh skipped: all %d cards are still fresh.", len(all_cards))
-        return {"updated": 0, "failed": 0, "total": 0, "moved": 0, "skipped": fresh_skipped}
+        return {"updated": 0, "failed": 0, "no_data": 0, "total": 0, "moved": 0, "skipped": fresh_skipped}
 
     if _get_api_key():
         ids = [c.scryfall_id for c in cards]
-        prices = fetch_prices_by_scryfall_ids(ids)
+        prices, no_data_ids, failed_ids = fetch_prices_by_scryfall_ids(ids)
 
         for idx, card in enumerate(cards):
             if progress_callback:
                 progress_callback(idx + 1, total, card.name)
+            if card.scryfall_id in failed_ids:
+                failed += 1
+                continue
+            if card.scryfall_id in no_data_ids:
+                card.price_source = "justtcg_missing"
+                card.price_last_updated_at = now
+                card.updated_at = now
+                session.add(card)
+                no_data += 1
+                continue
             if card.scryfall_id not in prices:
                 failed += 1
                 continue
@@ -1067,7 +1155,7 @@ def refresh_card_metadata(
             session.add(card)
             updated += 1
 
-            if updated % 50 == 0:
+            if (updated + no_data) % 50 == 0:
                 session.flush()
     else:
         for idx, card in enumerate(cards):
@@ -1100,8 +1188,9 @@ def refresh_card_metadata(
         session.flush()
 
     log.info(
-        "Metadata refresh complete: %d updated, %d failed out of %d targeted cards (%d fresh skipped, %d moved after repricing).",
+        "Metadata refresh complete: %d updated, %d no-data, %d failed out of %d targeted cards (%d fresh skipped, %d moved after repricing).",
         updated,
+        no_data,
         failed,
         total,
         fresh_skipped,
@@ -1110,6 +1199,7 @@ def refresh_card_metadata(
     return {
         "updated": updated,
         "failed": failed,
+        "no_data": no_data,
         "total": total,
         "moved": moved,
         "skipped": fresh_skipped,

@@ -63,7 +63,11 @@ def _parse_variants(variants: list[dict[str, Any]]) -> tuple[float | None, float
 def fetch_prices_by_scryfall_ids(
     scryfall_ids: list[str],
     progress_callback=None,
-) -> dict[str, dict[str, float | None]]:
+) -> tuple[
+    dict[str, dict[str, float | None]],
+    set[str],
+    set[str],
+]:
     """
     Batch-fetch prices from JustTCG for the given Scryfall IDs.
 
@@ -74,13 +78,15 @@ def fetch_prices_by_scryfall_ids(
 
     Returns
     -------
-    dict mapping scryfall_id -> {"price_usd": float|None, "price_usd_foil": float|None}.
-    Missing or failed lookups are omitted.
+    tuple of:
+      - dict mapping scryfall_id -> {"price_usd": float|None, "price_usd_foil": float|None}
+      - set of scryfall_ids that returned no price payload
+      - set of scryfall_ids whose request batch failed entirely
     """
     api_key = _get_api_key()
     if not api_key:
         log.debug("JUSTTCG_API_KEY not set; skipping JustTCG price fetch.")
-        return {}
+        return {}, set(), set()
 
     headers = {
         "x-api-key": api_key,
@@ -88,6 +94,8 @@ def fetch_prices_by_scryfall_ids(
         "Accept": "application/json",
     }
     result: dict[str, dict[str, float | None]] = {}
+    no_data_ids: set[str] = set()
+    failed_ids: set[str] = set()
     total = len(scryfall_ids)
 
     for i in range(0, total, BATCH_SIZE):
@@ -138,6 +146,7 @@ def fetch_prices_by_scryfall_ids(
         time.sleep(REQUEST_DELAY)
 
         if not data:
+            failed_ids.update(chunk)
             continue
 
         cards = data.get("data", [])
@@ -153,6 +162,7 @@ def fetch_prices_by_scryfall_ids(
 
         missing_ids = set(chunk) - returned_ids
         if missing_ids:
+            no_data_ids.update(missing_ids)
             log.warning(
                 "JustTCG returned no price payload for %d card(s) in current batch.",
                 len(missing_ids),
@@ -162,7 +172,7 @@ def fetch_prices_by_scryfall_ids(
             processed = min(i + BATCH_SIZE, total)
             progress_callback(processed, total)
 
-    return result
+    return result, no_data_ids, failed_ids
 
 
 def merge_prices_into_card_data(

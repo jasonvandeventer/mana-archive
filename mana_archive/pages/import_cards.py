@@ -232,7 +232,7 @@ def render() -> None:
                 st.session_state.pop("manual_card_data", None)
             else:
                 card_data = parse_card_data(raw)
-                prices = fetch_prices_by_scryfall_ids([card_data["scryfall_id"]])
+                prices, _missing_ids, _failed_ids = fetch_prices_by_scryfall_ids([card_data["scryfall_id"]])
                 merge_prices_into_card_data(card_data, prices)
                 st.session_state["manual_card_data"] = card_data
 
@@ -321,7 +321,7 @@ def render() -> None:
                 # Enrich with JustTCG prices
                 if parsed:
                     ids = [c["scryfall_id"] for c in parsed.values()]
-                    prices = fetch_prices_by_scryfall_ids(ids)
+                    prices, _missing_ids, _failed_ids = fetch_prices_by_scryfall_ids(ids)
                     for card_data in parsed.values():
                         merge_prices_into_card_data(card_data, prices)
 

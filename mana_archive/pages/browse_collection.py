@@ -174,17 +174,52 @@ def _collection_totals() -> dict:
         }
 
 
+
+
+def _price_status_summary(stale_after_hours: int = 24) -> dict[str, int]:
+    """Return pricing cache health counts for cards currently in drawers."""
+    stale_before = datetime.utcnow() - timedelta(hours=stale_after_hours)
+    with Session(get_engine()) as session:
+        stmt = (
+            select(Card)
+            .join(Inventory, Inventory.card_id == Card.id)
+            .where(Inventory.drawer != 0)
+            .where(Inventory.location_tag.is_(None))
+        )
+        cards = {card.id: card for card in session.exec(stmt).all()}.values()
+
+    summary = {"fresh": 0, "stale": 0, "missing": 0, "no_data": 0}
+    for card in cards:
+        has_any_price = card.price_usd is not None or card.price_usd_foil is not None
+        if card.price_source == "justtcg_missing":
+            summary["no_data"] += 1
+        elif not has_any_price:
+            summary["missing"] += 1
+        elif card.price_last_updated_at is None or card.price_last_updated_at <= stale_before:
+            summary["stale"] += 1
+        else:
+            summary["fresh"] += 1
+    return summary
+
+
 def render() -> None:
     st.header("Browse Collection")
 
     # ── Collection value banner ────────────────────────────────────────────
     totals = _collection_totals()
     summary = _drawer_summary()
+    price_summary = _price_status_summary()
 
-    val_col, copies_col, entries_col, spacer = st.columns([3, 2, 2, 5])
+    val_col, copies_col, entries_col, fresh_col, stale_col, missing_col = st.columns([3, 2, 2, 2, 2, 2])
     val_col.metric("Collection Value", f"${totals['total_value']:,.2f}")
     copies_col.metric("Total Copies", f"{totals['total_copies']:,}")
     entries_col.metric("Unique Entries", f"{totals['entries']:,}")
+    fresh_col.metric("Fresh Prices", price_summary["fresh"])
+    stale_col.metric("Stale Prices", price_summary["stale"])
+    missing_total = price_summary["missing"] + price_summary["no_data"]
+    missing_col.metric("Missing / No Data", missing_total)
+    if price_summary["no_data"]:
+        st.caption(f"{price_summary['no_data']} cards were checked recently but JustTCG returned no price payload, so they are on cooldown until the next stale window.")
 
     st.divider()
 
@@ -223,9 +258,10 @@ def render() -> None:
             progress_bar.empty()
             st.success(
                 f"Refresh complete: **{meta_result['updated']}** updated, "
-                f"**{meta_result['failed']}** failed out of "
+                f"**{meta_result['no_data']}** returned no price payload, "
+                f"**{meta_result['failed']}** request failures out of "
                 f"**{meta_result['total']}** targeted cards; "
-                f"**{meta_result['skipped']}** fresh cards skipped; "
+                f"**{meta_result['skipped']}** fresh / cooldown cards skipped; "
                 f"**{meta_result['moved']}** cards re-sorted after repricing."
             )
             st.rerun()
@@ -349,9 +385,24 @@ def render() -> None:
         scryfall_url = f"https://scryfall.com/card/{card['set_code'].lower()}/{card['collector_number']}"
 
         price_updated = card.get("price_last_updated_at")
-        price_source = escape((card.get("price_source") or "unknown").title())
+        raw_source = card.get("price_source") or "unknown"
+        price_source = escape(raw_source.replace("_", " ").title())
         stale_badge = ""
-        if card["price_usd"] is None and card["price_usd_foil"] is None:
+        if raw_source == "justtcg_missing":
+            age_text = "No price data"
+            if price_updated is not None:
+                age = datetime.utcnow() - price_updated
+                hours_old = max(1, int(age.total_seconds() // 3600))
+                if hours_old >= 48:
+                    age_text = f"No price data · {hours_old // 24}d ago"
+                else:
+                    age_text = f"No price data · {hours_old}h ago"
+            stale_badge = (
+                '<span style="display:inline-block;margin-top:6px;padding:2px 8px;border-radius:999px;'
+                'background:#2f2a44;color:#cdbbff;font-size:0.72rem;font-weight:600;">'
+                f'{age_text}</span>'
+            )
+        elif card["price_usd"] is None and card["price_usd_foil"] is None:
             stale_badge = (
                 '<span style="display:inline-block;margin-top:6px;padding:2px 8px;border-radius:999px;'
                 'background:#4b2b2b;color:#ffb3b3;font-size:0.72rem;font-weight:600;">'

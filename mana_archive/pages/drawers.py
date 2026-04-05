@@ -5,7 +5,8 @@ import streamlit as st
 from sqlalchemy import func
 from sqlmodel import Session, select
 
-from mana_archive.database import get_engine
+from mana_archive.database import get_engine, get_session
+from mana_archive.inventory_service import remove_inventory_entry
 from mana_archive.logging_config import get_logger
 from mana_archive.models import Card, Inventory
 
@@ -35,6 +36,7 @@ def _load_drawer(drawer_num: int) -> list[dict]:
         rows = session.exec(stmt).all()
         return [
             {
+                "inv_id": inv.id,
                 "position": inv.position,
                 "name": card.name,
                 "set_code": card.set_code,
@@ -192,3 +194,56 @@ def render() -> None:
 
             cards = _load_drawer(drawer_num)
             st.html(_card_grid_html(cards, CARD_MIN_WIDTH))
+
+            st.markdown("##### Remove card from this drawer")
+            options = {card["inv_id"]: card for card in cards}
+            selected_inv_id = st.selectbox(
+                "Select card to remove",
+                options=list(options.keys()),
+                format_func=lambda inv_id: (
+                    f"Pos {options[inv_id]['position']} · {options[inv_id]['name']} · "
+                    f"{options[inv_id]['finish'].capitalize()} · Qty {options[inv_id]['quantity']}"
+                ),
+                key=f"remove_select_{drawer_num}",
+            )
+            selected_card = options[selected_inv_id]
+            remove_all = st.checkbox(
+                "Remove all copies",
+                value=True,
+                key=f"remove_all_{drawer_num}",
+            )
+            qty_to_remove = selected_card["quantity"]
+            if not remove_all:
+                qty_to_remove = st.number_input(
+                    "Quantity to remove",
+                    min_value=1,
+                    max_value=selected_card["quantity"],
+                    value=1,
+                    step=1,
+                    key=f"remove_qty_{drawer_num}",
+                )
+            reason = st.selectbox(
+                "Reason",
+                ["Sold", "Traded", "Removed"],
+                key=f"remove_reason_{drawer_num}",
+            )
+            confirm = st.checkbox(
+                "I understand this will remove the selected card from inventory",
+                key=f"remove_confirm_{drawer_num}",
+            )
+            if st.button(
+                "Remove selected card",
+                key=f"remove_btn_{drawer_num}",
+                disabled=not confirm,
+            ):
+                with get_session() as session:
+                    result = remove_inventory_entry(
+                        session,
+                        selected_inv_id,
+                        quantity=None if remove_all else int(qty_to_remove),
+                        reason=f"{reason}",
+                    )
+                st.success(
+                    f"{reason}: removed {result['removed']}x {result['name']} from drawer {result['drawer']}."
+                )
+                st.rerun()
