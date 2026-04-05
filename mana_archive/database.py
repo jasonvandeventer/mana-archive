@@ -19,7 +19,8 @@ log = get_logger(__name__)
 
 DB_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data")
 DB_PATH = os.path.join(DB_DIR, "mana_archive.db")
-DB_URL = f"sqlite:///{DB_PATH}"
+DEFAULT_DB_URL = f"sqlite:///{DB_PATH}"
+DB_URL = os.getenv("DATABASE_URL", DEFAULT_DB_URL).strip() or DEFAULT_DB_URL
 
 _engine = None
 
@@ -28,21 +29,28 @@ def get_engine():
     """Return the singleton SQLAlchemy engine, creating it on first call."""
     global _engine
     if _engine is None:
-        os.makedirs(DB_DIR, exist_ok=True)
-        _engine = create_engine(
-            DB_URL,
-            echo=False,
-            connect_args={"check_same_thread": False},
-        )
-        # Enable WAL mode for better concurrent read performance under Streamlit
-        @event.listens_for(_engine, "connect")
-        def set_wal_mode(dbapi_conn, _connection_record):
-            cursor = dbapi_conn.cursor()
-            cursor.execute("PRAGMA journal_mode=WAL")
-            cursor.execute("PRAGMA foreign_keys=ON")
-            cursor.close()
+        is_sqlite = DB_URL.startswith("sqlite")
+        if is_sqlite:
+            os.makedirs(DB_DIR, exist_ok=True)
 
-        log.info("SQLite engine created at %s", DB_PATH)
+        engine_kwargs = {"echo": False, "pool_pre_ping": True}
+        if is_sqlite:
+            engine_kwargs["connect_args"] = {"check_same_thread": False}
+
+        _engine = create_engine(DB_URL, **engine_kwargs)
+
+        if is_sqlite:
+            # Enable WAL mode for better concurrent read performance under Streamlit
+            @event.listens_for(_engine, "connect")
+            def set_sqlite_pragmas(dbapi_conn, _connection_record):
+                cursor = dbapi_conn.cursor()
+                cursor.execute("PRAGMA journal_mode=WAL")
+                cursor.execute("PRAGMA foreign_keys=ON")
+                cursor.close()
+
+            log.info("SQLite engine created at %s", DB_PATH)
+        else:
+            log.info("Database engine created for %s", DB_URL)
     return _engine
 
 

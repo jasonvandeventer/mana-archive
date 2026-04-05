@@ -203,7 +203,8 @@ def render() -> None:
         st.caption(
             "Re-fetches the latest prices from JustTCG (set JUSTTCG_API_KEY). "
             "If no key is set, falls back to Scryfall for full metadata. "
-            "JustTCG prices are updated every 6 hours."
+            "After prices refresh, the collection is automatically re-sorted so "
+            "cards move into the correct drawers based on current value."
         )
         if st.button("Refresh Metadata", key="btn_refresh_meta"):
             progress_bar = st.progress(0.0, text="Starting…")
@@ -213,13 +214,18 @@ def render() -> None:
                 progress_bar.progress(frac, text=f"({current}/{total}) {card_name}")
 
             with get_session() as session:
-                meta_result = refresh_card_metadata(session, progress_callback=_on_progress)
+                meta_result = refresh_card_metadata(
+                    session,
+                    progress_callback=_on_progress,
+                    resort_inventory=True,
+                )
 
             progress_bar.empty()
             st.success(
                 f"Refresh complete: **{meta_result['updated']}** updated, "
                 f"**{meta_result['failed']}** failed out of "
-                f"{meta_result['total']} cards."
+                f"{meta_result['total']} cards. "
+                f"Re-sort moved **{meta_result.get('moved', 0)}** card(s)."
             )
             st.rerun()
 

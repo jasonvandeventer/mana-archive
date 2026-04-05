@@ -993,6 +993,7 @@ def undo_last_batch(session: Session) -> dict:
 def refresh_card_metadata(
     session: Session,
     progress_callback=None,
+    resort_inventory: bool = False,
 ) -> dict[str, int]:
     """
     Re-fetch prices for every Card record from JustTCG.
@@ -1008,7 +1009,8 @@ def refresh_card_metadata(
 
     Returns
     -------
-    dict with keys "updated", "failed", "total".
+    dict with keys "updated", "failed", "total", and optionally drawer move
+    counts when resort_inventory=True.
     """
     from mana_archive.justtcg import fetch_prices_by_scryfall_ids, _get_api_key
     from mana_archive.scryfall import fetch_by_scryfall_id, parse_card_data
@@ -1064,11 +1066,19 @@ def refresh_card_metadata(
                 session.flush()
 
     session.flush()
+    result = {"updated": updated, "failed": failed, "total": total}
+    if resort_inventory:
+        resort_result = re_sort_collection(session)
+        result.update({
+            "moved": resort_result["moved"],
+            "unchanged": resort_result["unchanged"],
+        })
+
     log.info(
         "Metadata refresh complete: %d updated, %d failed out of %d total.",
         updated, failed, total,
     )
-    return {"updated": updated, "failed": failed, "total": total}
+    return result
 
 
 def reset_database(engine) -> None:
