@@ -30,13 +30,10 @@ DRAWER_LABELS = {
     6: "Drawer 6 – Non-alpha sets (2x2, etc.)",
 }
 
-PAGE_SIZE = 48   # plenty of cards; the CSS grid decides how many columns fit
-# Minimum card width in px – the browser adds more columns whenever the
-# viewport is wide enough to fit another one at this size.
+PAGE_SIZE = 48
 CARD_MIN_WIDTH = 220
 
 
-# Maps UI label -> (SQLAlchemy column expression, secondary sort for ties)
 _SORT_OPTIONS: dict[str, tuple] = {
     "Drawer / Position": (Inventory.drawer, Inventory.position),
     "Name":              (func.lower(Card.name), Inventory.drawer),
@@ -47,6 +44,17 @@ _SORT_OPTIONS: dict[str, tuple] = {
     "Type":              (func.lower(Card.type_line), func.lower(Card.name)),
     "Quantity ↓":        (Inventory.quantity.desc(), func.lower(Card.name)),  # type: ignore[attr-defined]
 }
+
+
+def _effective_inventory_price(card: dict) -> float | None:
+    """Return the finish-aware effective price for this inventory row."""
+    finish = (card.get("finish") or "").strip().lower()
+    normal = card.get("price_usd")
+    foil = card.get("price_usd_foil")
+
+    if finish == "foil":
+        return foil if foil is not None else normal
+    return normal
 
 
 def _query_inventory(
@@ -63,7 +71,7 @@ def _query_inventory(
         base_stmt = (
             select(Inventory, Card)
             .join(Card, Inventory.card_id == Card.id)
-            .where(Inventory.drawer != 0)  # exclude deck entries from browse
+            .where(Inventory.drawer != 0)
         )
 
         if search:
@@ -174,8 +182,6 @@ def _collection_totals() -> dict:
         }
 
 
-
-
 def _price_status_summary(stale_after_hours: int = 24) -> dict[str, int]:
     """Return pricing cache health counts for cards currently in drawers."""
     stale_before = datetime.utcnow() - timedelta(hours=stale_after_hours)
@@ -205,7 +211,6 @@ def _price_status_summary(stale_after_hours: int = 24) -> dict[str, int]:
 def render() -> None:
     st.header("Browse Collection")
 
-    # ── Collection value banner ────────────────────────────────────────────
     totals = _collection_totals()
     summary = _drawer_summary()
     price_summary = _price_status_summary()
@@ -219,11 +224,13 @@ def render() -> None:
     missing_total = price_summary["missing"] + price_summary["no_data"]
     missing_col.metric("Missing / No Data", missing_total)
     if price_summary["no_data"]:
-        st.caption(f"{price_summary['no_data']} cards were checked recently but JustTCG returned no price payload, so they are on cooldown until the next stale window.")
+        st.caption(
+            f"{price_summary['no_data']} cards were checked recently but JustTCG returned "
+            "no price payload, so they are on cooldown until the next stale window."
+        )
 
     st.divider()
 
-    # ── Drawer overview ────────────────────────────────────────────────────
     if summary:
         drawer_cols = st.columns(6)
         for i, drawer_num in enumerate(range(1, 7)):
@@ -236,9 +243,7 @@ def render() -> None:
 
     st.divider()
 
-    # ── Maintenance ────────────────────────────────────────────────────────
     with st.expander("🔧 Maintenance", expanded=False):
-
         st.markdown("#### Refresh Card Metadata")
         st.caption(
             "Refreshes cached prices only for cards with missing or stale pricing. "
@@ -330,7 +335,6 @@ def render() -> None:
             st.success("Database has been reset. All data has been wiped.")
             st.rerun()
 
-    # ── Filters ────────────────────────────────────────────────────────────
     with st.expander("Filters & Sort", expanded=True):
         row1_c1, row1_c2, row1_c3, row1_c4 = st.columns([3, 2, 2, 2])
         with row1_c1:
@@ -369,18 +373,20 @@ def render() -> None:
         st.info("No cards match the current filters.")
         return
 
-    # ── Responsive CSS-grid card gallery ──────────────────────────────────
     card_items_html = []
     stale_cutoff = datetime.utcnow() - timedelta(hours=24)
 
     for card in rows:
         placed_icon = "✅" if card["is_placed"] else "⏳"
-        price_str = f"${card['price_usd']:.2f}" if card["price_usd"] is not None else "—"
+        effective_price = _effective_inventory_price(card)
+        price_str = f"${effective_price:.2f}" if effective_price is not None else "—"
+        finish_label = (card["finish"] or "").capitalize()
         drawer_label = DRAWER_LABELS.get(card["drawer"], f"Drawer {card['drawer']}")
 
         name_html = escape(card["name"])
         set_name_html = escape(card["set_name"])
         set_code_html = escape(card["set_code"].upper())
+        collector_number_html = escape(str(card["collector_number"]))
         image_uri = escape(card["image_uri"]) if card["image_uri"] else None
         scryfall_url = f"https://scryfall.com/card/{card['set_code'].lower()}/{card['collector_number']}"
 
@@ -388,6 +394,7 @@ def render() -> None:
         raw_source = card.get("price_source") or "unknown"
         price_source = escape(raw_source.replace("_", " ").title())
         stale_badge = ""
+
         if raw_source == "justtcg_missing":
             age_text = "No price data"
             if price_updated is not None:
@@ -454,10 +461,10 @@ def render() -> None:
                     </div>
                     <div style="color:#aaa;">
                         {set_name_html}&nbsp;&middot;&nbsp;
-                        {set_code_html}&nbsp;#{card["position"]}
+                        {set_code_html}&nbsp;#{collector_number_html}
                     </div>
                     <div>
-                        {card["finish"].capitalize()}&nbsp;&middot;&nbsp;
+                        {finish_label}&nbsp;&middot;&nbsp;
                         Qty&nbsp;{card["quantity"]}&nbsp;&middot;&nbsp;
                         <strong style="color:#e8c96a;">{price_str}</strong>
                     </div>

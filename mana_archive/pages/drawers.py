@@ -1,8 +1,9 @@
 """Drawers page – physical drawer view with cards in position order."""
 from __future__ import annotations
 
+from html import escape
+
 import streamlit as st
-from sqlalchemy import func
 from sqlmodel import Session, select
 
 from mana_archive.database import get_engine, get_session
@@ -22,6 +23,17 @@ DRAWER_LABELS = {
 }
 
 CARD_MIN_WIDTH = 180  # slightly tighter than Browse so more fit per drawer row
+
+
+def _effective_price(card: dict) -> float | None:
+    """Return the finish-aware effective price for an inventory row."""
+    finish = (card.get("finish") or "").strip().lower()
+    normal = card.get("price_usd")
+    foil = card.get("price_usd_foil")
+
+    if finish == "foil":
+        return foil if foil is not None else normal
+    return normal
 
 
 def _load_drawer(drawer_num: int) -> list[dict]:
@@ -47,56 +59,73 @@ def _load_drawer(drawer_num: int) -> list[dict]:
                 "quantity": inv.quantity,
                 "is_placed": inv.is_placed,
                 "price_usd": card.price_usd,
+                "price_usd_foil": card.price_usd_foil,
                 "image_uri": card.image_uri,
+                "scryfall_url": f"https://scryfall.com/card/{card.set_code.lower()}/{card.collector_number}",
             }
             for inv, card in rows
         ]
 
 
 def _drawer_stats() -> dict[int, dict]:
-    """Return card count, total copies, total value, and unplaced count per drawer."""
+    """Return card count, total copies, finish-aware total value, and unplaced count per drawer."""
     with Session(get_engine()) as session:
-        from sqlalchemy import Integer
-
         stmt = (
-            select(
-                Inventory.drawer,
-                func.count(Inventory.id).label("entries"),
-                func.sum(Inventory.quantity).label("copies"),
-                func.sum(Card.price_usd * Inventory.quantity).label("value"),
-                func.sum(
-                    func.cast(Inventory.is_placed == False, Integer)  # noqa: E712
-                ).label("unplaced"),
-            )
+            select(Inventory, Card)
             .join(Card, Inventory.card_id == Card.id)
             .where(Inventory.drawer != 0)
-            .group_by(Inventory.drawer)
         )
         rows = session.exec(stmt).all()
-        return {
-            row.drawer: {
-                "entries": row.entries or 0,
-                "copies": row.copies or 0,
-                "value": float(row.value or 0),
-                "unplaced": row.unplaced or 0,
+
+    summary: dict[int, dict] = {}
+    for inv, card in rows:
+        drawer = inv.drawer
+        if drawer not in summary:
+            summary[drawer] = {
+                "entries": 0,
+                "copies": 0,
+                "value": 0.0,
+                "unplaced": 0,
             }
-            for row in rows
+
+        row_data = {
+            "finish": inv.finish.value if inv.finish else "",
+            "price_usd": card.price_usd,
+            "price_usd_foil": card.price_usd_foil,
         }
+        effective_price = _effective_price(row_data) or 0.0
+
+        summary[drawer]["entries"] += 1
+        summary[drawer]["copies"] += inv.quantity or 0
+        summary[drawer]["value"] += effective_price * (inv.quantity or 0)
+        if not inv.is_placed:
+            summary[drawer]["unplaced"] += 1
+
+    return summary
 
 
 def _card_grid_html(cards: list[dict], min_width: int) -> str:
     """Render an ordered card grid as a single HTML block."""
     total = len(cards)
     items = []
+
     for card in cards:
-        price_str = f"${card['price_usd']:.2f}" if card["price_usd"] else "—"
+        effective_price = _effective_price(card)
+        price_str = f"${effective_price:.2f}" if effective_price is not None else "—"
         placed_color = "#4caf50" if card["is_placed"] else "#ff9800"
         placed_label = "✓ Placed" if card["is_placed"] else "⏳ Pending"
 
+        name_html = escape(card["name"])
+        set_name_html = escape(card["set_name"])
+        collector_number_html = escape(str(card["collector_number"]))
+        scryfall_url = escape(card["scryfall_url"])
+        finish_label = escape(card["finish"].capitalize())
+
         if card["image_uri"]:
+            image_uri = escape(card["image_uri"])
             img_html = (
-                f'<img src="{card["image_uri"]}" '
-                f'alt="{card["name"]}" '
+                f'<img src="{image_uri}" '
+                f'alt="{name_html}" '
                 f'style="width:100%;border-radius:6px 6px 0 0;display:block;">'
             )
         else:
@@ -115,14 +144,18 @@ def _card_grid_html(cards: list[dict], min_width: int) -> str:
                 <div style="padding:7px 9px;font-size:0.75rem;line-height:1.5;color:#ddd;">
                     <div style="font-weight:600;font-size:0.82rem;color:#fff;
                                 margin-bottom:3px;white-space:nowrap;overflow:hidden;
-                                text-overflow:ellipsis;" title="{card["name"]}">
-                        {card["name"]}
+                                text-overflow:ellipsis;" title="{name_html}">
+                        <a href="{scryfall_url}" target="_blank" rel="noopener noreferrer"
+                           style="color:#8ec5ff;text-decoration:none;">
+                            {name_html}
+                        </a>
                     </div>
                     <div style="color:#aaa;margin-bottom:3px;">
-                        {card["set_name"]}&nbsp;·&nbsp;#{card["collector_number"]}
+                        {set_name_html}&nbsp;·&nbsp;#{collector_number_html}
                     </div>
                     <div style="margin-bottom:3px;">
-                        {card["finish"].capitalize()}&nbsp;·&nbsp;Qty&nbsp;{card["quantity"]}&nbsp;·&nbsp;<strong style="color:#e8c96a;">{price_str}</strong>
+                        {finish_label}&nbsp;·&nbsp;Qty&nbsp;{card["quantity"]}&nbsp;·&nbsp;
+                        <strong style="color:#e8c96a;">{price_str}</strong>
                     </div>
                     <div style="display:flex;justify-content:space-between;
                                 align-items:center;margin-top:4px;gap:4px;">
@@ -162,7 +195,6 @@ def render() -> None:
 
     stats = _drawer_stats()
 
-    # ── Summary bar ───────────────────────────────────────────────────────
     total_value = sum(s["value"] for s in stats.values())
     total_copies = sum(s["copies"] for s in stats.values())
     total_unplaced = sum(s["unplaced"] for s in stats.values())
@@ -171,14 +203,17 @@ def render() -> None:
     m1.metric("Collection Value", f"${total_value:,.2f}")
     m2.metric("Total Copies", f"{total_copies:,}")
     if total_unplaced:
-        m3.metric("Pending Placement", total_unplaced, delta=f"-{total_unplaced} unplaced",
-                  delta_color="inverse")
+        m3.metric(
+            "Pending Placement",
+            total_unplaced,
+            delta=f"-{total_unplaced} unplaced",
+            delta_color="inverse",
+        )
     else:
         m3.metric("Pending Placement", "All placed ✅")
 
     st.divider()
 
-    # ── One expander per drawer ───────────────────────────────────────────
     for drawer_num in range(1, 7):
         s = stats.get(drawer_num, {"entries": 0, "copies": 0, "value": 0.0, "unplaced": 0})
         label = DRAWER_LABELS[drawer_num]
