@@ -59,6 +59,7 @@ def init_db() -> None:
         "ALTER TABLE transaction_log ADD COLUMN batch_id TEXT",
         "ALTER TABLE card ADD COLUMN price_source TEXT",
         "ALTER TABLE card ADD COLUMN price_last_updated_at TIMESTAMP",
+        "ALTER TABLE card ADD COLUMN price_usd_etched REAL",
     ]
     with engine.connect() as conn:
         for stmt in _column_migrations:
@@ -68,6 +69,19 @@ def init_db() -> None:
                 log.info("Migration applied: %s", stmt)
             except Exception:
                 pass  # Column already exists
+
+        # Normalize legacy enum values for SQLite-backed SQLAlchemy enums.
+        # Older app versions stored enum member names (e.g. "FOIL"), while
+        # newer versions store enum values (e.g. "foil"). Normalize both.
+        normalization_statements = [
+            "UPDATE inventory SET finish = lower(finish) WHERE finish IS NOT NULL",
+        ]
+        for stmt in normalization_statements:
+            try:
+                conn.execute(text(stmt))
+                conn.commit()
+            except Exception:
+                pass
 
     log.info("Database tables created / verified.")
 

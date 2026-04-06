@@ -12,7 +12,7 @@ import enum
 from datetime import datetime
 from typing import List, Optional
 
-from sqlalchemy import MetaData
+from sqlalchemy import Column, Enum as SAEnum, MetaData
 from sqlmodel import Field, Relationship, SQLModel
 
 # ---------------------------------------------------------------------------
@@ -26,6 +26,12 @@ SQLModel.metadata = _SHARED_METADATA  # type: ignore[assignment]
 # ---------------------------------------------------------------------------
 # Enums
 # ---------------------------------------------------------------------------
+
+
+def _enum_values(enum_cls):
+    """Persist enum .value strings in SQLite instead of enum member names."""
+    return [member.value for member in enum_cls]
+
 class Finish(str, enum.Enum):
     NONFOIL = "nonfoil"
     FOIL = "foil"
@@ -62,6 +68,7 @@ class CardBase(SQLModel):
     image_uri: Optional[str] = None
     price_usd: Optional[float] = None
     price_usd_foil: Optional[float] = None
+    price_usd_etched: Optional[float] = None
     price_source: Optional[str] = None
     price_last_updated_at: Optional[datetime] = None
     oracle_text: Optional[str] = None
@@ -87,7 +94,20 @@ class InventoryBase(SQLModel):
     drawer: int = Field(index=True)        # 1-6 or 0 = DECK
     position: int = Field(index=True)     # 1-based ordering within drawer
     quantity: int = 1
-    finish: Finish = Finish.NONFOIL
+    finish: Finish = Field(
+        default=Finish.NONFOIL,
+        sa_column=Column(
+            SAEnum(
+                Finish,
+                name="finish",
+                native_enum=False,
+                values_callable=_enum_values,
+                validate_strings=True,
+            ),
+            nullable=False,
+            default=Finish.NONFOIL.value,
+        ),
+    )
     is_placed: bool = False               # False = pending physical placement
     location_tag: Optional[str] = None   # "DECK:<deck_name>" or None
 

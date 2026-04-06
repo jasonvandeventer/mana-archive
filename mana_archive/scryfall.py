@@ -44,6 +44,17 @@ def _post(path: str, payload: dict) -> dict[str, Any]:
     return response.json()
 
 
+
+
+def _to_float(value: Any) -> float | None:
+    """Convert API price strings to floats while preserving missing values."""
+    if value in (None, "", "null"):
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
@@ -172,7 +183,8 @@ def parse_card_data(raw: dict[str, Any]) -> dict[str, Any]:
         "colors": "|".join(colors) if colors else None,
         "color_identity": "|".join(color_identity) if color_identity else None,
         "image_uri": image_uris.get("normal") or image_uris.get("large"),
-        "price_usd": float(prices["usd"]) if prices.get("usd") else None,
-        "price_usd_foil": float(prices["usd_foil"]) if prices.get("usd_foil") else None,
+        "price_usd": _to_float(prices.get("usd")),
+        "price_usd_foil": _to_float(prices.get("usd_foil")),
+        "price_usd_etched": _to_float(prices.get("usd_etched")),
         "oracle_text": front.get("oracle_text") or raw.get("oracle_text"),
     }

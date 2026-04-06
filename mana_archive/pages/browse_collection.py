@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta
 from html import escape
+from textwrap import dedent
 
 import streamlit as st
 from sqlmodel import Session, select
@@ -17,6 +18,7 @@ from mana_archive.inventory_service import (
 )
 from mana_archive.logging_config import get_logger
 from mana_archive.models import Card, Inventory
+from mana_archive.pricing import get_price_for_finish
 
 log = get_logger(__name__)
 
@@ -47,13 +49,7 @@ _SORT_OPTIONS = [
 
 def _effective_inventory_price(card: dict) -> float | None:
     """Return the finish-aware effective price for this inventory row."""
-    finish = (card.get("finish") or "").strip().lower()
-    normal = card.get("price_usd")
-    foil = card.get("price_usd_foil")
-
-    if finish == "foil":
-        return foil if foil is not None else normal
-    return normal
+    return get_price_for_finish(card, card.get("finish"))
 
 
 def _query_inventory(
@@ -106,6 +102,7 @@ def _query_inventory(
             "is_placed": inv.is_placed,
             "price_usd": card.price_usd,
             "price_usd_foil": card.price_usd_foil,
+                "price_usd_etched": getattr(card, "price_usd_etched", None),
             "colors": card.colors,
             "image_uri": card.image_uri,
             "scryfall_id": card.scryfall_id,
@@ -203,6 +200,7 @@ def _collection_totals() -> dict:
             "finish": inv.finish.value,
             "price_usd": card.price_usd,
             "price_usd_foil": card.price_usd_foil,
+                "price_usd_etched": getattr(card, "price_usd_etched", None),
         }
         effective_price = _effective_inventory_price(row) or 0.0
         qty = inv.quantity or 0
@@ -480,8 +478,7 @@ def render() -> None:
                 "No image</div>"
             )
 
-        card_items_html.append(
-            f"""
+        card_items_html.append(dedent(f"""
             <div style="
                 background:#1e1e1e;
                 border:1px solid #333;
@@ -509,8 +506,7 @@ def render() -> None:
                     {stale_badge}
                 </div>
             </div>
-            """
-        )
+            """).strip())
 
     grid_html = (
         f'<div style="display:grid;'
@@ -519,4 +515,4 @@ def render() -> None:
         + "".join(card_items_html)
         + "</div>"
     )
-    st.html(grid_html)
+    st.markdown(grid_html, unsafe_allow_html=True)

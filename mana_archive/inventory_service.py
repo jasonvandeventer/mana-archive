@@ -21,6 +21,7 @@ from mana_archive.models import (
     TransactionKind,
     TransactionLog,
 )
+from mana_archive.pricing import get_price_for_finish
 from mana_archive.sorter import assign_drawer, sort_key_for_card
 
 log = get_logger(__name__)
@@ -176,11 +177,7 @@ def import_single_card(
     card = _get_or_create_card(session, card_data)
     session.flush()  # ensure card.id is populated
 
-    price = (
-        card_data.get("price_usd_foil")
-        if finish != Finish.NONFOIL
-        else card_data.get("price_usd")
-    )
+    price = get_price_for_finish(card_data, finish)
     target_drawer = assign_drawer(card.set_code, price)
 
     # Check if an inventory entry already exists for this card/drawer/finish

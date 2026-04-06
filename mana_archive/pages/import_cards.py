@@ -10,6 +10,7 @@ from mana_archive.database import get_session
 from mana_archive.inventory_service import import_from_csv, import_single_card, undo_last_import
 from mana_archive.logging_config import get_logger
 from mana_archive.models import Finish
+from mana_archive.pricing import get_price_for_finish
 from mana_archive.justtcg import fetch_prices_by_scryfall_ids, merge_prices_into_card_data
 from mana_archive.scryfall import (
     fetch_by_name,
@@ -251,9 +252,10 @@ def render() -> None:
                     f"({card_data['set_code'].upper()} #{card_data['collector_number']})"
                 )
                 st.write(f"**Type:** {card_data['type_line']}")
-                price_display = card_data.get("price_usd")
+                selected_finish = Finish(finish)
+                price_display = get_price_for_finish(card_data, selected_finish)
                 st.write(
-                    f"**Price:** ${price_display:.2f}" if price_display else "**Price:** N/A"
+                    f"**Price:** ${price_display:.2f}" if price_display is not None else "**Price:** N/A"
                 )
 
                 if st.button("✅ Confirm Import", key="btn_confirm_manual", type="primary"):

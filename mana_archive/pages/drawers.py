@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from html import escape
+from textwrap import dedent
 
 import streamlit as st
 from sqlmodel import Session, select
@@ -10,6 +11,7 @@ from mana_archive.database import get_engine, get_session
 from mana_archive.inventory_service import remove_inventory_entry
 from mana_archive.logging_config import get_logger
 from mana_archive.models import Card, Inventory
+from mana_archive.pricing import get_price_for_finish
 
 log = get_logger(__name__)
 
@@ -27,13 +29,7 @@ CARD_MIN_WIDTH = 180  # slightly tighter than Browse so more fit per drawer row
 
 def _effective_price(card: dict) -> float | None:
     """Return the finish-aware effective price for an inventory row."""
-    finish = (card.get("finish") or "").strip().lower()
-    normal = card.get("price_usd")
-    foil = card.get("price_usd_foil")
-
-    if finish == "foil":
-        return foil if foil is not None else normal
-    return normal
+    return get_price_for_finish(card, card.get("finish"))
 
 
 def _load_drawer(drawer_num: int) -> list[dict]:
@@ -60,6 +56,7 @@ def _load_drawer(drawer_num: int) -> list[dict]:
                 "is_placed": inv.is_placed,
                 "price_usd": card.price_usd,
                 "price_usd_foil": card.price_usd_foil,
+                "price_usd_etched": getattr(card, "price_usd_etched", None),
                 "image_uri": card.image_uri,
                 "scryfall_url": f"https://scryfall.com/card/{card.set_code.lower()}/{card.collector_number}",
             }
@@ -92,6 +89,7 @@ def _drawer_stats() -> dict[int, dict]:
             "finish": inv.finish.value if inv.finish else "",
             "price_usd": card.price_usd,
             "price_usd_foil": card.price_usd_foil,
+                "price_usd_etched": getattr(card, "price_usd_etched", None),
         }
         effective_price = _effective_price(row_data) or 0.0
 
@@ -136,8 +134,7 @@ def _card_grid_html(cards: list[dict], min_width: int) -> str:
                 "No image</div>"
             )
 
-        items.append(
-            f"""
+        items.append(dedent(f"""
             <div style="background:#1e1e1e;border:1px solid #333;border-radius:8px;
                         overflow:hidden;display:flex;flex-direction:column;">
                 {img_html}
@@ -174,8 +171,7 @@ def _card_grid_html(cards: list[dict], min_width: int) -> str:
                     </div>
                 </div>
             </div>
-            """
-        )
+            """).strip())
 
     return (
         f'<div style="display:grid;'
@@ -228,7 +224,7 @@ def render() -> None:
                 continue
 
             cards = _load_drawer(drawer_num)
-            st.html(_card_grid_html(cards, CARD_MIN_WIDTH))
+            st.markdown(_card_grid_html(cards, CARD_MIN_WIDTH), unsafe_allow_html=True)
 
             st.markdown("##### Remove card from this drawer")
             options = {card["inv_id"]: card for card in cards}
