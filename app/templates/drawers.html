@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section>
+    <h2>Drawers</h2>
+    <p>Physical collection view grouped by drawer.</p>
+</section>
+
+<section>
+    {% if drawer_summaries %}
+    <table>
+        <thead>
+            <tr>
+                <th>Drawer</th>
+                <th>Rows</th>
+                <th>Total Value</th>
+                <th>View</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for drawer in drawer_summaries %}
+            <tr>
+                <td>{{ drawer.drawer }}</td>
+                <td>{{ drawer.row_count }}</td>
+                <td>${{ '%.2f'|format(drawer.total_value) }}</td>
+                <td><a href="/drawers/{{ drawer.drawer }}">Open</a></td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+        <p>No drawers with assigned inventory yet.</p>
+    {% endif %}
+</section>
+{% endblock %}

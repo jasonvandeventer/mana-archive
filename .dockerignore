@@ -1,5 +1,11 @@
-.venv/
-__pycache__/
+.venv
+.mana
+__pycache__
 *.pyc
-.git/
-logs/
+*.pyo
+*.pyd
+.git
+.gitignore
+.env
+/data
+/samples

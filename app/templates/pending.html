@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="pending-hero">
+  <h2>Pending Placement</h2>
+  <p class="muted">Cards listed here have been imported into the database but not yet physically filed in their drawer. Confirm each card once it has been placed.</p>
+  <div class="stat-grid">
+    <div class="stat-card"><div class="stat-label">Pending Cards</div><div class="stat-value">{{ pending_count }}</div></div>
+    <div class="stat-card"><div class="stat-label">Drawers Affected</div><div class="stat-value">{{ drawer_count }}</div></div>
+    <div class="stat-card"><div class="stat-label">Total Copies</div><div class="stat-value">{{ total_copies }}</div></div>
+  </div>
+  <div class="pending-actions">
+    <form action="/pending/confirm-all" method="post" class="inline-form"><button type="submit" class="danger-button">Confirm ALL as Placed</button></form>
+    {% if latest_batch_id %}<form action="/imports/undo-batch" method="post" class="inline-form"><input type="hidden" name="batch_id" value="{{ latest_batch_id }}"><button type="submit" class="ghost-button">↩ Undo Last Batch Import</button></form>{% endif %}
+  </div>
+</section>
+{% if grouped_drawers %}
+{% for group in grouped_drawers %}
+<section class="panel pending-group">
+  <details open>
+    <summary>{{ group.label }} ({{ group.count }} pending)</summary>
+    <div class="pending-list">
+      {% for item in group.entries %}
+      <article class="pending-item unified-card-row">
+        <div class="pending-thumb-wrap">{% if item.card.image_url %}<img class="pending-thumb" src="{{ item.card.image_url }}" alt="{{ item.card.name }}">{% else %}<div class="pending-thumb placeholder"></div>{% endif %}</div>
+        <div class="pending-copy">
+          <div class="pending-name">{{ item.card.name }}</div>
+          <div class="pending-meta">{{ item.card.set_name }} ({{ item.card.set_code|upper }}) · {{ item.finish|capitalize }} · Qty: {{ item.quantity }} · Price: ${{ '%.2f'|format(item.price) }}</div>
+          <div class="pending-location">Position {{ item.slot or '?' }} in {{ item.drawer_label }}</div>
+        </div>
+        <div class="pending-action"><form action="/pending/confirm" method="post"><input type="hidden" name="row_id" value="{{ item.id }}"><button type="submit" class="danger-button">Confirm</button></form></div>
+      </article>
+      {% endfor %}
+    </div>
+  </details>
+</section>
+{% endfor %}
+{% else %}<section><p>No pending rows.</p></section>{% endif %}
+{% endblock %}

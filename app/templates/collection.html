@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="panel hero-panel compact-hero">
+    <div class="panel-topline">Collection</div>
+    <div class="hero-row">
+        <div>
+            <h2 class="panel-title">Collection Overview</h2>
+            <p class="muted">Your exact-printing inventory with assigned drawers and slots.</p>
+        </div>
+        <form action="/collection/resort" method="post" class="inline-form">
+            <button type="submit">Apply Drawer Sorter</button>
+        </form>
+    </div>
+    <div class="stat-grid collection-stats-grid">
+        <div class="stat-card compact"><div class="stat-label">Total value</div><div class="stat-number">${{ '%.2f'|format(total_value) }}</div></div>
+        <div class="stat-card compact"><div class="stat-label">Total cards</div><div class="stat-number">{{ total_cards }}</div></div>
+        <div class="stat-card compact"><div class="stat-label">Unique rows</div><div class="stat-number">{{ unique_cards }}</div></div>
+    </div>
+    <div class="drawer-pill-row">
+        <span class="drawer-pill">Drawer 1 <strong>{{ drawer_counts['1'] }}</strong></span>
+        <span class="drawer-pill">Drawer 2 <strong>{{ drawer_counts['2'] }}</strong></span>
+        <span class="drawer-pill">Drawer 3 <strong>{{ drawer_counts['3'] }}</strong></span>
+        <span class="drawer-pill">Drawer 4 <strong>{{ drawer_counts['4'] }}</strong></span>
+        <span class="drawer-pill">Drawer 5 <strong>{{ drawer_counts['5'] }}</strong></span>
+        <span class="drawer-pill">Drawer 6 <strong>{{ drawer_counts['6'] }}</strong></span>
+        <span class="drawer-pill">Unassigned <strong>{{ unassigned_count }}</strong></span>
+    </div>
+</section>
+
+<section class="panel controls-panel">
+    <form method="get" action="/collection" class="filter-row">
+        <input type="text" name="search" placeholder="Search by name" value="{{ search }}">
+        <select name="finish">
+            <option value="">All finishes</option>
+            <option value="normal" {% if finish_filter == 'normal' %}selected{% endif %}>Normal</option>
+            <option value="foil" {% if finish_filter == 'foil' %}selected{% endif %}>Foil</option>
+            <option value="etched" {% if finish_filter == 'etched' %}selected{% endif %}>Etched</option>
+        </select>
+        <input type="text" name="drawer" placeholder="Drawer" value="{{ drawer_filter }}">
+        <select name="sort">
+            <option value="newest" {% if sort == 'newest' %}selected{% endif %}>Newest</option>
+            <option value="name" {% if sort == 'name' %}selected{% endif %}>Name</option>
+            <option value="set" {% if sort == 'set' %}selected{% endif %}>Set</option>
+            <option value="value" {% if sort == 'value' %}selected{% endif %}>Value</option>
+        </select>
+        <button type="submit">Apply</button>
+    </form>
+</section>
+
+{% if items %}
+<section class="card-grid-section">
+    <div class="inventory-grid">
+        {% for item in items %}
+        <article class="inventory-card inventory-card-compact">
+            <div class="inventory-card-media">
+                {% if item.card.image_url %}
+                <a href="/cards/{{ item.card.id }}"><img class="inventory-thumb" src="{{ item.card.image_url }}" alt="{{ item.card.name }}"></a>
+                {% else %}
+                <a href="/cards/{{ item.card.id }}" class="inventory-thumb placeholder"></a>
+                {% endif %}
+            </div>
+            <div class="inventory-card-body">
+                <h3 class="inventory-card-title"><a href="https://scryfall.com/card/{{ item.card.set_code }}/{{ item.card.collector_number }}" target="_blank" rel="noreferrer">{{ item.card.name }}</a></h3>
+                <div class="inventory-subtitle">{{ item.card.set_name }} · {{ item.card.set_code|upper }} #{{ item.card.collector_number }}</div>
+                <div class="inventory-meta">{{ item.finish|capitalize }} · Qty {{ item.quantity }} · ${{ '%.2f'|format(item.effective_price) }} each</div>
+                <div class="inventory-location">{{ item.drawer_label }}{% if item.slot %} · Slot {{ item.slot }}{% endif %}</div>
+                <div class="inventory-total">Total value: ${{ '%.2f'|format(item.total_value) }}</div>
+            </div>
+        </article>
+        {% endfor %}
+    </div>
+</section>
+{% else %}
+<section class="panel"><p>No inventory rows yet.</p></section>
+{% endif %}
+{% endblock %}

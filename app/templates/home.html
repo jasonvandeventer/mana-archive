@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="panel page-hero">
+    <div>
+        <div class="eyebrow">Dashboard</div>
+        <h2 class="panel-title">Welcome back</h2>
+        <p class="muted">Everything important is one click away: import cards, place pending rows, browse drawers, manage decks, and undo mistakes.</p>
+    </div>
+</section>
+
+<section class="feature-grid">
+    <a href="/import" class="feature-card">
+        <div class="feature-kicker">Import</div>
+        <div class="feature-title">Import Cards</div>
+        <p>Preview scanner CSVs, resolve exact printings, and commit imports cleanly.</p>
+    </a>
+    <a href="/pending" class="feature-card">
+        <div class="feature-kicker">Place</div>
+        <div class="feature-title">Pending Placement</div>
+        <p>See what still needs to be physically filed and confirm rows after placement.</p>
+    </a>
+    <a href="/collection" class="feature-card">
+        <div class="feature-kicker">Browse</div>
+        <div class="feature-title">Collection View</div>
+        <p>Browse the full collection with pricing, exact images, and drawer locations.</p>
+    </a>
+    <a href="/drawers" class="feature-card">
+        <div class="feature-kicker">Organize</div>
+        <div class="feature-title">Drawer Layout</div>
+        <p>See the physical organization of the collection by drawer and slot.</p>
+    </a>
+    <a href="/decks" class="feature-card">
+        <div class="feature-kicker">Build</div>
+        <div class="feature-title">Deck Management</div>
+        <p>Track cards pulled into decks and return them cleanly to collection.</p>
+    </a>
+    <a href="/audit" class="feature-card">
+        <div class="feature-kicker">Review</div>
+        <div class="feature-title">Audit &amp; Undo</div>
+        <p>Review imports and transaction history, then undo the last mistake fast.</p>
+    </a>
+</section>
+{% endblock %}
