@@ -7,5 +7,5 @@ __pycache__
 .git
 .gitignore
 .env
-/data
-/samples
+data/
+samples/
