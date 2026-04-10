@@ -1,13 +1,23 @@
 from __future__ import annotations
 
+"""CSV/manual import parsing and persistence logic.
+
+Important placement rule:
+Imports do not assign drawer/slot positions directly. Imported rows are created as
+pending with ``drawer=None`` and ``slot=None`` so placement can be calculated by
+``resort_collection`` against the full collection. This avoids slot collisions
+with existing rows already assigned in the drawers.
+"""
+
 import csv
 import io
+from datetime import datetime
 from typing import Any
 
 from sqlalchemy.orm import Session
 
 from app.audit_service import create_import_batch, log_transaction
-from app.inventory_service import create_or_merge_inventory_row, get_or_create_card
+from app.models import Card, InventoryRow
 from app.scryfall import fetch_card_by_set_and_number, fetch_card_by_scryfall_id
 
 
@@ -43,7 +53,6 @@ def normalize_header(value: str | None) -> str:
     cleaned = (value or "").strip().lower().replace(" ", "_").replace("-", "_")
     cleaned = cleaned.replace("__", "_")
     return HEADER_ALIASES.get(cleaned.replace("_", ""), HEADER_ALIASES.get(cleaned, cleaned))
-
 
 
 def parse_scanner_csv(file_bytes: bytes) -> dict[str, list[dict[str, Any]]]:
@@ -91,65 +100,193 @@ def parse_scanner_csv(file_bytes: bytes) -> dict[str, list[dict[str, Any]]]:
     return {"valid_rows": valid_rows, "invalid_rows": invalid_rows}
 
 
-
 def persist_import_rows(session: Session, rows: list[dict[str, Any]], filename: str = "manual import") -> dict[str, Any]:
     imported_count = 0
     failed_rows: list[dict[str, Any]] = []
     imported_row_ids: list[int] = []
     batch = create_import_batch(session, filename=filename, row_count=len(rows))
+    now = datetime.utcnow()
 
+    candidate_rows: list[dict[str, Any]] = []
     for row in rows:
         scryfall_id = (row.get("scryfall_id") or "").strip()
-        card_data = None
-
         if scryfall_id:
-            card_data = fetch_card_by_scryfall_id(scryfall_id)
+            row["_resolved_scryfall_id"] = scryfall_id
+            candidate_rows.append(row)
+            continue
 
+        card_data = fetch_card_by_set_and_number(row.get("set_code", ""), row.get("collector_number", ""))
         if not card_data:
-            card_data = fetch_card_by_set_and_number(row.get("set_code", ""), row.get("collector_number", ""))
-            if card_data:
-                scryfall_id = card_data["scryfall_id"]
-
-        if not card_data or not scryfall_id:
-            failed_rows.append({
-                "line_number": row.get("line_number"),
-                "reason": "Scryfall lookup failed by ID and set/collector fallback.",
-            })
+            failed_rows.append(
+                {
+                    "line_number": row.get("line_number"),
+                    "reason": "Scryfall lookup failed by set/collector fallback.",
+                }
+            )
             continue
 
-        card = get_or_create_card(session, scryfall_id, card_data=card_data)
-        if not card:
-            failed_rows.append({
-                "line_number": row.get("line_number"),
-                "reason": "Card creation failed after Scryfall lookup.",
-            })
+        row["_resolved_scryfall_id"] = card_data["scryfall_id"]
+        row["_prefetched_card_data"] = card_data
+        candidate_rows.append(row)
+
+    if not candidate_rows:
+        session.commit()
+        return {
+            "imported_count": 0,
+            "failed_rows": failed_rows,
+            "batch_id": batch.id,
+            "imported_row_ids": [],
+        }
+
+    unique_ids = sorted({row["_resolved_scryfall_id"] for row in candidate_rows if row.get("_resolved_scryfall_id")})
+    existing_cards = session.query(Card).filter(Card.scryfall_id.in_(unique_ids)).all()
+    card_map: dict[str, Card] = {card.scryfall_id: card for card in existing_cards}
+
+    new_cards: list[Card] = []
+    for sid in unique_ids:
+        if sid in card_map:
             continue
 
-        inv_row = create_or_merge_inventory_row(
-            session=session,
-            card_id=card.id,
-            finish=row["finish"],
-            quantity=int(row["quantity"]),
-            drawer=None,
-            slot=None,
-            is_pending=True,
-            notes=row.get("location") or None,
+        payload = None
+        for row in candidate_rows:
+            if row.get("_resolved_scryfall_id") == sid and row.get("_prefetched_card_data"):
+                payload = row["_prefetched_card_data"]
+                break
+
+        if payload is None:
+            payload = fetch_card_by_scryfall_id(sid)
+
+        if not payload:
+            for row in candidate_rows:
+                if row.get("_resolved_scryfall_id") == sid:
+                    row["_failed"] = True
+                    failed_rows.append(
+                        {
+                            "line_number": row.get("line_number"),
+                            "reason": "Card lookup failed by Scryfall ID.",
+                        }
+                    )
+            continue
+
+        card = Card(**payload, updated_at=now)
+        session.add(card)
+        new_cards.append(card)
+
+    if new_cards:
+        session.flush()
+        for card in new_cards:
+            card_map[card.scryfall_id] = card
+
+    candidate_rows = [row for row in candidate_rows if not row.get("_failed")]
+
+    for card in existing_cards:
+        prefetched = next((r.get("_prefetched_card_data") for r in candidate_rows if r.get("_resolved_scryfall_id") == card.scryfall_id and r.get("_prefetched_card_data")), None)
+        if prefetched:
+            card.name = prefetched["name"]
+            card.set_code = prefetched["set_code"]
+            card.set_name = prefetched["set_name"]
+            card.collector_number = prefetched["collector_number"]
+            card.rarity = prefetched["rarity"]
+            card.image_url = prefetched["image_url"]
+            card.type_line = prefetched["type_line"]
+            card.oracle_text = prefetched["oracle_text"]
+            card.price_usd = prefetched["price_usd"]
+            card.price_usd_foil = prefetched["price_usd_foil"]
+            card.price_usd_etched = prefetched["price_usd_etched"]
+            card.updated_at = now
+
+    card_ids = sorted({card_map[row["_resolved_scryfall_id"]].id for row in candidate_rows if row.get("_resolved_scryfall_id") in card_map})
+    existing_inventory_rows = []
+    if card_ids:
+        existing_inventory_rows = (
+            session.query(InventoryRow)
+            .filter(InventoryRow.card_id.in_(card_ids))
+            .filter(InventoryRow.drawer.is_(None))
+            .filter(InventoryRow.slot.is_(None))
+            .filter(InventoryRow.is_pending.is_(True))
+            .all()
         )
-        imported_row_ids.append(inv_row.id)
-        imported_count += 1
 
+    inventory_map: dict[tuple[int, str, str | None, str | None, bool], InventoryRow] = {
+        (row.card_id, row.finish, row.drawer, row.slot, row.is_pending): row for row in existing_inventory_rows
+    }
+
+    created_rows: list[InventoryRow] = []
+    audit_payloads: list[dict[str, Any]] = []
+
+    for row in candidate_rows:
+        sid = row["_resolved_scryfall_id"]
+        card = card_map.get(sid)
+        if not card:
+            failed_rows.append(
+                {
+                    "line_number": row.get("line_number"),
+                    "reason": "Card creation failed after resolution.",
+                }
+            )
+            continue
+
+        qty = max(1, int(row.get("quantity") or 1))
+        key = (card.id, row["finish"], None, None, True)
+        target_row = inventory_map.get(key)
+        if target_row:
+            target_row.quantity += qty
+            target_row.updated_at = now
+            if row.get("location"):
+                target_row.notes = row["location"]
+        else:
+            # Imported rows stay pending with no assigned drawer/slot. Placement is
+            # handled later by a full-collection resort to avoid slot conflicts.
+            target_row = InventoryRow(
+                card_id=card.id,
+                finish=row["finish"],
+                quantity=qty,
+                drawer=None,
+                slot=None,
+                is_pending=True,
+                notes=row.get("location") or None,
+                created_at=now,
+                updated_at=now,
+            )
+            session.add(target_row)
+            created_rows.append(target_row)
+            inventory_map[key] = target_row
+
+        imported_count += 1
+        audit_payloads.append(
+            {
+                "card_id": card.id,
+                "finish": row["finish"],
+                "quantity_delta": qty,
+                "batch_id": batch.id,
+                "inventory_row": target_row,
+                "note": f"Imported from row {row.get('line_number')}",
+            }
+        )
+
+    if created_rows:
+        session.flush()
+
+    for payload in audit_payloads:
+        imported_row_ids.append(payload["inventory_row"].id)
         log_transaction(
             session=session,
             event_type="import",
-            card_id=card.id,
-            finish=row["finish"],
-            quantity_delta=int(row["quantity"]),
+            card_id=payload["card_id"],
+            finish=payload["finish"],
+            quantity_delta=payload["quantity_delta"],
             source_location=None,
             destination_location="pending",
-            batch_id=batch.id,
-            inventory_row_id=inv_row.id,
-            note=f"Imported from row {row.get('line_number')}",
+            batch_id=payload["batch_id"],
+            inventory_row_id=payload["inventory_row"].id,
+            note=payload["note"],
+            flush=False,
         )
 
     session.commit()
-    return {"imported_count": imported_count, "failed_rows": failed_rows, "batch_id": batch.id, "imported_row_ids": imported_row_ids}
+    return {
+        "imported_count": imported_count,
+        "failed_rows": failed_rows,
+        "batch_id": batch.id,
+        "imported_row_ids": imported_row_ids,
+    }

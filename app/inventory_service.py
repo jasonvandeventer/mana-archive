@@ -185,7 +185,6 @@ def update_inventory_location(session: Session, row_id: int, drawer: str | None,
     row.drawer = (drawer or "").strip() or None
     row.slot = (slot or "").strip() or None
     row.updated_at = datetime.utcnow()
-    session.commit()
     log_transaction(session=session, event_type="location_updated", card_id=row.card_id, finish=row.finish, quantity_delta=0, source_location=old_location, destination_location=f"drawer={row.drawer or '-'} slot={row.slot or '-'}", inventory_row_id=row.id, note="Inventory location updated")
     session.commit()
     return row
@@ -203,7 +202,6 @@ def confirm_pending_row(session: Session, row_id: int) -> InventoryRow | None:
         return None
     row.is_pending = False
     row.updated_at = datetime.utcnow()
-    session.commit()
     log_transaction(session=session, event_type="placement_confirmed", card_id=row.card_id, finish=row.finish, quantity_delta=0, source_location="pending", destination_location=f"drawer={row.drawer or '-'} slot={row.slot or '-'}", inventory_row_id=row.id, note="Pending row confirmed as placed")
     session.commit()
     return row
@@ -221,14 +219,59 @@ def confirm_all_pending(session: Session) -> int:
     return count
 
 
+def adjust_inventory_row_quantity(
+    session: Session,
+    row_id: int,
+    quantity: int,
+    event_type: str,
+    note: str | None = None,
+) -> InventoryRow | None:
+    valid_event_types = {"remove", "sold", "traded", "row_deleted"}
+    if event_type not in valid_event_types:
+        raise ValueError(f"Unsupported event_type: {event_type}")
+
+    row = session.query(InventoryRow).filter(InventoryRow.id == row_id).first()
+    if not row:
+        raise ValueError("Inventory row not found.")
+    if quantity <= 0:
+        raise ValueError("Quantity must be at least 1.")
+    if quantity > row.quantity:
+        raise ValueError("Cannot remove more than the row quantity.")
+
+    source_location = "pending" if row.is_pending else f"drawer={row.drawer or '-'} slot={row.slot or '-'}"
+    log_transaction(
+        session=session,
+        event_type=event_type,
+        card_id=row.card_id,
+        finish=row.finish,
+        quantity_delta=-quantity,
+        source_location=source_location,
+        destination_location=None,
+        inventory_row_id=row.id,
+        note=note,
+        flush=False,
+    )
+
+    if quantity == row.quantity:
+        session.delete(row)
+        return None
+
+    row.quantity -= quantity
+    row.updated_at = datetime.utcnow()
+    return row
+
+
 def delete_inventory_row(session: Session, row_id: int) -> bool:
     row = session.query(InventoryRow).filter(InventoryRow.id == row_id).first()
     if not row:
         return False
-    card_id, finish, qty = row.card_id, row.finish, row.quantity
-    session.delete(row)
-    session.commit()
-    log_transaction(session=session, event_type="row_deleted", card_id=card_id, finish=finish, quantity_delta=-qty, inventory_row_id=row_id, note=f"Deleted inventory row {row_id}")
+    adjust_inventory_row_quantity(
+        session=session,
+        row_id=row_id,
+        quantity=row.quantity,
+        event_type="row_deleted",
+        note=f"Deleted inventory row {row_id}",
+    )
     session.commit()
     return True
 
@@ -289,5 +332,4 @@ def resort_collection(session: Session, row_ids: Iterable[int] | None = None) ->
                 row.updated_at = datetime.utcnow()
                 log_transaction(session=session, event_type="resort", card_id=row.card_id, finish=row.finish, quantity_delta=0, source_location=old, destination_location=f"drawer={target_drawer} slot={target_slot}", inventory_row_id=row.id, note="Auto-sorted collection row by placement rules")
                 updated += 1
-    session.commit()
     return updated

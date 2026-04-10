@@ -66,6 +66,27 @@
                 <div class="inventory-meta">{{ item.finish|capitalize }} · Qty {{ item.quantity }} · ${{ '%.2f'|format(item.effective_price) }} each</div>
                 <div class="inventory-location">{{ item.drawer_label }}{% if item.slot %} · Slot {{ item.slot }}{% endif %}</div>
                 <div class="inventory-total">Total value: ${{ '%.2f'|format(item.total_value) }}</div>
+
+                <form action="/inventory/rows/{{ item.id }}/remove" method="post" class="inline-form" style="margin-top: 0.5rem; gap: 0.4rem; flex-wrap: wrap;">
+                    <input type="number" name="quantity" min="1" max="{{ item.quantity }}" value="1" style="width: 64px;">
+                    <button type="submit">Remove</button>
+                </form>
+
+                <div class="inventory-actions" style="display: flex; gap: 0.4rem; margin-top: 0.5rem; flex-wrap: wrap;">
+                    <form action="/inventory/rows/{{ item.id }}/sell" method="post" class="inline-form">
+                        <input type="hidden" name="quantity" value="1">
+                        <button type="submit">Sell 1</button>
+                    </form>
+
+                    <form action="/inventory/rows/{{ item.id }}/trade" method="post" class="inline-form">
+                        <input type="hidden" name="quantity" value="1">
+                        <button type="submit">Trade 1</button>
+                    </form>
+
+                    <form action="/inventory/rows/{{ item.id }}/delete" method="post" class="inline-form">
+                        <button type="submit" onclick="return confirm('Delete this row?')">Delete Row</button>
+                    </form>
+                </div>
             </div>
         </article>
         {% endfor %}

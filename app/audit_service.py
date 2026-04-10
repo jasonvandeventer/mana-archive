@@ -12,7 +12,6 @@ def create_import_batch(session: Session, filename: str, row_count: int, note: s
     return batch
 
 
-
 def log_transaction(
     session: Session,
     event_type: str,
@@ -24,6 +23,7 @@ def log_transaction(
     batch_id: int | None = None,
     inventory_row_id: int | None = None,
     note: str | None = None,
+    flush: bool = False,
 ) -> TransactionLog:
     log = TransactionLog(
         event_type=event_type,
@@ -37,9 +37,9 @@ def log_transaction(
         note=note,
     )
     session.add(log)
-    session.flush()
+    if flush:
+        session.flush()
     return log
-
 
 
 def list_transaction_logs(session: Session) -> list[TransactionLog]:

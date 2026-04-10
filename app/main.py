@@ -11,6 +11,7 @@ from app.deck_service import create_deck, get_deck, list_decks, pull_card_to_dec
 from app.drawer_service import list_drawer_groups, list_rows_for_drawer
 from app.import_service import normalize_finish, parse_scanner_csv, persist_import_rows
 from app.inventory_service import (
+    adjust_inventory_row_quantity,
     confirm_all_pending,
     confirm_pending_row,
     delete_inventory_row,
@@ -22,7 +23,9 @@ from app.inventory_service import (
     undo_last_import,
     update_inventory_location,
 )
-from app.models import ImportBatch
+from sqlalchemy.orm import joinedload
+
+from app.models import Card, ImportBatch, InventoryRow
 from app.pricing import effective_price
 from app.scryfall import fetch_card_by_set_and_number, fetch_card_by_scryfall_id, refresh_card_from_scryfall
 
@@ -71,6 +74,10 @@ async def import_preview(request: Request, file: UploadFile = File(...)):
     )
 
 
+
+AUTO_RESORT_IMPORT_THRESHOLD = 25
+
+
 @app.post("/import/commit")
 async def import_commit(
     request: Request,
@@ -100,10 +107,16 @@ async def import_commit(
         )
 
     session = get_session()
+    resorted_count = 0
     try:
         result = persist_import_rows(session, rows, filename=filename)
-        if result.get("imported_row_ids"):
-            resort_collection(session, result["imported_row_ids"])
+
+        # Only auto-place small imports. When placement does run, it must check the
+        # full collection rather than just the imported rows so existing drawer/slot
+        # assignments are respected and slot collisions are avoided.
+        if result.get("imported_row_ids") and len(result["imported_row_ids"]) <= AUTO_RESORT_IMPORT_THRESHOLD:
+            resorted_count = resort_collection(session)
+            session.commit()
     finally:
         session.close()
 
@@ -116,6 +129,8 @@ async def import_commit(
             "imported_count": result["imported_count"],
             "failed_rows": result["failed_rows"],
             "batch_id": result["batch_id"],
+            "resorted_count": resorted_count,
+            "resort_skipped": len(result.get("imported_row_ids", [])) > AUTO_RESORT_IMPORT_THRESHOLD,
         },
     )
 
@@ -155,6 +170,7 @@ async def manual_import_preview(
     )
 
 
+
 @app.post("/import/manual/commit")
 async def manual_import_commit(
     request: Request,
@@ -165,6 +181,7 @@ async def manual_import_commit(
     quantity: int = Form(1),
 ):
     session = get_session()
+    resorted_count = 0
     try:
         result = persist_import_rows(
             session,
@@ -183,7 +200,11 @@ async def manual_import_commit(
             filename="manual import",
         )
         if result.get("imported_row_ids"):
-            resort_collection(session, result["imported_row_ids"])
+            # Manual import never assigns slots directly. It imports as pending, then
+            # runs a full resort so existing drawer positions are checked before any
+            # drawer/slot placement is assigned.
+            resorted_count = resort_collection(session)
+            session.commit()
     finally:
         session.close()
 
@@ -196,8 +217,104 @@ async def manual_import_commit(
             "imported_count": result["imported_count"],
             "failed_rows": result["failed_rows"],
             "batch_id": result["batch_id"],
+            "resorted_count": resorted_count,
+            "resort_skipped": False,
         },
     )
+
+
+
+@app.post("/inventory/rows/{row_id}/remove")
+def remove_inventory_row_action(
+    request: Request,
+    row_id: int,
+    quantity: int = Form(...),
+    note: str = Form(""),
+):
+    session = get_session()
+    try:
+        adjust_inventory_row_quantity(
+            session=session,
+            row_id=row_id,
+            quantity=quantity,
+            event_type="remove",
+            note=note or None,
+        )
+        session.commit()
+    finally:
+        session.close()
+
+    return RedirectResponse(url=request.headers.get("referer") or "/collection", status_code=303)
+
+
+@app.post("/inventory/rows/{row_id}/sell")
+def sell_inventory_row_action(
+    request: Request,
+    row_id: int,
+    quantity: int = Form(...),
+    note: str = Form(""),
+):
+    session = get_session()
+    try:
+        adjust_inventory_row_quantity(
+            session=session,
+            row_id=row_id,
+            quantity=quantity,
+            event_type="sold",
+            note=note or None,
+        )
+        session.commit()
+    finally:
+        session.close()
+
+    return RedirectResponse(url=request.headers.get("referer") or "/collection", status_code=303)
+
+
+@app.post("/inventory/rows/{row_id}/trade")
+def trade_inventory_row_action(
+    request: Request,
+    row_id: int,
+    quantity: int = Form(...),
+    note: str = Form(""),
+):
+    session = get_session()
+    try:
+        adjust_inventory_row_quantity(
+            session=session,
+            row_id=row_id,
+            quantity=quantity,
+            event_type="traded",
+            note=note or None,
+        )
+        session.commit()
+    finally:
+        session.close()
+
+    return RedirectResponse(url=request.headers.get("referer") or "/collection", status_code=303)
+
+
+@app.post("/inventory/rows/{row_id}/delete")
+def delete_inventory_row_action(
+    request: Request,
+    row_id: int,
+    note: str = Form(""),
+):
+    session = get_session()
+    try:
+        row = session.query(InventoryRow).filter(InventoryRow.id == row_id).first()
+        if row:
+            adjust_inventory_row_quantity(
+                session=session,
+                row_id=row_id,
+                quantity=row.quantity,
+                event_type="row_deleted",
+                note=note or f"Deleted inventory row {row_id}",
+            )
+            session.commit()
+    finally:
+        session.close()
+
+    return RedirectResponse(url=request.headers.get("referer") or "/collection", status_code=303)
 
 
 @app.get("/collection")
@@ -552,26 +669,29 @@ def test_scryfall(scryfall_id: str):
     card = fetch_card_by_scryfall_id(scryfall_id)
     return {"card": card}
 
+
 @app.get("/cards/{card_id}")
 def card_detail_page(request: Request, card_id: int):
     session = get_session()
     try:
-        inventory_rows = list_inventory_rows(session)
-        target_card = None
+        target_card = session.query(Card).filter(Card.id == card_id).first()
+        if target_card is None:
+            return RedirectResponse(url="/collection", status_code=303)
+
+        inventory_rows = (
+            session.query(InventoryRow)
+            .options(joinedload(InventoryRow.card))
+            .filter(InventoryRow.card_id == card_id)
+            .all()
+        )
+
         card_rows = []
         total_copies = 0
         total_value = 0.0
 
         for row in inventory_rows:
-            if row.card.id != card_id:
-                continue
-
-            if target_card is None:
-                target_card = row.card
-
-            price = effective_price(row.card, row.finish)
+            price = effective_price(target_card, row.finish)
             total = price * row.quantity
-
             card_rows.append(
                 {
                     "id": row.id,
@@ -589,9 +709,6 @@ def card_detail_page(request: Request, card_id: int):
             total_value += total
     finally:
         session.close()
-
-    if target_card is None:
-        return RedirectResponse(url="/collection", status_code=303)
 
     return templates.TemplateResponse(
         request=request,

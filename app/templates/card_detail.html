@@ -47,6 +47,7 @@
                             <th>Pending</th>
                             <th>Price</th>
                             <th>Total</th>
+                            <th>Actions</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -59,6 +60,26 @@
                             <td>{{ "Yes" if row.is_pending else "No" }}</td>
                             <td>${{ "%.2f"|format(row.effective_price) }}</td>
                             <td>${{ "%.2f"|format(row.total_value) }}</td>
+                            <td>
+                                <form action="/inventory/rows/{{ row.id }}/remove" method="post" style="display:inline;">
+                                    <input type="number" name="quantity" min="1" max="{{ row.quantity }}" value="1" style="width:60px;">
+                                    <button type="submit">Remove</button>
+                                </form>
+
+                                <form action="/inventory/rows/{{ row.id }}/sell" method="post" style="display:inline;">
+                                    <input type="hidden" name="quantity" value="1">
+                                    <button type="submit">Sell 1</button>
+                                </form>
+
+                                <form action="/inventory/rows/{{ row.id }}/trade" method="post" style="display:inline;">
+                                    <input type="hidden" name="quantity" value="1">
+                                    <button type="submit">Trade 1</button>
+                                </form>
+
+                                <form action="/inventory/rows/{{ row.id }}/delete" method="post" style="display:inline;">
+                                    <button type="submit" onclick="return confirm('Delete this row?')">Delete Row</button>
+                                </form>
+                            </td>
                         </tr>
                         {% endfor %}
                     </tbody>
