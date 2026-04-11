@@ -1,37 +1,30 @@
 {% extends "base.html" %}
-
 {% block content %}
-<section>
+  <section>
     <h2>Import Scanner CSV</h2>
     <form action="/import/preview" method="post" enctype="multipart/form-data">
-        <input type="file" name="file" accept=".csv" required>
-        <button type="submit">Preview Import</button>
+      <input type="file" name="file" accept=".csv" required>
+      <button type="submit">Preview Import</button>
     </form>
-</section>
-
-<section>
+  </section>
+  <section>
     <h2>Manual Import</h2>
     <form action="/import/manual/preview" method="post" class="stack-form">
-        <label>Scryfall ID</label>
-        <input type="text" name="scryfall_id">
-
-        <label>Set Code</label>
-        <input type="text" name="set_code">
-
-        <label>Collector Number</label>
-        <input type="text" name="collector_number">
-
-        <label>Finish</label>
-        <select name="finish">
-            <option value="normal">Normal</option>
-            <option value="foil">Foil</option>
-            <option value="etched">Etched</option>
-        </select>
-
-        <label>Quantity</label>
-        <input type="number" name="quantity" value="1" min="1">
-
-        <button type="submit">Preview Manual Import</button>
+      <label>Scryfall ID</label>
+      <input type="text" name="scryfall_id">
+      <label>Set Code</label>
+      <input type="text" name="set_code">
+      <label>Collector Number</label>
+      <input type="text" name="collector_number">
+      <label>Finish</label>
+      <select name="finish">
+        <option value="normal">Normal</option>
+        <option value="foil">Foil</option>
+        <option value="etched">Etched</option>
+      </select>
+      <label>Quantity</label>
+      <input type="number" name="quantity" value="1" min="1">
+      <button type="submit">Preview Manual Import</button>
     </form>
-</section>
+  </section>
 {% endblock %}

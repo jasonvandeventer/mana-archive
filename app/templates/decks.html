@@ -1,42 +1,42 @@
 {% extends "base.html" %}
-
 {% block content %}
-<section>
+  <section>
     <h2>Decks</h2>
     <form action="/decks/create" method="post" class="stack-form">
-        <input type="text" name="name" placeholder="Deck name" required>
-        <input type="text" name="format_name" placeholder="Format">
-        <textarea name="notes" placeholder="Notes"></textarea>
-        <button type="submit">Create Deck</button>
+      <input type="text" name="name" placeholder="Deck name" required>
+      <input type="text" name="format_name" placeholder="Format">
+      <textarea name="notes" placeholder="Notes"></textarea>
+      <button type="submit">Create Deck</button>
     </form>
-</section>
-
-<section>
+  </section>
+  <section>
     {% if decks %}
-    <table>
+      <table>
         <thead>
-            <tr>
-                <th>ID</th>
-                <th>Name</th>
-                <th>Format</th>
-                <th>Cards</th>
-                <th>View</th>
-            </tr>
+          <tr>
+            <th>ID</th>
+            <th>Name</th>
+            <th>Format</th>
+            <th>Cards</th>
+            <th>View</th>
+          </tr>
         </thead>
         <tbody>
-            {% for deck in decks %}
+          {% for deck in decks %}
             <tr>
-                <td>{{ deck.id }}</td>
-                <td>{{ deck.name }}</td>
-                <td>{{ deck.format or '-' }}</td>
-                <td>{{ deck.items|length }}</td>
-                <td><a href="/decks/{{ deck.id }}">Open</a></td>
+              <td>{{ deck.id }}</td>
+              <td>{{ deck.name }}</td>
+              <td>{{ deck.format or '-' }}</td>
+              <td>{{ deck.items|length }}</td>
+              <td>
+                <a href="/decks/{{ deck.id }}">Open</a>
+              </td>
             </tr>
-            {% endfor %}
+          {% endfor %}
         </tbody>
-    </table>
+      </table>
     {% else %}
-        <p>No decks yet.</p>
+      <p>No decks yet.</p>
     {% endif %}
-</section>
+  </section>
 {% endblock %}

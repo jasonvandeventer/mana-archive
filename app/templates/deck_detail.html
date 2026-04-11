@@ -1,57 +1,71 @@
 {% extends "base.html" %}
-
 {% block content %}
-<section class="panel hero-panel compact-hero">
+  <section class="panel hero-panel compact-hero">
     {% if deck %}
-    <div class="hero-row">
+      <div class="hero-row">
         <div>
-            <div class="panel-topline">Deck</div>
-            <h2 class="panel-title">{{ deck.name }}</h2>
-            <p class="muted">{{ deck.format or 'Unspecified format' }}</p>
+          <div class="panel-topline">Deck</div>
+          <h2 class="panel-title">{{ deck.name }}</h2>
+          <p class="muted">{{ deck.format or 'Unspecified format' }}</p>
         </div>
         <div class="hero-stats-inline">
-            <span>{{ items|length }} entries</span>
-            <span>{{ deck_total_cards }} copies</span>
-            <span>${{ '%.2f'|format(deck_total_value) }}</span>
+          <span>{{ items|length }} entries</span>
+          <span>{{ deck_total_cards }} copies</span>
+          <span>${{ '%.2f'|format(deck_total_value) }}</span>
         </div>
-    </div>
+      </div>
     {% else %}
-    <h2 class="panel-title">Deck not found</h2>
+      <h2 class="panel-title">Deck not found</h2>
     {% endif %}
-</section>
-
-{% if deck %}
+  </section>
+  {% if deck %}
     {% if items %}
-    <section class="card-grid-section">
+      <section class="card-grid-section">
         <div class="inventory-grid">
-            {% for item in items %}
+          {% for item in items %}
             <article class="inventory-card inventory-card-compact deck-card">
-                <div class="inventory-card-media">
-                    {% if item.card.image_url %}
-                    <a href="/cards/{{ item.card.id }}"><img class="inventory-thumb" src="{{ item.card.image_url }}" alt="{{ item.card.name }}"></a>
-                    {% else %}
-                    <a href="/cards/{{ item.card.id }}" class="inventory-thumb placeholder"></a>
-                    {% endif %}
+              <div class="inventory-card-media">
+                {% if item.card.image_url %}
+                  <a href="/cards/{{ item.card.id }}">
+                    <img class="inventory-thumb"
+                         src="{{ item.card.image_url }}"
+                         alt="{{ item.card.name }}">
+                  </a>
+                {% else %}
+                  <a href="/cards/{{ item.card.id }}" class="inventory-thumb placeholder"></a>
+                {% endif %}
+              </div>
+              <div class="inventory-card-body">
+                <h3 class="inventory-card-title">
+                  <a href="https://scryfall.com/card/{{ item.card.set_code }}/{{ item.card.collector_number }}"
+                     target="_blank"
+                     rel="noreferrer">{{ item.card.name }}</a>
+                </h3>
+                <div class="inventory-subtitle">
+                  {{ item.card.set_name }} · {{ item.card.set_code|upper }} #{{ item.card.collector_number }}
                 </div>
-                <div class="inventory-card-body">
-                    <h3 class="inventory-card-title"><a href="https://scryfall.com/card/{{ item.card.set_code }}/{{ item.card.collector_number }}" target="_blank" rel="noreferrer">{{ item.card.name }}</a></h3>
-                    <div class="inventory-subtitle">{{ item.card.set_name }} · {{ item.card.set_code|upper }} #{{ item.card.collector_number }}</div>
-                    <div class="inventory-meta">{{ item.finish|capitalize }} · Qty {{ item.quantity }} · ${{ '%.2f'|format(item.effective_price) }} each</div>
-                    <div class="inventory-total">Total value: ${{ '%.2f'|format(item.total_value) }}</div>
-                    <form action="/decks/return" method="post" class="return-form compact-form-grid">
-                        <input type="hidden" name="deck_id" value="{{ deck.id }}">
-                        <input type="hidden" name="deck_item_id" value="{{ item.id }}">
-                        <input type="text" name="drawer" placeholder="Drawer">
-                        <input type="text" name="slot" placeholder="Slot">
-                        <button type="submit">Return</button>
-                    </form>
+                <div class="inventory-meta">
+                  {{ item.finish|capitalize }} · Qty {{ item.quantity }} · ${{ '%.2f'|format(item.effective_price) }} each
                 </div>
+                <div class="inventory-total">Total value: ${{ '%.2f'|format(item.total_value) }}</div>
+                <form action="/decks/return"
+                      method="post"
+                      class="return-form compact-form-grid">
+                  <input type="hidden" name="deck_id" value="{{ deck.id }}">
+                  <input type="hidden" name="deck_item_id" value="{{ item.id }}">
+                  <input type="text" name="drawer" placeholder="Drawer">
+                  <input type="text" name="slot" placeholder="Slot">
+                  <button type="submit">Return</button>
+                </form>
+              </div>
             </article>
-            {% endfor %}
+          {% endfor %}
         </div>
-    </section>
+      </section>
     {% else %}
-    <section class="panel"><p>No items in this deck yet.</p></section>
+      <section class="panel">
+        <p>No items in this deck yet.</p>
+      </section>
     {% endif %}
-{% endif %}
+  {% endif %}
 {% endblock %}

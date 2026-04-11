@@ -1,35 +1,35 @@
 {% extends "base.html" %}
-
 {% block content %}
-<section>
+  <section>
     <h2>Drawers</h2>
     <p>Physical collection view grouped by drawer.</p>
-</section>
-
-<section>
+  </section>
+  <section>
     {% if drawer_summaries %}
-    <table>
+      <table>
         <thead>
-            <tr>
-                <th>Drawer</th>
-                <th>Rows</th>
-                <th>Total Value</th>
-                <th>View</th>
-            </tr>
+          <tr>
+            <th>Drawer</th>
+            <th>Rows</th>
+            <th>Total Value</th>
+            <th>View</th>
+          </tr>
         </thead>
         <tbody>
-            {% for drawer in drawer_summaries %}
+          {% for drawer in drawer_summaries %}
             <tr>
-                <td>{{ drawer.drawer }}</td>
-                <td>{{ drawer.row_count }}</td>
-                <td>${{ '%.2f'|format(drawer.total_value) }}</td>
-                <td><a href="/drawers/{{ drawer.drawer }}">Open</a></td>
+              <td>{{ drawer.drawer }}</td>
+              <td>{{ drawer.row_count }}</td>
+              <td>${{ '%.2f'|format(drawer.total_value) }}</td>
+              <td>
+                <a href="/drawers/{{ drawer.drawer }}">Open</a>
+              </td>
             </tr>
-            {% endfor %}
+          {% endfor %}
         </tbody>
-    </table>
+      </table>
     {% else %}
-        <p>No drawers with assigned inventory yet.</p>
+      <p>No drawers with assigned inventory yet.</p>
     {% endif %}
-</section>
+  </section>
 {% endblock %}

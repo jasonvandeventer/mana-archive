@@ -1,22 +1,25 @@
 {% extends "base.html" %}
-
 {% block content %}
-<section>
+  <section>
     <h2>Manual Import Preview</h2>
     {% if card %}
-        <p><strong>{{ card.name }}</strong> — {{ card.set_code|upper }} {{ card.collector_number }}</p>
-        <p>Finish: {{ finish }} | Quantity: {{ quantity }}</p>
-        <p>Normal: ${{ card.price_usd or "0" }} | Foil: ${{ card.price_usd_foil or "0" }} | Etched: ${{ card.price_usd_etched or "0" }}</p>
-        <form action="/import/manual/commit" method="post">
-            <input type="hidden" name="scryfall_id" value="{{ resolved_scryfall_id }}">
-            <input type="hidden" name="set_code" value="{{ set_code }}">
-            <input type="hidden" name="collector_number" value="{{ collector_number }}">
-            <input type="hidden" name="finish" value="{{ finish }}">
-            <input type="hidden" name="quantity" value="{{ quantity }}">
-            <button type="submit">Commit Manual Import</button>
-        </form>
+      <p>
+        <strong>{{ card.name }}</strong> — {{ card.set_code|upper }} {{ card.collector_number }}
+      </p>
+      <p>Finish: {{ finish }} | Quantity: {{ quantity }}</p>
+      <p>
+        Normal: ${{ card.price_usd or "0" }} | Foil: ${{ card.price_usd_foil or "0" }} | Etched: ${{ card.price_usd_etched or "0" }}
+      </p>
+      <form action="/import/manual/commit" method="post">
+        <input type="hidden" name="scryfall_id" value="{{ resolved_scryfall_id }}">
+        <input type="hidden" name="set_code" value="{{ set_code }}">
+        <input type="hidden" name="collector_number" value="{{ collector_number }}">
+        <input type="hidden" name="finish" value="{{ finish }}">
+        <input type="hidden" name="quantity" value="{{ quantity }}">
+        <button type="submit">Commit Manual Import</button>
+      </form>
     {% else %}
-        <p>Could not resolve that card exactly. Use a valid Scryfall ID or exact set code and collector number.</p>
+      <p>Could not resolve that card exactly. Use a valid Scryfall ID or exact set code and collector number.</p>
     {% endif %}
-</section>
+  </section>
 {% endblock %}

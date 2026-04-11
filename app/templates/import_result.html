@@ -1,36 +1,38 @@
 {% extends "base.html" %}
-
 {% block content %}
-<section>
+  <section>
     <h2>Import Results</h2>
     <p>Imported rows: {{ imported_count }}</p>
     <p>Failed rows: {{ failed_rows|length }}</p>
     <p>Batch ID: {{ batch_id }}</p>
-    <p><a href="/collection">Go to Collection</a></p>
-    <p><a href="/import">Import another file</a></p>
-</section>
-
-<section>
+    <p>
+      <a href="/collection">Go to Collection</a>
+    </p>
+    <p>
+      <a href="/import">Import another file</a>
+    </p>
+  </section>
+  <section>
     <h3>Failures</h3>
     {% if failed_rows %}
-    <table>
+      <table>
         <thead>
-            <tr>
-                <th>Line</th>
-                <th>Reason</th>
-            </tr>
+          <tr>
+            <th>Line</th>
+            <th>Reason</th>
+          </tr>
         </thead>
         <tbody>
-            {% for row in failed_rows %}
+          {% for row in failed_rows %}
             <tr>
-                <td>{{ row.line_number }}</td>
-                <td>{{ row.reason }}</td>
+              <td>{{ row.line_number }}</td>
+              <td>{{ row.reason }}</td>
             </tr>
-            {% endfor %}
+          {% endfor %}
         </tbody>
-    </table>
+      </table>
     {% else %}
-        <p>No failed rows.</p>
+      <p>No failed rows.</p>
     {% endif %}
-</section>
+  </section>
 {% endblock %}

@@ -1,41 +1,95 @@
 {% extends "base.html" %}
 {% block content %}
-<section>
-  <h2>Import Preview</h2>
-  <p>File: {{ filename }}</p>
-  <p>Valid rows: {{ valid_rows|length }}</p>
-  <p>Invalid rows: {{ invalid_rows|length }}</p>
-  {% if valid_rows %}
-  <form action="/import/commit" method="post">
-    <input type="hidden" name="filename" value="{{ filename }}">
-    {% for row in valid_rows %}
-    <input type="hidden" name="line_number" value="{{ row.line_number }}">
-    <input type="hidden" name="name" value="{{ row.name or '' }}">
-    <input type="hidden" name="scryfall_id" value="{{ row.scryfall_id }}">
-    <input type="hidden" name="set_code" value="{{ row.set_code }}">
-    <input type="hidden" name="collector_number" value="{{ row.collector_number }}">
-    <input type="hidden" name="finish" value="{{ row.finish }}">
-    <input type="hidden" name="quantity" value="{{ row.quantity }}">
-    <input type="hidden" name="location" value="{{ row.location }}">
-    {% endfor %}
-    <button type="submit">Import Valid Rows</button>
-  </form>
-  {% endif %}
-</section>
-<section>
-  <h3>Valid Rows</h3>
-  {% if valid_rows %}
-  <table><thead><tr><th>Line</th><th>Name</th><th>Scryfall ID</th><th>Set</th><th>Collector #</th><th>Finish</th><th>Quantity</th><th>Location</th></tr></thead><tbody>
-  {% for row in valid_rows %}<tr><td>{{ row.line_number }}</td><td>{{ row.name or '-' }}</td><td>{{ row.scryfall_id or '-' }}</td><td>{{ row.set_code or '-' }}</td><td>{{ row.collector_number or '-' }}</td><td>{{ row.finish }}</td><td>{{ row.quantity }}</td><td>{{ row.location or '-' }}</td></tr>{% endfor %}
-  </tbody></table>
-  {% else %}<p>No valid rows found.</p>{% endif %}
-</section>
-<section>
-  <h3>Invalid Rows</h3>
-  {% if invalid_rows %}
-  <table><thead><tr><th>Line</th><th>Name</th><th>Set</th><th>Collector #</th><th>Finish</th><th>Quantity</th><th>Reason</th></tr></thead><tbody>
-  {% for row in invalid_rows %}<tr><td>{{ row.line_number }}</td><td>{{ row.name or '-' }}</td><td>{{ row.set_code or '-' }}</td><td>{{ row.collector_number or '-' }}</td><td>{{ row.finish }}</td><td>{{ row.quantity }}</td><td>{{ row.reason or 'Invalid row' }}</td></tr>{% endfor %}
-  </tbody></table>
-  {% else %}<p>No invalid rows found.</p>{% endif %}
-</section>
+  <section>
+    <h2>Import Preview</h2>
+    <p>File: {{ filename }}</p>
+    <p>Valid rows: {{ valid_rows|length }}</p>
+    <p>Invalid rows: {{ invalid_rows|length }}</p>
+    {% if valid_rows %}
+      <form action="/import/commit" method="post">
+        <input type="hidden" name="filename" value="{{ filename }}">
+        {% for row in valid_rows %}
+          <input type="hidden" name="line_number" value="{{ row.line_number }}">
+          <input type="hidden" name="name" value="{{ row.name or '' }}">
+          <input type="hidden" name="scryfall_id" value="{{ row.scryfall_id }}">
+          <input type="hidden" name="set_code" value="{{ row.set_code }}">
+          <input type="hidden"
+                 name="collector_number"
+                 value="{{ row.collector_number }}">
+          <input type="hidden" name="finish" value="{{ row.finish }}">
+          <input type="hidden" name="quantity" value="{{ row.quantity }}">
+          <input type="hidden" name="location" value="{{ row.location }}">
+        {% endfor %}
+        <button type="submit">Import Valid Rows</button>
+      </form>
+    {% endif %}
+  </section>
+  <section>
+    <h3>Valid Rows</h3>
+    {% if valid_rows %}
+      <table>
+        <thead>
+          <tr>
+            <th>Line</th>
+            <th>Name</th>
+            <th>Scryfall ID</th>
+            <th>Set</th>
+            <th>Collector #</th>
+            <th>Finish</th>
+            <th>Quantity</th>
+            <th>Location</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in valid_rows %}
+            <tr>
+              <td>{{ row.line_number }}</td>
+              <td>{{ row.name or '-' }}</td>
+              <td>{{ row.scryfall_id or '-' }}</td>
+              <td>{{ row.set_code or '-' }}</td>
+              <td>{{ row.collector_number or '-' }}</td>
+              <td>{{ row.finish }}</td>
+              <td>{{ row.quantity }}</td>
+              <td>{{ row.location or '-' }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <p>No valid rows found.</p>
+    {% endif %}
+  </section>
+  <section>
+    <h3>Invalid Rows</h3>
+    {% if invalid_rows %}
+      <table>
+        <thead>
+          <tr>
+            <th>Line</th>
+            <th>Name</th>
+            <th>Set</th>
+            <th>Collector #</th>
+            <th>Finish</th>
+            <th>Quantity</th>
+            <th>Reason</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in invalid_rows %}
+            <tr>
+              <td>{{ row.line_number }}</td>
+              <td>{{ row.name or '-' }}</td>
+              <td>{{ row.set_code or '-' }}</td>
+              <td>{{ row.collector_number or '-' }}</td>
+              <td>{{ row.finish }}</td>
+              <td>{{ row.quantity }}</td>
+              <td>{{ row.reason or 'Invalid row' }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <p>No invalid rows found.</p>
+    {% endif %}
+  </section>
 {% endblock %}

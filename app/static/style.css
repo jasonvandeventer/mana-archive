@@ -48,24 +48,24 @@ body {
 }
 
 .header-right {
-    display: flex;
-    align-items: center;
-    justify-content: flex-end;
-    gap: 0.75rem;
-    flex-wrap: wrap;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  flex-wrap: wrap;
 }
 
 .version-pill {
-    display: inline-flex;
-    align-items: center;
-    padding: 0.35rem 0.65rem;
-    border-radius: 999px;
-    border: 1px solid rgba(127, 176, 255, 0.35);
-    background: rgba(10, 20, 36, 0.42);
-    color: #dbe6ff;
-    font-size: 0.82rem;
-    font-weight: 700;
-    letter-spacing: 0.04em;
+  display: inline-flex;
+  align-items: center;
+  padding: 0.35rem 0.65rem;
+  border-radius: 999px;
+  border: 1px solid rgba(127, 176, 255, 0.35);
+  background: rgba(10, 20, 36, 0.42);
+  color: #dbe6ff;
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
 }
 
 .page-shell {
@@ -465,24 +465,43 @@ td {
 }
 
 @media (max-width: 720px) {
-    .header-shell, .page-shell { padding-left: 1rem; padding-right: 1rem; }
-    .site-title { font-size: 1.05rem; }
+  .header-shell,
+  .page-shell {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+  .site-title {
+    font-size: 1.05rem;
+  }
 
-    .header-right {
-        width: 100%;
-        justify-content: flex-start;
-    }
+  .header-right {
+    width: 100%;
+    justify-content: flex-start;
+  }
 
-    .header-tagline {
-        display: none;
-    }
+  .header-tagline {
+    display: none;
+  }
 
-    .inventory-card { grid-template-columns: 1fr; }
-    .inventory-card-media { justify-content: center; }
-    .inventory-thumb { width: 170px; }
-    .pending-item { grid-template-columns: 72px 1fr; }
-    .pending-action { grid-column: 2; justify-self: start; }
-    .pending-thumb { width: 64px; }
+  .inventory-card {
+    grid-template-columns: 1fr;
+  }
+  .inventory-card-media {
+    justify-content: center;
+  }
+  .inventory-thumb {
+    width: 170px;
+  }
+  .pending-item {
+    grid-template-columns: 72px 1fr;
+  }
+  .pending-action {
+    grid-column: 2;
+    justify-self: start;
+  }
+  .pending-thumb {
+    width: 64px;
+  }
 }
 
 .page-hero {

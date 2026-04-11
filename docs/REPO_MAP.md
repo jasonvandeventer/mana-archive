@@ -21,31 +21,43 @@ This file explains **where changes belong** so you stop guessing and start debug
 ## How to debug by symptom
 
 ### 1. Wrong data is stored or moved
+
 Look in:
+
 - `app/inventory_service.py`
 - `app/import_service.py`
 - `app/deck_service.py`
 
 ### 2. A page renders but totals/groups are wrong
+
 Look in:
+
 - `app/presentation_service.py`
 
 ### 3. Form submits to the wrong place or redirects wrong
+
 Look in:
+
 - `app/main.py`
 
 ### 4. A page looks bad but data is right
+
 Look in:
+
 - `app/templates/`
 - `app/static/style.css`
 
 ### 5. Price or finish behavior is wrong
+
 Look in:
+
 - `app/pricing.py`
 - anywhere that passes `finish`
 
 ### 6. Scryfall fetch/import behavior is wrong or slow
+
 Look in:
+
 - `app/scryfall.py`
 - `app/import_service.py`
 
@@ -61,6 +73,7 @@ Look in:
 The biggest remaining hotspot is **`app/inventory_service.py`**.
 
 That file still owns a lot:
+
 - drawer rules
 - card upsert logic
 - row merge/update/delete

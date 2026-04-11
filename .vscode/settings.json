@@ -1,0 +1,11 @@
+{
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+
+  "files.associations": {
+    "*.html": "jinja-html"
+  },
+
+  "[jinja-html]": {
+    "editor.defaultFormatter": "monosans.djlint"
+  }
+}

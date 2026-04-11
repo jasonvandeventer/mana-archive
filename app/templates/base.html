@@ -1,40 +1,37 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
+  <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ title or "Mana Archive" }}</title>
     <link rel="stylesheet" href="/static/style.css?v={{ app_version }}">
-</head>
-<body>
+  </head>
+  <body>
     <header class="site-header">
-        <div class="header-shell">
-            <div class="brand-row compact">
-                <div>
-                    <div class="eyebrow">Mana Archive</div>
-                    <h1 class="site-title">Card Inventory Platform</h1>
-                </div>
-
-                <div class="header-right">
-                    <span class="muted header-tagline">Import, place, value, and track your exact printings.</span>
-                    <span class="version-pill">v{{ app_version }}</span>
-                </div>
-            </div>
-
-            <nav>
-                <a href="/">Home</a>
-                <a href="/import">Import</a>
-                <a href="/collection">Collection</a>
-                <a href="/pending">Pending</a>
-                <a href="/drawers">Drawers</a>
-                <a href="/decks">Decks</a>
-                <a href="/audit">Audit</a>
-            </nav>
+      <div class="header-shell">
+        <div class="brand-row compact">
+          <div>
+            <div class="eyebrow">Mana Archive</div>
+            <h1 class="site-title">Card Inventory Platform</h1>
+          </div>
+          <div class="header-right">
+            <span class="muted header-tagline">Import, place, value, and track your exact printings.</span>
+            <span class="version-pill">v{{ app_version }}</span>
+          </div>
         </div>
+        <nav>
+          <a href="/">Home</a>
+          <a href="/import">Import</a>
+          <a href="/collection">Collection</a>
+          <a href="/pending">Pending</a>
+          <a href="/drawers">Drawers</a>
+          <a href="/decks">Decks</a>
+          <a href="/audit">Audit</a>
+        </nav>
+      </div>
     </header>
-
     <main class="page-shell">
-        {% block content %}{% endblock %}
+      {% block content %}{% endblock %}
     </main>
-</body>
+  </body>
 </html>

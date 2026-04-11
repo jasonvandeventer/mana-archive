@@ -1,45 +1,60 @@
 {% extends "base.html" %}
-
 {% block content %}
-<section class="panel hero-panel compact-hero">
+  <section class="panel hero-panel compact-hero">
     <div class="hero-row">
-        <div>
-            <div class="panel-topline">Drawer</div>
-            <h2 class="panel-title">{{ drawer_label }}</h2>
-            <p class="muted">Cards physically assigned to this drawer.</p>
-        </div>
-        <div class="hero-stats-inline">
-            <span>{{ entry_count }} entries</span>
-            <span>{{ total_copies }} copies</span>
-            <span>${{ '%.2f'|format(total_value) }}</span>
-        </div>
+      <div>
+        <div class="panel-topline">Drawer</div>
+        <h2 class="panel-title">{{ drawer_label }}</h2>
+        <p class="muted">Cards physically assigned to this drawer.</p>
+      </div>
+      <div class="hero-stats-inline">
+        <span>{{ entry_count }} entries</span>
+        <span>{{ total_copies }} copies</span>
+        <span>${{ '%.2f'|format(total_value) }}</span>
+      </div>
     </div>
-</section>
-
-{% if items %}
-<section class="card-grid-section">
-    <div class="inventory-grid">
+  </section>
+  {% if items %}
+    <section class="card-grid-section">
+      <div class="inventory-grid">
         {% for item in items %}
-        <article class="inventory-card inventory-card-compact">
+          <article class="inventory-card inventory-card-compact">
             <div class="inventory-card-media">
-                {% if item.card.image_url %}
-                <a href="/cards/{{ item.card.id }}"><img class="inventory-thumb" src="{{ item.card.image_url }}" alt="{{ item.card.name }}"></a>
-                {% else %}
+              {% if item.card.image_url %}
+                <a href="/cards/{{ item.card.id }}">
+                  <img class="inventory-thumb"
+                       src="{{ item.card.image_url }}"
+                       alt="{{ item.card.name }}">
+                </a>
+              {% else %}
                 <a href="/cards/{{ item.card.id }}" class="inventory-thumb placeholder"></a>
-                {% endif %}
+              {% endif %}
             </div>
             <div class="inventory-card-body">
-                <h3 class="inventory-card-title"><a href="https://scryfall.com/card/{{ item.card.set_code }}/{{ item.card.collector_number }}" target="_blank" rel="noreferrer">{{ item.card.name }}</a></h3>
-                <div class="inventory-subtitle">{{ item.card.set_name }} · {{ item.card.set_code|upper }} #{{ item.card.collector_number }}</div>
-                <div class="inventory-meta">{{ item.finish|capitalize }} · Qty {{ item.quantity }} · ${{ '%.2f'|format(item.effective_price) }} each</div>
-                <div class="inventory-location">{{ drawer_label }}{% if item.slot %} · Slot {{ item.slot }}{% endif %}</div>
-                <div class="inventory-total">Total value: ${{ '%.2f'|format(item.total_value) }}</div>
+              <h3 class="inventory-card-title">
+                <a href="https://scryfall.com/card/{{ item.card.set_code }}/{{ item.card.collector_number }}"
+                   target="_blank"
+                   rel="noreferrer">{{ item.card.name }}</a>
+              </h3>
+              <div class="inventory-subtitle">
+                {{ item.card.set_name }} · {{ item.card.set_code|upper }} #{{ item.card.collector_number }}
+              </div>
+              <div class="inventory-meta">
+                {{ item.finish|capitalize }} · Qty {{ item.quantity }} · ${{ '%.2f'|format(item.effective_price) }} each
+              </div>
+              <div class="inventory-location">
+                {{ drawer_label }}
+                {% if item.slot %}· Slot {{ item.slot }}{% endif %}
+              </div>
+              <div class="inventory-total">Total value: ${{ '%.2f'|format(item.total_value) }}</div>
             </div>
-        </article>
+          </article>
         {% endfor %}
-    </div>
-</section>
-{% else %}
-<section class="panel"><p>No rows in this drawer.</p></section>
-{% endif %}
+      </div>
+    </section>
+  {% else %}
+    <section class="panel">
+      <p>No rows in this drawer.</p>
+    </section>
+  {% endif %}
 {% endblock %}
