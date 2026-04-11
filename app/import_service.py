@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 """CSV/manual import parsing and persistence logic.
 
 Important placement rule:
@@ -8,6 +6,8 @@ pending with ``drawer=None`` and ``slot=None`` so placement can be calculated by
 ``resort_collection`` against the full collection. This avoids slot collisions
 with existing rows already assigned in the drawers.
 """
+
+from __future__ import annotations
 
 import csv
 import io

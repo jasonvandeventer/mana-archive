@@ -1,11 +1,6 @@
+"""Presentation helpers for shaping inventory data for templates."""
+
 from __future__ import annotations
-
-"""Template-payload shaping helpers.
-
-These helpers keep route handlers in main.py thin. They do not own business
-rules; they take already-fetched ORM rows and convert them into the dictionaries
-and totals each Jinja template expects.
-"""
 
 from app.inventory_service import get_drawer_label
 from app.pricing import effective_price
