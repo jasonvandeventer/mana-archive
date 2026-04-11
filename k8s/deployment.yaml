@@ -1,0 +1,31 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mana-archive
+  namespace: mana-archive
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mana-archive
+  template:
+    metadata:
+      labels:
+        app: mana-archive
+    spec:
+      containers:
+        - name: mana-archive
+          image: ghcr.io/jasonvandeventer/mana-archive:2.0.7
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8000
+          env:
+            - name: DATA_DIR
+              value: /data
+          volumeMounts:
+            - name: mana-archive-data
+              mountPath: /data
+      volumes:
+        - name: mana-archive-data
+          persistentVolumeClaim:
+            claimName: mana-archive-data
