@@ -1,97 +1,136 @@
-{% extends "base.html" %}
-
-{% block content %}
+{% extends "base.html" %} {% block content %}
 <section class="page-hero">
-    <div>
-        <p class="eyebrow">CARD DETAIL</p>
-        <h1>{{ card.name }}</h1>
-        <p>{{ card.set_name }} · {{ card.set_code|upper }} #{{ card.collector_number }}</p>
-        <p><a href="https://scryfall.com/card/{{ card.set_code }}/{{ card.collector_number }}" target="_blank">Open on Scryfall</a></p>
-    </div>
+  <div>
+    <p class="eyebrow">CARD DETAIL</p>
+    <h1>{{ card.name }}</h1>
+    <p>
+      {{ card.set_name }} · {{ card.set_code|upper }} #{{ card.collector_number
+      }}
+    </p>
+    <p>
+      <a
+        href="https://scryfall.com/card/{{ card.set_code }}/{{ card.collector_number }}"
+        target="_blank"
+        >Open on Scryfall</a
+      >
+    </p>
+  </div>
 </section>
 
 <section class="detail-layout">
-    <div class="detail-image-panel">
-        {% if card.image_url %}
-            <img src="{{ card.image_url }}" alt="{{ card.name }}" class="detail-image">
-        {% endif %}
-    </div>
-
-    <div class="detail-meta-panel">
-        <div class="stats-grid">
-            <div class="stat-card">
-                <span class="stat-label">Total Copies</span>
-                <strong class="stat-value">{{ total_copies }}</strong>
-            </div>
-            <div class="stat-card">
-                <span class="stat-label">Total Value</span>
-                <strong class="stat-value">${{ "%.2f"|format(total_value) }}</strong>
-            </div>
-        </div>
-
-        <div class="panel">
-            <h2>Oracle Text</h2>
-            <p>{{ card.oracle_text or "No oracle text available." }}</p>
-        </div>
-
-        <div class="panel">
-    <h2>Inventory</h2>
-    {% if rows %}
-        <div class="table-wrap">
-            <table>
-                <thead>
-                    <tr>
-                        <th>Finish</th>
-                        <th>Qty</th>
-                        <th>Drawer</th>
-                        <th>Slot</th>
-                        <th>Pending</th>
-                        <th>Price</th>
-                        <th>Total</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for row in rows %}
-                    <tr>
-                        <td>{{ row.finish }}</td>
-                        <td>{{ row.quantity }}</td>
-                        <td>{{ row.drawer_label }}</td>
-                        <td>{{ row.slot or "-" }}</td>
-                        <td>{{ "Yes" if row.is_pending else "No" }}</td>
-                        <td>${{ "%.2f"|format(row.effective_price) }}</td>
-                        <td>${{ "%.2f"|format(row.total_value) }}</td>
-                        <td>
-                            <div class="inventory-actions">
-                                <form action="/inventory/rows/{{ row.id }}/remove" method="post" class="inline-form">
-                                    <input type="number" name="quantity" min="1" max="{{ row.quantity }}" value="1">
-                                    <button type="submit">Remove</button>
-                                </form>
-
-                                <form action="/inventory/rows/{{ row.id }}/sell" method="post" class="inline-form">
-                                    <input type="hidden" name="quantity" value="1">
-                                    <button type="submit">Sell 1</button>
-                                </form>
-
-                                <form action="/inventory/rows/{{ row.id }}/trade" method="post" class="inline-form">
-                                    <input type="hidden" name="quantity" value="1">
-                                    <button type="submit">Trade 1</button>
-                                </form>
-
-                                <form action="/inventory/rows/{{ row.id }}/delete" method="post" class="inline-form">
-                                    <button type="submit" class="danger-button" onclick="return confirm('Delete this row?')">Delete Row</button>
-                                </form>
-                            </div>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    {% else %}
-        <p>No inventory rows found.</p>
+  <div class="detail-image-panel">
+    {% if card.image_url %}
+    <img
+      src="{{ card.image_url }}"
+      alt="{{ card.name }}"
+      class="detail-image"
+    />
     {% endif %}
-</div>
+  </div>
+
+  <div class="detail-meta-panel">
+    <div class="stats-grid">
+      <div class="stat-card">
+        <span class="stat-label">Total Copies</span>
+        <strong class="stat-value">{{ total_copies }}</strong>
+      </div>
+      <div class="stat-card">
+        <span class="stat-label">Total Value</span>
+        <strong class="stat-value">${{ "%.2f"|format(total_value) }}</strong>
+      </div>
     </div>
+
+    <div class="panel">
+      <h2>Oracle Text</h2>
+      <p>{{ card.oracle_text or "No oracle text available." }}</p>
+    </div>
+
+    <div class="panel">
+      <h2>Inventory</h2>
+      {% if rows %}
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Finish</th>
+              <th>Qty</th>
+              <th>Drawer</th>
+              <th>Slot</th>
+              <th>Pending</th>
+              <th>Price</th>
+              <th>Total</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in rows %}
+            <tr>
+              <td>{{ row.finish }}</td>
+              <td>{{ row.quantity }}</td>
+              <td>{{ row.drawer_label }}</td>
+              <td>{{ row.slot or "-" }}</td>
+              <td>{{ "Yes" if row.is_pending else "No" }}</td>
+              <td>${{ "%.2f"|format(row.effective_price) }}</td>
+              <td>${{ "%.2f"|format(row.total_value) }}</td>
+              <td>
+                <div class="inventory-actions">
+                  <form
+                    action="/inventory/rows/{{ row.id }}/remove"
+                    method="post"
+                    class="inline-form"
+                  >
+                    <input
+                      type="number"
+                      name="quantity"
+                      min="1"
+                      max="{{ row.quantity }}"
+                      value="1"
+                    />
+                    <button type="submit">Remove</button>
+                  </form>
+
+                  <form
+                    action="/inventory/rows/{{ row.id }}/sell"
+                    method="post"
+                    class="inline-form"
+                  >
+                    <input type="hidden" name="quantity" value="1" />
+                    <button type="submit">Sell 1</button>
+                  </form>
+
+                  <form
+                    action="/inventory/rows/{{ row.id }}/trade"
+                    method="post"
+                    class="inline-form"
+                  >
+                    <input type="hidden" name="quantity" value="1" />
+                    <button type="submit">Trade 1</button>
+                  </form>
+
+                  <form
+                    action="/inventory/rows/{{ row.id }}/delete"
+                    method="post"
+                    class="inline-form"
+                  >
+                    <button
+                      type="submit"
+                      class="danger-button"
+                      onclick="return confirm('Delete this row?');"
+                    >
+                      Delete Row
+                    </button>
+                  </form>
+                </div>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <p>No inventory rows found.</p>
+      {% endif %}
+    </div>
+  </div>
 </section>
 {% endblock %}

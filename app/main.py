@@ -1,13 +1,22 @@
 from __future__ import annotations
 
+import os
+
 from fastapi import FastAPI, File, Form, Request, UploadFile
 from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from sqlalchemy.orm import joinedload
 
 from app.audit_service import list_transaction_logs
 from app.db import get_session, init_db
-from app.deck_service import create_deck, get_deck, list_decks, pull_card_to_deck, return_card_from_deck
+from app.deck_service import (
+    create_deck,
+    get_deck,
+    list_decks,
+    pull_card_to_deck,
+    return_card_from_deck,
+)
 from app.drawer_service import list_drawer_groups, list_rows_for_drawer
 from app.import_service import normalize_finish, parse_scanner_csv, persist_import_rows
 from app.inventory_service import (
@@ -23,14 +32,21 @@ from app.inventory_service import (
     undo_last_import,
     update_inventory_location,
 )
-from sqlalchemy.orm import joinedload
-
 from app.models import Card, ImportBatch, InventoryRow
 from app.pricing import effective_price
-from app.scryfall import fetch_card_by_set_and_number, fetch_card_by_scryfall_id, refresh_card_from_scryfall
+from app.scryfall import (
+    fetch_card_by_scryfall_id,
+    fetch_card_by_set_and_number,
+    refresh_card_from_scryfall,
+)
 
 app = FastAPI(title="Mana Archive")
+
+APP_VERSION = os.getenv("APP_VERSION", "dev")
+
 templates = Jinja2Templates(directory="app/templates")
+templates.env.globals["app_version"] = APP_VERSION
+
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
 
@@ -74,7 +90,6 @@ async def import_preview(request: Request, file: UploadFile = File(...)):
     )
 
 
-
 AUTO_RESORT_IMPORT_THRESHOLD = 25
 
 
@@ -114,7 +129,10 @@ async def import_commit(
         # Only auto-place small imports. When placement does run, it must check the
         # full collection rather than just the imported rows so existing drawer/slot
         # assignments are respected and slot collisions are avoided.
-        if result.get("imported_row_ids") and len(result["imported_row_ids"]) <= AUTO_RESORT_IMPORT_THRESHOLD:
+        if (
+            result.get("imported_row_ids")
+            and len(result["imported_row_ids"]) <= AUTO_RESORT_IMPORT_THRESHOLD
+        ):
             resorted_count = resort_collection(session)
             session.commit()
     finally:
@@ -130,7 +148,8 @@ async def import_commit(
             "failed_rows": result["failed_rows"],
             "batch_id": result["batch_id"],
             "resorted_count": resorted_count,
-            "resort_skipped": len(result.get("imported_row_ids", [])) > AUTO_RESORT_IMPORT_THRESHOLD,
+            "resort_skipped": len(result.get("imported_row_ids", []))
+            > AUTO_RESORT_IMPORT_THRESHOLD,
         },
     )
 
@@ -168,7 +187,6 @@ async def manual_import_preview(
             "collector_number": collector_number,
         },
     )
-
 
 
 @app.post("/import/manual/commit")
@@ -221,7 +239,6 @@ async def manual_import_commit(
             "resort_skipped": False,
         },
     )
-
 
 
 @app.post("/inventory/rows/{row_id}/remove")
@@ -318,10 +335,14 @@ def delete_inventory_row_action(
 
 
 @app.get("/collection")
-def collection_page(request: Request, search: str = "", finish: str = "", drawer: str = "", sort: str = "newest"):
+def collection_page(
+    request: Request, search: str = "", finish: str = "", drawer: str = "", sort: str = "newest"
+):
     session = get_session()
     try:
-        inventory_rows = list_inventory_rows(session, search=search, finish=finish, drawer=drawer, sort=sort)
+        inventory_rows = list_inventory_rows(
+            session, search=search, finish=finish, drawer=drawer, sort=sort
+        )
         items = []
         total_value = 0.0
         total_cards = 0
@@ -331,18 +352,20 @@ def collection_page(request: Request, search: str = "", finish: str = "", drawer
         for row in inventory_rows:
             price = effective_price(row.card, row.finish)
             total = price * row.quantity
-            items.append({
-                "id": row.id,
-                "card": row.card,
-                "finish": row.finish,
-                "quantity": row.quantity,
-                "drawer": row.drawer,
-                "slot": row.slot,
-                "is_pending": row.is_pending,
-                "effective_price": price,
-                "total_value": total,
-                "drawer_label": get_drawer_label(row.drawer),
-            })
+            items.append(
+                {
+                    "id": row.id,
+                    "card": row.card,
+                    "finish": row.finish,
+                    "quantity": row.quantity,
+                    "drawer": row.drawer,
+                    "slot": row.slot,
+                    "is_pending": row.is_pending,
+                    "effective_price": price,
+                    "total_value": total,
+                    "drawer_label": get_drawer_label(row.drawer),
+                }
+            )
             total_value += total
             total_cards += row.quantity
             unique_cards += 1
@@ -374,7 +397,9 @@ def collection_page(request: Request, search: str = "", finish: str = "", drawer
 
 
 @app.post("/collection/update-location")
-async def collection_update_location(row_id: int = Form(...), drawer: str = Form(""), slot: str = Form("")):
+async def collection_update_location(
+    row_id: int = Form(...), drawer: str = Form(""), slot: str = Form("")
+):
     session = get_session()
     try:
         update_inventory_location(session, row_id=row_id, drawer=drawer, slot=slot)
@@ -438,9 +463,16 @@ def pending_page(request: Request):
             total_copies += row.quantity
             grouped.setdefault(str(row.drawer or "-"), []).append(item)
         grouped_drawers = []
-        for key in sorted(grouped.keys(), key=lambda x: (x == "-", int(x) if x.isdigit() else 999, x)):
+        for key in sorted(
+            grouped.keys(), key=lambda x: (x == "-", int(x) if x.isdigit() else 999, x)
+        ):
             grouped_drawers.append(
-                {"drawer": key, "label": get_drawer_label(key), "count": len(grouped[key]), "entries": grouped[key]}
+                {
+                    "drawer": key,
+                    "label": get_drawer_label(key),
+                    "count": len(grouped[key]),
+                    "entries": grouped[key],
+                }
             )
     finally:
         session.close()
@@ -489,7 +521,9 @@ def drawers_page(request: Request):
         drawer_summaries = []
         for drawer_name, rows in grouped.items():
             total_value = sum(effective_price(row.card, row.finish) * row.quantity for row in rows)
-            drawer_summaries.append({"drawer": drawer_name, "row_count": len(rows), "total_value": total_value})
+            drawer_summaries.append(
+                {"drawer": drawer_name, "row_count": len(rows), "total_value": total_value}
+            )
         drawer_summaries.sort(key=lambda d: d["drawer"])
     finally:
         session.close()
@@ -512,17 +546,19 @@ def drawer_detail_page(request: Request, drawer: str):
         for row in rows:
             price = effective_price(row.card, row.finish)
             total = price * row.quantity
-            items.append({
-                "id": row.id,
-                "card": row.card,
-                "finish": row.finish,
-                "quantity": row.quantity,
-                "slot": row.slot,
-                "is_pending": row.is_pending,
-                "effective_price": price,
-                "total_value": total,
-                "drawer_label": get_drawer_label(drawer),
-            })
+            items.append(
+                {
+                    "id": row.id,
+                    "card": row.card,
+                    "finish": row.finish,
+                    "quantity": row.quantity,
+                    "slot": row.slot,
+                    "is_pending": row.is_pending,
+                    "effective_price": price,
+                    "total_value": total,
+                    "drawer_label": get_drawer_label(drawer),
+                }
+            )
             total_copies += row.quantity
             total_value += total
     finally:
@@ -619,14 +655,16 @@ def deck_detail_page(request: Request, deck_id: int):
                 total_value = price * item.quantity
                 deck_total_value += total_value
                 total_cards += item.quantity
-                items.append({
-                    "id": item.id,
-                    "card": item.card,
-                    "finish": item.finish,
-                    "quantity": item.quantity,
-                    "effective_price": price,
-                    "total_value": total_value,
-                })
+                items.append(
+                    {
+                        "id": item.id,
+                        "card": item.card,
+                        "finish": item.finish,
+                        "quantity": item.quantity,
+                        "effective_price": price,
+                        "total_value": total_value,
+                    }
+                )
     finally:
         session.close()
 
@@ -645,17 +683,26 @@ def deck_detail_page(request: Request, deck_id: int):
 
 
 @app.post("/decks/pull")
-async def decks_pull(inventory_row_id: int = Form(...), deck_id: int = Form(...), quantity: int = Form(...)):
+async def decks_pull(
+    inventory_row_id: int = Form(...), deck_id: int = Form(...), quantity: int = Form(...)
+):
     session = get_session()
     try:
-        pull_card_to_deck(session, deck_id=deck_id, inventory_row_id=inventory_row_id, quantity=quantity)
+        pull_card_to_deck(
+            session, deck_id=deck_id, inventory_row_id=inventory_row_id, quantity=quantity
+        )
     finally:
         session.close()
     return RedirectResponse(url=f"/decks/{deck_id}", status_code=303)
 
 
 @app.post("/decks/return")
-async def decks_return(deck_id: int = Form(...), deck_item_id: int = Form(...), drawer: str = Form(""), slot: str = Form("")):
+async def decks_return(
+    deck_id: int = Form(...),
+    deck_item_id: int = Form(...),
+    drawer: str = Form(""),
+    slot: str = Form(""),
+):
     session = get_session()
     try:
         return_card_from_deck(session, deck_item_id=deck_item_id, drawer=drawer, slot=slot)

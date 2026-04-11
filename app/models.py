@@ -26,9 +26,9 @@ class Card(Base):
     price_usd_etched: Mapped[str | None] = mapped_column(String(32), nullable=True)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
-    inventory_rows: Mapped[list["InventoryRow"]] = relationship(back_populates="card")
-    deck_items: Mapped[list["DeckItem"]] = relationship(back_populates="card")
-    transaction_logs: Mapped[list["TransactionLog"]] = relationship(back_populates="card")
+    inventory_rows: Mapped[list[InventoryRow]] = relationship(back_populates="card")
+    deck_items: Mapped[list[DeckItem]] = relationship(back_populates="card")
+    transaction_logs: Mapped[list[TransactionLog]] = relationship(back_populates="card")
 
 
 class InventoryRow(Base):
@@ -45,7 +45,7 @@ class InventoryRow(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
-    card: Mapped["Card"] = relationship(back_populates="inventory_rows")
+    card: Mapped[Card] = relationship(back_populates="inventory_rows")
 
 
 class Deck(Base):
@@ -57,7 +57,7 @@ class Deck(Base):
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
-    items: Mapped[list["DeckItem"]] = relationship(back_populates="deck")
+    items: Mapped[list[DeckItem]] = relationship(back_populates="deck")
 
 
 class DeckItem(Base):
@@ -70,8 +70,8 @@ class DeckItem(Base):
     quantity: Mapped[int] = mapped_column(Integer, default=1)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
-    deck: Mapped["Deck"] = relationship(back_populates="items")
-    card: Mapped["Card"] = relationship(back_populates="deck_items")
+    deck: Mapped[Deck] = relationship(back_populates="items")
+    card: Mapped[Card] = relationship(back_populates="deck_items")
 
 
 class ImportBatch(Base):
@@ -83,7 +83,7 @@ class ImportBatch(Base):
     row_count: Mapped[int] = mapped_column(Integer, default=0)
     note: Mapped[str | None] = mapped_column(Text, nullable=True)
 
-    transaction_logs: Mapped[list["TransactionLog"]] = relationship(back_populates="batch")
+    transaction_logs: Mapped[list[TransactionLog]] = relationship(back_populates="batch")
 
 
 class TransactionLog(Base):
@@ -96,10 +96,12 @@ class TransactionLog(Base):
     quantity_delta: Mapped[int] = mapped_column(Integer, default=0)
     source_location: Mapped[str | None] = mapped_column(String(255), nullable=True)
     destination_location: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    batch_id: Mapped[int | None] = mapped_column(ForeignKey("import_batches.id"), nullable=True, index=True)
+    batch_id: Mapped[int | None] = mapped_column(
+        ForeignKey("import_batches.id"), nullable=True, index=True
+    )
     inventory_row_id: Mapped[int | None] = mapped_column(Integer, nullable=True, index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
     note: Mapped[str | None] = mapped_column(Text, nullable=True)
 
-    card: Mapped["Card"] = relationship(back_populates="transaction_logs")
-    batch: Mapped["ImportBatch"] = relationship(back_populates="transaction_logs")
+    card: Mapped[Card] = relationship(back_populates="transaction_logs")
+    batch: Mapped[ImportBatch] = relationship(back_populates="transaction_logs")

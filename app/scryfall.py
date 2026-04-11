@@ -1,14 +1,14 @@
 from __future__ import annotations
 
+import time
 from datetime import datetime
 from functools import lru_cache
 from typing import Any
-import time
 
 import requests
 from requests.adapters import HTTPAdapter
-from urllib3.util.retry import Retry
 from sqlalchemy.orm import Session
+from urllib3.util.retry import Retry
 
 from app.models import Card
 
@@ -57,7 +57,9 @@ def _normalize_card_payload(raw: dict[str, Any]) -> dict[str, Any]:
 
     type_line = raw.get("type_line")
     if not type_line and card_faces:
-        type_line = " // ".join(face.get("type_line", "") for face in card_faces if face.get("type_line"))
+        type_line = " // ".join(
+            face.get("type_line", "") for face in card_faces if face.get("type_line")
+        )
 
     return {
         "scryfall_id": raw.get("id"),

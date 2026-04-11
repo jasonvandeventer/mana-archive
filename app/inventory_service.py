@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from datetime import datetime
-from typing import Iterable
 import re
+from collections.abc import Iterable
+from datetime import datetime
 
 from sqlalchemy.orm import Session, joinedload
 
@@ -145,9 +145,7 @@ def get_or_create_card(
             existing.price_usd_etched = payload["price_usd_etched"]
             existing.updated_at = datetime.utcnow()
             session.flush()
-        elif (
-            not existing.image_url or not existing.type_line or not existing.oracle_text
-        ):
+        elif not existing.image_url or not existing.type_line or not existing.oracle_text:
             payload = fetch_card_by_scryfall_id(scryfall_id)
             if payload:
                 existing.name = payload["name"]
@@ -202,9 +200,7 @@ def create_or_merge_inventory_row(
     is_pending: bool = True,
     notes: str | None = None,
 ) -> InventoryRow:
-    existing = find_matching_inventory_row(
-        session, card_id, finish, drawer, slot, is_pending
-    )
+    existing = find_matching_inventory_row(session, card_id, finish, drawer, slot, is_pending)
     if existing:
         existing.quantity += quantity
         existing.updated_at = datetime.utcnow()
@@ -235,9 +231,7 @@ def list_inventory_rows(
     drawer: str = "",
     sort: str = "newest",
 ) -> list[InventoryRow]:
-    query = (
-        session.query(InventoryRow).options(joinedload(InventoryRow.card)).join(Card)
-    )
+    query = session.query(InventoryRow).options(joinedload(InventoryRow.card)).join(Card)
     if search.strip():
         query = query.filter(Card.name.ilike(f"%{search.strip()}%"))
     if finish.strip():
@@ -262,9 +256,7 @@ def list_inventory_rows(
             )
         )
     elif sort == "value":
-        rows.sort(
-            key=lambda r: effective_price(r.card, r.finish) * r.quantity, reverse=True
-        )
+        rows.sort(key=lambda r: effective_price(r.card, r.finish) * r.quantity, reverse=True)
     elif sort == "placement":
         rows.sort(key=lambda r: (assign_drawer(r.card, r.finish), drawer_sort_key(r)))
     else:
@@ -371,9 +363,7 @@ def adjust_inventory_row_quantity(
         raise ValueError("Cannot remove more than the row quantity.")
 
     source_location = (
-        "pending"
-        if row.is_pending
-        else f"drawer={row.drawer or '-'} slot={row.slot or '-'}"
+        "pending" if row.is_pending else f"drawer={row.drawer or '-'} slot={row.slot or '-'}"
     )
     log_transaction(
         session=session,
@@ -422,9 +412,7 @@ def undo_last_import(session: Session) -> bool:
     if not last_import or not last_import.inventory_row_id:
         return False
     row = (
-        session.query(InventoryRow)
-        .filter(InventoryRow.id == last_import.inventory_row_id)
-        .first()
+        session.query(InventoryRow).filter(InventoryRow.id == last_import.inventory_row_id).first()
     )
     if row:
         row.quantity -= abs(last_import.quantity_delta)
@@ -456,11 +444,7 @@ def undo_last_batch(session: Session, batch_id: int) -> int:
     )
     undone = 0
     for log in logs:
-        row = (
-            session.query(InventoryRow)
-            .filter(InventoryRow.id == log.inventory_row_id)
-            .first()
-        )
+        row = session.query(InventoryRow).filter(InventoryRow.id == log.inventory_row_id).first()
         if row:
             row.quantity -= abs(log.quantity_delta)
             row.updated_at = datetime.utcnow()

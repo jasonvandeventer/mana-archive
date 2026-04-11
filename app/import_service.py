@@ -18,7 +18,7 @@ from sqlalchemy.orm import Session
 
 from app.audit_service import create_import_batch, log_transaction
 from app.models import Card, InventoryRow
-from app.scryfall import fetch_card_by_set_and_number, fetch_card_by_scryfall_id
+from app.scryfall import fetch_card_by_scryfall_id, fetch_card_by_set_and_number
 
 
 def normalize_finish(value: str | None) -> str:
@@ -100,7 +100,9 @@ def parse_scanner_csv(file_bytes: bytes) -> dict[str, list[dict[str, Any]]]:
     return {"valid_rows": valid_rows, "invalid_rows": invalid_rows}
 
 
-def persist_import_rows(session: Session, rows: list[dict[str, Any]], filename: str = "manual import") -> dict[str, Any]:
+def persist_import_rows(
+    session: Session, rows: list[dict[str, Any]], filename: str = "manual import"
+) -> dict[str, Any]:
     imported_count = 0
     failed_rows: list[dict[str, Any]] = []
     imported_row_ids: list[int] = []
@@ -115,7 +117,9 @@ def persist_import_rows(session: Session, rows: list[dict[str, Any]], filename: 
             candidate_rows.append(row)
             continue
 
-        card_data = fetch_card_by_set_and_number(row.get("set_code", ""), row.get("collector_number", ""))
+        card_data = fetch_card_by_set_and_number(
+            row.get("set_code", ""), row.get("collector_number", "")
+        )
         if not card_data:
             failed_rows.append(
                 {
@@ -138,7 +142,9 @@ def persist_import_rows(session: Session, rows: list[dict[str, Any]], filename: 
             "imported_row_ids": [],
         }
 
-    unique_ids = sorted({row["_resolved_scryfall_id"] for row in candidate_rows if row.get("_resolved_scryfall_id")})
+    unique_ids = sorted(
+        {row["_resolved_scryfall_id"] for row in candidate_rows if row.get("_resolved_scryfall_id")}
+    )
     existing_cards = session.query(Card).filter(Card.scryfall_id.in_(unique_ids)).all()
     card_map: dict[str, Card] = {card.scryfall_id: card for card in existing_cards}
 
@@ -180,7 +186,15 @@ def persist_import_rows(session: Session, rows: list[dict[str, Any]], filename: 
     candidate_rows = [row for row in candidate_rows if not row.get("_failed")]
 
     for card in existing_cards:
-        prefetched = next((r.get("_prefetched_card_data") for r in candidate_rows if r.get("_resolved_scryfall_id") == card.scryfall_id and r.get("_prefetched_card_data")), None)
+        prefetched = next(
+            (
+                r.get("_prefetched_card_data")
+                for r in candidate_rows
+                if r.get("_resolved_scryfall_id") == card.scryfall_id
+                and r.get("_prefetched_card_data")
+            ),
+            None,
+        )
         if prefetched:
             card.name = prefetched["name"]
             card.set_code = prefetched["set_code"]
@@ -195,7 +209,13 @@ def persist_import_rows(session: Session, rows: list[dict[str, Any]], filename: 
             card.price_usd_etched = prefetched["price_usd_etched"]
             card.updated_at = now
 
-    card_ids = sorted({card_map[row["_resolved_scryfall_id"]].id for row in candidate_rows if row.get("_resolved_scryfall_id") in card_map})
+    card_ids = sorted(
+        {
+            card_map[row["_resolved_scryfall_id"]].id
+            for row in candidate_rows
+            if row.get("_resolved_scryfall_id") in card_map
+        }
+    )
     existing_inventory_rows = []
     if card_ids:
         existing_inventory_rows = (
@@ -208,7 +228,8 @@ def persist_import_rows(session: Session, rows: list[dict[str, Any]], filename: 
         )
 
     inventory_map: dict[tuple[int, str, str | None, str | None, bool], InventoryRow] = {
-        (row.card_id, row.finish, row.drawer, row.slot, row.is_pending): row for row in existing_inventory_rows
+        (row.card_id, row.finish, row.drawer, row.slot, row.is_pending): row
+        for row in existing_inventory_rows
     }
 
     created_rows: list[InventoryRow] = []

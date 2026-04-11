@@ -14,7 +14,6 @@ def _slot_sort_key(value: str | None) -> tuple[int, str]:
     return (1, text.lower())
 
 
-
 def list_drawer_groups(session: Session) -> dict[str, list[InventoryRow]]:
     rows = (
         session.query(InventoryRow)
@@ -28,7 +27,6 @@ def list_drawer_groups(session: Session) -> dict[str, list[InventoryRow]]:
     for row in rows:
         grouped[row.drawer or "Unassigned"].append(row)
     return dict(grouped)
-
 
 
 def list_rows_for_drawer(session: Session, drawer: str) -> list[InventoryRow]:

@@ -80,7 +80,12 @@ def build_pending_view_model(rows) -> dict:
     grouped_drawers = []
     for key in sorted(grouped.keys(), key=lambda x: (x == "-", int(x) if x.isdigit() else 999, x)):
         grouped_drawers.append(
-            {"drawer": key, "label": get_drawer_label(key), "count": len(grouped[key]), "entries": grouped[key]}
+            {
+                "drawer": key,
+                "label": get_drawer_label(key),
+                "count": len(grouped[key]),
+                "entries": grouped[key],
+            }
         )
 
     return {
@@ -97,7 +102,9 @@ def build_drawers_summary_view_model(grouped_rows: dict) -> dict:
     drawer_summaries = []
     for drawer_name, rows in grouped_rows.items():
         total_value = sum(effective_price(row.card, row.finish) * row.quantity for row in rows)
-        drawer_summaries.append({"drawer": drawer_name, "row_count": len(rows), "total_value": total_value})
+        drawer_summaries.append(
+            {"drawer": drawer_name, "row_count": len(rows), "total_value": total_value}
+        )
     drawer_summaries.sort(key=lambda d: d["drawer"])
     return {"drawer_summaries": drawer_summaries}
 

@@ -16,15 +16,22 @@ def create_deck(session: Session, name: str, format_name: str = "", notes: str =
     return deck
 
 
-
 def list_decks(session: Session) -> list[Deck]:
-    return session.query(Deck).options(joinedload(Deck.items).joinedload(DeckItem.card)).order_by(Deck.name.asc()).all()
-
+    return (
+        session.query(Deck)
+        .options(joinedload(Deck.items).joinedload(DeckItem.card))
+        .order_by(Deck.name.asc())
+        .all()
+    )
 
 
 def get_deck(session: Session, deck_id: int) -> Deck | None:
-    return session.query(Deck).options(joinedload(Deck.items).joinedload(DeckItem.card)).filter(Deck.id == deck_id).first()
-
+    return (
+        session.query(Deck)
+        .options(joinedload(Deck.items).joinedload(DeckItem.card))
+        .filter(Deck.id == deck_id)
+        .first()
+    )
 
 
 def pull_card_to_deck(session: Session, deck_id: int, inventory_row_id: int, quantity: int) -> bool:
@@ -48,7 +55,9 @@ def pull_card_to_deck(session: Session, deck_id: int, inventory_row_id: int, qua
     if deck_item:
         deck_item.quantity += quantity
     else:
-        deck_item = DeckItem(deck_id=deck_id, card_id=row.card_id, finish=row.finish, quantity=quantity)
+        deck_item = DeckItem(
+            deck_id=deck_id, card_id=row.card_id, finish=row.finish, quantity=quantity
+        )
         session.add(deck_item)
         session.flush()
 
@@ -69,9 +78,15 @@ def pull_card_to_deck(session: Session, deck_id: int, inventory_row_id: int, qua
     return True
 
 
-
-def return_card_from_deck(session: Session, deck_item_id: int, drawer: str = "", slot: str = "") -> bool:
-    deck_item = session.query(DeckItem).options(joinedload(DeckItem.deck)).filter(DeckItem.id == deck_item_id).first()
+def return_card_from_deck(
+    session: Session, deck_item_id: int, drawer: str = "", slot: str = ""
+) -> bool:
+    deck_item = (
+        session.query(DeckItem)
+        .options(joinedload(DeckItem.deck))
+        .filter(DeckItem.id == deck_item_id)
+        .first()
+    )
     if not deck_item:
         return False
 

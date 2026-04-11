@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ title or "Mana Archive" }}</title>
-    <link rel="stylesheet" href="/static/style.css">
+    <link rel="stylesheet" href="/static/style.css?v={{ app_version }}">
 </head>
 <body>
     <header class="site-header">
@@ -14,8 +14,13 @@
                     <div class="eyebrow">Mana Archive</div>
                     <h1 class="site-title">Card Inventory Platform</h1>
                 </div>
-                <span class="muted header-tagline">Import, place, value, and track your exact printings.</span>
+
+                <div class="header-right">
+                    <span class="muted header-tagline">Import, place, value, and track your exact printings.</span>
+                    <span class="version-pill">v{{ app_version }}</span>
+                </div>
             </div>
+
             <nav>
                 <a href="/">Home</a>
                 <a href="/import">Import</a>

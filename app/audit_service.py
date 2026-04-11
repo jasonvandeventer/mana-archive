@@ -5,7 +5,9 @@ from sqlalchemy.orm import Session
 from app.models import ImportBatch, TransactionLog
 
 
-def create_import_batch(session: Session, filename: str, row_count: int, note: str | None = None) -> ImportBatch:
+def create_import_batch(
+    session: Session, filename: str, row_count: int, note: str | None = None
+) -> ImportBatch:
     batch = ImportBatch(filename=filename, row_count=row_count, note=note)
     session.add(batch)
     session.flush()
