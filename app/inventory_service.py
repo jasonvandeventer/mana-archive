@@ -69,22 +69,65 @@ def assign_drawer(card: Card, finish: str) -> int:
 
 
 def drawer_sort_key(row: InventoryRow) -> tuple:
+    """Return the in-drawer sort key for an inventory row.
+
+    Drawer 6 has three explicit sections:
+    1. Cards whose set codes begin with a numeral
+    2. Normal-finish basic lands (non-full-art)
+    3. Miscellaneous fallback rows
+    """
     card = row.card
     drawer = assign_drawer(card, row.finish)
-    set_code = (card.set_code or "").lower()
+    set_code = (card.set_code or "").strip().lower()
     collector = collector_sort_key(card.collector_number)
-    name = (card.name or "").lower()
+    name = (card.name or "").strip().lower()
+
     if drawer == 1:
         return (set_code, collector, name, row.id)
+
     if drawer == 6:
         first_char = set_code[:1]
-        numeric_priority = 0 if first_char.isdigit() else 1
-        basic_priority = 1 if is_basic_land_candidate(card, row.finish) else 0
-        return (numeric_priority, basic_priority, set_code, collector, name, row.id)
+        is_numeric_set = first_char.isdigit()
+        is_basic = is_basic_land_candidate(card, row.finish)
+
+        # Section 1: numeric-prefixed set codes
+        if is_numeric_set:
+            return (0, set_code, collector, name, row.id)
+
+        # Section 2: basic lands by type, then set, then collector
+        if is_basic:
+            return (
+                1,
+                basic_land_type_sort_key(card),
+                set_code,
+                collector,
+                name,
+                row.id,
+            )
+
+        # Section 3: misc fallback
+        return (2, set_code, collector, name, row.id)
+
     return (set_code, collector, name, row.id)
 
 
-def get_or_create_card(session: Session, scryfall_id: str, card_data: dict | None = None) -> Card | None:
+def basic_land_type_sort_key(card: Card) -> tuple[int, str]:
+    """Sort basic lands by land type, then name as a fallback"""
+    name = (card.name or "").strip().lower()
+    order = {
+        "plains": 0,
+        "island": 1,
+        "swamp": 2,
+        "mountain": 3,
+        "forest": 4,
+        "wastes": 5,
+    }
+    return (order.get(name, 99), name)
+
+
+def get_or_create_card(
+    session: Session, scryfall_id: str, card_data: dict | None = None
+) -> Card | None:
     existing = session.query(Card).filter(Card.scryfall_id == scryfall_id).first()
     if existing:
         payload = card_data
@@ -102,7 +145,9 @@ def get_or_create_card(session: Session, scryfall_id: str, card_data: dict | Non
             existing.price_usd_etched = payload["price_usd_etched"]
             existing.updated_at = datetime.utcnow()
             session.flush()
-        elif not existing.image_url or not existing.type_line or not existing.oracle_text:
+        elif (
+            not existing.image_url or not existing.type_line or not existing.oracle_text
+        ):
             payload = fetch_card_by_scryfall_id(scryfall_id)
             if payload:
                 existing.name = payload["name"]
@@ -128,7 +173,14 @@ def get_or_create_card(session: Session, scryfall_id: str, card_data: dict | Non
     return card
 
 
-def find_matching_inventory_row(session: Session, card_id: int, finish: str, drawer: str | None, slot: str | None, is_pending: bool) -> InventoryRow | None:
+def find_matching_inventory_row(
+    session: Session,
+    card_id: int,
+    finish: str,
+    drawer: str | None,
+    slot: str | None,
+    is_pending: bool,
+) -> InventoryRow | None:
     return (
         session.query(InventoryRow)
         .filter(InventoryRow.card_id == card_id)
@@ -140,8 +192,19 @@ def find_matching_inventory_row(session: Session, card_id: int, finish: str, dra
     )
 
 
-def create_or_merge_inventory_row(session: Session, card_id: int, finish: str, quantity: int, drawer: str | None = None, slot: str | None = None, is_pending: bool = True, notes: str | None = None) -> InventoryRow:
-    existing = find_matching_inventory_row(session, card_id, finish, drawer, slot, is_pending)
+def create_or_merge_inventory_row(
+    session: Session,
+    card_id: int,
+    finish: str,
+    quantity: int,
+    drawer: str | None = None,
+    slot: str | None = None,
+    is_pending: bool = True,
+    notes: str | None = None,
+) -> InventoryRow:
+    existing = find_matching_inventory_row(
+        session, card_id, finish, drawer, slot, is_pending
+    )
     if existing:
         existing.quantity += quantity
         existing.updated_at = datetime.utcnow()
@@ -149,14 +212,32 @@ def create_or_merge_inventory_row(session: Session, card_id: int, finish: str, q
             existing.notes = notes
         session.flush()
         return existing
-    row = InventoryRow(card_id=card_id, finish=finish, quantity=quantity, drawer=drawer, slot=slot, is_pending=is_pending, notes=notes, created_at=datetime.utcnow(), updated_at=datetime.utcnow())
+    row = InventoryRow(
+        card_id=card_id,
+        finish=finish,
+        quantity=quantity,
+        drawer=drawer,
+        slot=slot,
+        is_pending=is_pending,
+        notes=notes,
+        created_at=datetime.utcnow(),
+        updated_at=datetime.utcnow(),
+    )
     session.add(row)
     session.flush()
     return row
 
 
-def list_inventory_rows(session: Session, search: str = "", finish: str = "", drawer: str = "", sort: str = "newest") -> list[InventoryRow]:
-    query = session.query(InventoryRow).options(joinedload(InventoryRow.card)).join(Card)
+def list_inventory_rows(
+    session: Session,
+    search: str = "",
+    finish: str = "",
+    drawer: str = "",
+    sort: str = "newest",
+) -> list[InventoryRow]:
+    query = (
+        session.query(InventoryRow).options(joinedload(InventoryRow.card)).join(Card)
+    )
     if search.strip():
         query = query.filter(Card.name.ilike(f"%{search.strip()}%"))
     if finish.strip():
@@ -165,11 +246,25 @@ def list_inventory_rows(session: Session, search: str = "", finish: str = "", dr
         query = query.filter(InventoryRow.drawer == drawer.strip())
     rows = query.all()
     if sort == "name":
-        rows.sort(key=lambda r: ((r.card.name or "").lower(), (r.card.set_code or "").lower(), collector_sort_key(r.card.collector_number)))
+        rows.sort(
+            key=lambda r: (
+                (r.card.name or "").lower(),
+                (r.card.set_code or "").lower(),
+                collector_sort_key(r.card.collector_number),
+            )
+        )
     elif sort == "set":
-        rows.sort(key=lambda r: ((r.card.set_code or "").lower(), collector_sort_key(r.card.collector_number), (r.card.name or "").lower()))
+        rows.sort(
+            key=lambda r: (
+                (r.card.set_code or "").lower(),
+                collector_sort_key(r.card.collector_number),
+                (r.card.name or "").lower(),
+            )
+        )
     elif sort == "value":
-        rows.sort(key=lambda r: effective_price(r.card, r.finish) * r.quantity, reverse=True)
+        rows.sort(
+            key=lambda r: effective_price(r.card, r.finish) * r.quantity, reverse=True
+        )
     elif sort == "placement":
         rows.sort(key=lambda r: (assign_drawer(r.card, r.finish), drawer_sort_key(r)))
     else:
@@ -177,7 +272,9 @@ def list_inventory_rows(session: Session, search: str = "", finish: str = "", dr
     return rows
 
 
-def update_inventory_location(session: Session, row_id: int, drawer: str | None, slot: str | None) -> InventoryRow | None:
+def update_inventory_location(
+    session: Session, row_id: int, drawer: str | None, slot: str | None
+) -> InventoryRow | None:
     row = session.query(InventoryRow).filter(InventoryRow.id == row_id).first()
     if not row:
         return None
@@ -185,13 +282,28 @@ def update_inventory_location(session: Session, row_id: int, drawer: str | None,
     row.drawer = (drawer or "").strip() or None
     row.slot = (slot or "").strip() or None
     row.updated_at = datetime.utcnow()
-    log_transaction(session=session, event_type="location_updated", card_id=row.card_id, finish=row.finish, quantity_delta=0, source_location=old_location, destination_location=f"drawer={row.drawer or '-'} slot={row.slot or '-'}", inventory_row_id=row.id, note="Inventory location updated")
+    log_transaction(
+        session=session,
+        event_type="location_updated",
+        card_id=row.card_id,
+        finish=row.finish,
+        quantity_delta=0,
+        source_location=old_location,
+        destination_location=f"drawer={row.drawer or '-'} slot={row.slot or '-'}",
+        inventory_row_id=row.id,
+        note="Inventory location updated",
+    )
     session.commit()
     return row
 
 
 def list_pending_rows(session: Session) -> list[InventoryRow]:
-    rows = session.query(InventoryRow).options(joinedload(InventoryRow.card)).filter(InventoryRow.is_pending.is_(True)).all()
+    rows = (
+        session.query(InventoryRow)
+        .options(joinedload(InventoryRow.card))
+        .filter(InventoryRow.is_pending.is_(True))
+        .all()
+    )
     rows.sort(key=lambda r: (assign_drawer(r.card, r.finish), drawer_sort_key(r)))
     return rows
 
@@ -202,7 +314,17 @@ def confirm_pending_row(session: Session, row_id: int) -> InventoryRow | None:
         return None
     row.is_pending = False
     row.updated_at = datetime.utcnow()
-    log_transaction(session=session, event_type="placement_confirmed", card_id=row.card_id, finish=row.finish, quantity_delta=0, source_location="pending", destination_location=f"drawer={row.drawer or '-'} slot={row.slot or '-'}", inventory_row_id=row.id, note="Pending row confirmed as placed")
+    log_transaction(
+        session=session,
+        event_type="placement_confirmed",
+        card_id=row.card_id,
+        finish=row.finish,
+        quantity_delta=0,
+        source_location="pending",
+        destination_location=f"drawer={row.drawer or '-'} slot={row.slot or '-'}",
+        inventory_row_id=row.id,
+        note="Pending row confirmed as placed",
+    )
     session.commit()
     return row
 
@@ -213,7 +335,17 @@ def confirm_all_pending(session: Session) -> int:
     for row in rows:
         row.is_pending = False
         row.updated_at = datetime.utcnow()
-        log_transaction(session=session, event_type="placement_confirmed", card_id=row.card_id, finish=row.finish, quantity_delta=0, source_location="pending", destination_location=f"drawer={row.drawer or '-'} slot={row.slot or '-'}", inventory_row_id=row.id, note="Pending row confirmed as placed")
+        log_transaction(
+            session=session,
+            event_type="placement_confirmed",
+            card_id=row.card_id,
+            finish=row.finish,
+            quantity_delta=0,
+            source_location="pending",
+            destination_location=f"drawer={row.drawer or '-'} slot={row.slot or '-'}",
+            inventory_row_id=row.id,
+            note="Pending row confirmed as placed",
+        )
         count += 1
     session.commit()
     return count
@@ -238,7 +370,11 @@ def adjust_inventory_row_quantity(
     if quantity > row.quantity:
         raise ValueError("Cannot remove more than the row quantity.")
 
-    source_location = "pending" if row.is_pending else f"drawer={row.drawer or '-'} slot={row.slot or '-'}"
+    source_location = (
+        "pending"
+        if row.is_pending
+        else f"drawer={row.drawer or '-'} slot={row.slot or '-'}"
+    )
     log_transaction(
         session=session,
         event_type=event_type,
@@ -277,32 +413,69 @@ def delete_inventory_row(session: Session, row_id: int) -> bool:
 
 
 def undo_last_import(session: Session) -> bool:
-    last_import = session.query(TransactionLog).filter(TransactionLog.event_type == "import").order_by(TransactionLog.id.desc()).first()
+    last_import = (
+        session.query(TransactionLog)
+        .filter(TransactionLog.event_type == "import")
+        .order_by(TransactionLog.id.desc())
+        .first()
+    )
     if not last_import or not last_import.inventory_row_id:
         return False
-    row = session.query(InventoryRow).filter(InventoryRow.id == last_import.inventory_row_id).first()
+    row = (
+        session.query(InventoryRow)
+        .filter(InventoryRow.id == last_import.inventory_row_id)
+        .first()
+    )
     if row:
         row.quantity -= abs(last_import.quantity_delta)
         row.updated_at = datetime.utcnow()
         if row.quantity <= 0:
             session.delete(row)
     session.flush()
-    log_transaction(session=session, event_type="undo_import", card_id=last_import.card_id, finish=last_import.finish, quantity_delta=-abs(last_import.quantity_delta), batch_id=last_import.batch_id, inventory_row_id=last_import.inventory_row_id, note=f"Undid import log {last_import.id}")
+    log_transaction(
+        session=session,
+        event_type="undo_import",
+        card_id=last_import.card_id,
+        finish=last_import.finish,
+        quantity_delta=-abs(last_import.quantity_delta),
+        batch_id=last_import.batch_id,
+        inventory_row_id=last_import.inventory_row_id,
+        note=f"Undid import log {last_import.id}",
+    )
     session.commit()
     return True
 
 
 def undo_last_batch(session: Session, batch_id: int) -> int:
-    logs = session.query(TransactionLog).filter(TransactionLog.batch_id == batch_id).filter(TransactionLog.event_type == "import").order_by(TransactionLog.id.desc()).all()
+    logs = (
+        session.query(TransactionLog)
+        .filter(TransactionLog.batch_id == batch_id)
+        .filter(TransactionLog.event_type == "import")
+        .order_by(TransactionLog.id.desc())
+        .all()
+    )
     undone = 0
     for log in logs:
-        row = session.query(InventoryRow).filter(InventoryRow.id == log.inventory_row_id).first()
+        row = (
+            session.query(InventoryRow)
+            .filter(InventoryRow.id == log.inventory_row_id)
+            .first()
+        )
         if row:
             row.quantity -= abs(log.quantity_delta)
             row.updated_at = datetime.utcnow()
             if row.quantity <= 0:
                 session.delete(row)
-        log_transaction(session=session, event_type="undo_batch_import", card_id=log.card_id, finish=log.finish, quantity_delta=-abs(log.quantity_delta), batch_id=log.batch_id, inventory_row_id=log.inventory_row_id, note=f"Undid import log {log.id} from batch {batch_id}")
+        log_transaction(
+            session=session,
+            event_type="undo_batch_import",
+            card_id=log.card_id,
+            finish=log.finish,
+            quantity_delta=-abs(log.quantity_delta),
+            batch_id=log.batch_id,
+            inventory_row_id=log.inventory_row_id,
+            note=f"Undid import log {log.id} from batch {batch_id}",
+        )
         undone += 1
     session.commit()
     return undone
@@ -330,6 +503,16 @@ def resort_collection(session: Session, row_ids: Iterable[int] | None = None) ->
                 row.drawer = target_drawer
                 row.slot = target_slot
                 row.updated_at = datetime.utcnow()
-                log_transaction(session=session, event_type="resort", card_id=row.card_id, finish=row.finish, quantity_delta=0, source_location=old, destination_location=f"drawer={target_drawer} slot={target_slot}", inventory_row_id=row.id, note="Auto-sorted collection row by placement rules")
+                log_transaction(
+                    session=session,
+                    event_type="resort",
+                    card_id=row.card_id,
+                    finish=row.finish,
+                    quantity_delta=0,
+                    source_location=old,
+                    destination_location=f"drawer={target_drawer} slot={target_slot}",
+                    inventory_row_id=row.id,
+                    note="Auto-sorted collection row by placement rules",
+                )
                 updated += 1
     return updated

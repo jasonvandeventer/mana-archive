@@ -35,59 +35,63 @@
         </div>
 
         <div class="panel">
-            <h2>Inventory</h2>
-            {% if rows %}
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Finish</th>
-                            <th>Qty</th>
-                            <th>Drawer</th>
-                            <th>Slot</th>
-                            <th>Pending</th>
-                            <th>Price</th>
-                            <th>Total</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for row in rows %}
-                        <tr>
-                            <td>{{ row.finish }}</td>
-                            <td>{{ row.quantity }}</td>
-                            <td>{{ row.drawer_label }}</td>
-                            <td>{{ row.slot or "-" }}</td>
-                            <td>{{ "Yes" if row.is_pending else "No" }}</td>
-                            <td>${{ "%.2f"|format(row.effective_price) }}</td>
-                            <td>${{ "%.2f"|format(row.total_value) }}</td>
-                            <td>
-                                <form action="/inventory/rows/{{ row.id }}/remove" method="post" style="display:inline;">
-                                    <input type="number" name="quantity" min="1" max="{{ row.quantity }}" value="1" style="width:60px;">
+    <h2>Inventory</h2>
+    {% if rows %}
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Finish</th>
+                        <th>Qty</th>
+                        <th>Drawer</th>
+                        <th>Slot</th>
+                        <th>Pending</th>
+                        <th>Price</th>
+                        <th>Total</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in rows %}
+                    <tr>
+                        <td>{{ row.finish }}</td>
+                        <td>{{ row.quantity }}</td>
+                        <td>{{ row.drawer_label }}</td>
+                        <td>{{ row.slot or "-" }}</td>
+                        <td>{{ "Yes" if row.is_pending else "No" }}</td>
+                        <td>${{ "%.2f"|format(row.effective_price) }}</td>
+                        <td>${{ "%.2f"|format(row.total_value) }}</td>
+                        <td>
+                            <div class="inventory-actions">
+                                <form action="/inventory/rows/{{ row.id }}/remove" method="post" class="inline-form">
+                                    <input type="number" name="quantity" min="1" max="{{ row.quantity }}" value="1">
                                     <button type="submit">Remove</button>
                                 </form>
 
-                                <form action="/inventory/rows/{{ row.id }}/sell" method="post" style="display:inline;">
+                                <form action="/inventory/rows/{{ row.id }}/sell" method="post" class="inline-form">
                                     <input type="hidden" name="quantity" value="1">
                                     <button type="submit">Sell 1</button>
                                 </form>
 
-                                <form action="/inventory/rows/{{ row.id }}/trade" method="post" style="display:inline;">
+                                <form action="/inventory/rows/{{ row.id }}/trade" method="post" class="inline-form">
                                     <input type="hidden" name="quantity" value="1">
                                     <button type="submit">Trade 1</button>
                                 </form>
 
-                                <form action="/inventory/rows/{{ row.id }}/delete" method="post" style="display:inline;">
-                                    <button type="submit" onclick="return confirm('Delete this row?')">Delete Row</button>
+                                <form action="/inventory/rows/{{ row.id }}/delete" method="post" class="inline-form">
+                                    <button type="submit" class="danger-button" onclick="return confirm('Delete this row?')">Delete Row</button>
                                 </form>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            {% else %}
-                <p>No inventory rows found.</p>
-            {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
+    {% else %}
+        <p>No inventory rows found.</p>
+    {% endif %}
+</div>
     </div>
 </section>
 {% endblock %}
