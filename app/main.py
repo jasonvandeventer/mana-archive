@@ -123,18 +123,18 @@ async def import_commit(
 
     session = get_session()
     resorted_count = 0
+    result = {
+        "imported_count": 0,
+        "failed_rows": [],
+        "batch_id": None,
+        "imported_row_ids": [],
+    }
+
     try:
         result = persist_import_rows(session, rows, filename=filename)
 
-        # Only auto-place small imports. When placement does run, it must check the
-        # full collection rather than just the imported rows so existing drawer/slot
-        # assignments are respected and slot collisions are avoided.
-        if (
-            result.get("imported_row_ids")
-            and len(result["imported_row_ids"]) <= AUTO_RESORT_IMPORT_THRESHOLD
-        ):
+        if result.get("imported_row_ids"):
             resorted_count = resort_collection(session)
-            session.commit()
     finally:
         session.close()
 
@@ -148,11 +148,9 @@ async def import_commit(
             "failed_rows": result["failed_rows"],
             "batch_id": result["batch_id"],
             "resorted_count": resorted_count,
-            "resort_skipped": len(result.get("imported_row_ids", []))
-            > AUTO_RESORT_IMPORT_THRESHOLD,
+            "resort_skipped": False,
         },
     )
-
 
 @app.post("/import/manual/preview")
 async def manual_import_preview(
