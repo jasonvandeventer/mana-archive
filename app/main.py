@@ -89,6 +89,7 @@ async def import_preview(request: Request, file: UploadFile = File(...)):
         },
     )
 
+
 @app.post("/import/commit")
 async def import_commit(
     request: Request,
@@ -118,19 +119,35 @@ async def import_commit(
         )
 
     session = get_session()
-    resorted_count = 0
-    result = {
-        "imported_count": 0,
-        "failed_rows": [],
-        "batch_id": None,
-        "imported_row_ids": [],
-    }
-
     try:
         result = persist_import_rows(session, rows, filename=filename)
 
         if result.get("imported_row_ids"):
-            resorted_count = resort_collection(session)
+            resort_collection(session)
+    finally:
+        session.close()
+
+    return RedirectResponse(url="/pending", status_code=303)
+    rows = []
+    for i in range(len(line_number)):
+        rows.append(
+            {
+                "line_number": int(line_number[i]),
+                "name": name[i] if i < len(name) else "",
+                "scryfall_id": scryfall_id[i],
+                "set_code": set_code[i],
+                "collector_number": collector_number[i],
+                "finish": normalize_finish(finish[i]),
+                "quantity": int(quantity[i]),
+                "location": location[i],
+            }
+        )
+
+    session = get_session()
+
+    try:
+        result = persist_import_rows(session, rows, filename=filename)
+
     finally:
         session.close()
 
@@ -205,7 +222,7 @@ async def manual_import_commit(
             # runs a full resort so existing drawer positions are checked before any
             # drawer/slot placement is assigned.
             resorted_count = resort_collection(session)
-            
+
     finally:
         session.close()
 
