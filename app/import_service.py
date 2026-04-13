@@ -143,11 +143,7 @@ def persist_import_rows(
         }
 
     unique_ids = sorted(
-        {
-            row["_resolved_scryfall_id"]
-            for row in candidate_rows
-            if row.get("_resolved_scryfall_id")
-        }
+        {row["_resolved_scryfall_id"] for row in candidate_rows if row.get("_resolved_scryfall_id")}
     )
 
     existing_cards = session.query(Card).filter(Card.scryfall_id.in_(unique_ids)).all()

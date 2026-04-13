@@ -291,9 +291,7 @@ def update_inventory_location(
         quantity_delta=0,
         source_location=old_location,
         destination_location=(
-            "pending"
-            if row.is_pending
-            else f"drawer={row.drawer or '-'} slot={row.slot or '-'}"
+            "pending" if row.is_pending else f"drawer={row.drawer or '-'} slot={row.slot or '-'}"
         ),
         inventory_row_id=row.id,
         note="Inventory location updated",
@@ -444,7 +442,9 @@ def undo_last_import(session: Session) -> bool:
     if not last_import or not last_import.inventory_row_id:
         return False
 
-    row = session.query(InventoryRow).filter(InventoryRow.id == last_import.inventory_row_id).first()
+    row = (
+        session.query(InventoryRow).filter(InventoryRow.id == last_import.inventory_row_id).first()
+    )
     if row:
         row.quantity -= abs(last_import.quantity_delta)
         row.updated_at = datetime.utcnow()
