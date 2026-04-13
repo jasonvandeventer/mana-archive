@@ -143,8 +143,13 @@ def persist_import_rows(
         }
 
     unique_ids = sorted(
-        {row["_resolved_scryfall_id"] for row in candidate_rows if row.get("_resolved_scryfall_id")}
+        {
+            row["_resolved_scryfall_id"]
+            for row in candidate_rows
+            if row.get("_resolved_scryfall_id")
+        }
     )
+
     existing_cards = session.query(Card).filter(Card.scryfall_id.in_(unique_ids)).all()
     card_map: dict[str, Card] = {card.scryfall_id: card for card in existing_cards}
 
@@ -216,9 +221,10 @@ def persist_import_rows(
             if row.get("_resolved_scryfall_id") in card_map
         }
     )
-    existing_inventory_rows = []
+
+    existing_pending_rows: list[InventoryRow] = []
     if card_ids:
-        existing_inventory_rows = (
+        existing_pending_rows = (
             session.query(InventoryRow)
             .filter(InventoryRow.card_id.in_(card_ids))
             .filter(InventoryRow.drawer.is_(None))
@@ -229,7 +235,7 @@ def persist_import_rows(
 
     inventory_map: dict[tuple[int, str, str | None, str | None, bool], InventoryRow] = {
         (row.card_id, row.finish, row.drawer, row.slot, row.is_pending): row
-        for row in existing_inventory_rows
+        for row in existing_pending_rows
     }
 
     created_rows: list[InventoryRow] = []
@@ -248,24 +254,26 @@ def persist_import_rows(
             continue
 
         qty = max(1, int(row.get("quantity") or 1))
-        key = (card.id, row["finish"], None, None, True)
+        finish = (row.get("finish") or "normal").strip().lower()
+        location_note = (row.get("location") or "").strip() or None
+
+        key = (card.id, finish, None, None, True)
         target_row = inventory_map.get(key)
+
         if target_row:
             target_row.quantity += qty
             target_row.updated_at = now
-            if row.get("location"):
-                target_row.notes = row["location"]
+            if location_note:
+                target_row.notes = location_note
         else:
-            # Imported rows stay pending with no assigned drawer/slot. Placement is
-            # handled later by a full-collection resort to avoid slot conflicts.
             target_row = InventoryRow(
                 card_id=card.id,
-                finish=row["finish"],
+                finish=finish,
                 quantity=qty,
                 drawer=None,
                 slot=None,
                 is_pending=True,
-                notes=row.get("location") or None,
+                notes=location_note,
                 created_at=now,
                 updated_at=now,
             )
@@ -277,7 +285,7 @@ def persist_import_rows(
         audit_payloads.append(
             {
                 "card_id": card.id,
-                "finish": row["finish"],
+                "finish": finish,
                 "quantity_delta": qty,
                 "batch_id": batch.id,
                 "inventory_row": target_row,
