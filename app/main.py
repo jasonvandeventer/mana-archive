@@ -89,10 +89,6 @@ async def import_preview(request: Request, file: UploadFile = File(...)):
         },
     )
 
-
-AUTO_RESORT_IMPORT_THRESHOLD = 25
-
-
 @app.post("/import/commit")
 async def import_commit(
     request: Request,
@@ -138,19 +134,7 @@ async def import_commit(
     finally:
         session.close()
 
-    return templates.TemplateResponse(
-        request=request,
-        name="import_result.html",
-        context={
-            "request": request,
-            "title": "Import Results",
-            "imported_count": result["imported_count"],
-            "failed_rows": result["failed_rows"],
-            "batch_id": result["batch_id"],
-            "resorted_count": resorted_count,
-            "resort_skipped": False,
-        },
-    )
+    return RedirectResponse(url="/pending", status_code=303)
 
 
 @app.post("/import/manual/preview")
@@ -221,7 +205,7 @@ async def manual_import_commit(
             # runs a full resort so existing drawer positions are checked before any
             # drawer/slot placement is assigned.
             resorted_count = resort_collection(session)
-            session.commit()
+            
     finally:
         session.close()
 
