@@ -4,7 +4,7 @@ metadata:
   name: mana-archive
   namespace: mana-archive
 spec:
-  replicas: 1
+  replicas: 0
   selector:
     matchLabels:
       app: mana-archive
@@ -25,7 +25,6 @@ spec:
           volumeMounts:
             - name: mana-archive-data
               mountPath: /data
-          replicas: 0
       volumes:
         - name: mana-archive-data
           persistentVolumeClaim:
