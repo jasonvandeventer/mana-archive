@@ -297,6 +297,51 @@ def list_inventory_rows(
     return rows, total_count
 
 
+def get_inventory_row_stats(
+    session: Session,
+    search: str = "",
+    finish: str = "",
+    drawer: str = "",
+) -> dict:
+    query = session.query(InventoryRow).options(joinedload(InventoryRow.card)).join(Card)
+
+    if search.strip():
+        query = query.filter(Card.name.ilike(f"%{search.strip()}%"))
+
+    if finish.strip():
+        query = query.filter(InventoryRow.finish == finish.strip().lower())
+
+    if drawer.strip():
+        query = query.filter(InventoryRow.drawer == drawer.strip())
+
+    rows = query.all()
+
+    total_value = 0.0
+    total_cards = 0
+    unique_cards = 0
+    drawer_counts = {str(i): 0 for i in range(1, 7)}
+    unassigned_count = 0
+
+    for row in rows:
+        price = effective_price(row.card, row.finish)
+        total_value += price * row.quantity
+        total_cards += row.quantity
+        unique_cards += 1
+
+        if str(row.drawer) in drawer_counts:
+            drawer_counts[str(row.drawer)] += row.quantity
+        else:
+            unassigned_count += row.quantity
+
+    return {
+        "total_value": total_value,
+        "total_cards": total_cards,
+        "unique_cards": unique_cards,
+        "drawer_counts": drawer_counts,
+        "unassigned_count": unassigned_count,
+    }
+
+
 def update_inventory_location(
     session: Session, row_id: int, drawer: str | None, slot: str | None
 ) -> InventoryRow | None:

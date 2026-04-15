@@ -26,6 +26,7 @@ from app.inventory_service import (
     confirm_pending_row,
     delete_inventory_row,
     get_drawer_label,
+    get_inventory_row_stats,
     list_inventory_rows,
     list_pending_rows,
     resort_collection,
@@ -360,16 +361,20 @@ def collection_page(
             per_page=per_page,
         )
 
-        items = []
-        total_value = 0.0
-        total_cards = 0
-        unique_cards = 0
-        drawer_counts = {str(i): 0 for i in range(1, 7)}
-        unassigned_count = 0
+        stats = get_inventory_row_stats(
+            session,
+            search=search,
+            finish=finish,
+            drawer=drawer,
+        )
 
+        items = []
         for row in inventory_rows:
             price = effective_price(row.card, row.finish)
-            total = price * row.quantity
+            has_price = price is not None
+            display_price = price if has_price else 0.0
+            total = display_price * row.quantity
+
             items.append(
                 {
                     "id": row.id,
@@ -379,18 +384,12 @@ def collection_page(
                     "drawer": row.drawer,
                     "slot": row.slot,
                     "is_pending": row.is_pending,
-                    "effective_price": price,
+                    "effective_price": display_price,
+                    "has_price": has_price,
                     "total_value": total,
                     "drawer_label": get_drawer_label(row.drawer),
                 }
             )
-            total_value += total
-            total_cards += row.quantity
-            unique_cards += 1
-            if str(row.drawer) in drawer_counts:
-                drawer_counts[str(row.drawer)] += row.quantity
-            else:
-                unassigned_count += row.quantity
     finally:
         session.close()
 
@@ -412,11 +411,11 @@ def collection_page(
             "per_page": per_page,
             "total_count": total_count,
             "total_pages": total_pages,
-            "total_value": total_value,
-            "total_cards": total_cards,
-            "unique_cards": unique_cards,
-            "drawer_counts": drawer_counts,
-            "unassigned_count": unassigned_count,
+            "total_value": stats["total_value"],
+            "total_cards": stats["total_cards"],
+            "unique_cards": stats["unique_cards"],
+            "drawer_counts": stats["drawer_counts"],
+            "unassigned_count": stats["unassigned_count"],
         },
     )
 

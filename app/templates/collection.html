@@ -21,7 +21,7 @@
         <div class="stat-number">{{ total_cards }}</div>
       </div>
       <div class="stat-card compact">
-        <div class="stat-label">Unique rows</div>
+        <div class="stat-label">Matching rows</div>
         <div class="stat-number">{{ unique_cards }}</div>
       </div>
     </div>
@@ -95,13 +95,25 @@
                 {{ item.card.set_name }} · {{ item.card.set_code|upper }} #{{ item.card.collector_number }}
               </div>
               <div class="inventory-meta">
-                {{ item.finish|capitalize }} · Qty {{ item.quantity }} · ${{ '%.2f'|format(item.effective_price) }} each
+                {{ item.finish|capitalize }} · Qty {{ item.quantity }} ·
+                {% if item.has_price %}
+                  ${{ '%.2f'|format(item.effective_price) }} each
+                {% else %}
+                  — each
+                {% endif %}
               </div>
               <div class="inventory-location">
                 {{ item.drawer_label }}
                 {% if item.slot %}· Slot {{ item.slot }}{% endif %}
               </div>
-              <div class="inventory-total">Total value: ${{ '%.2f'|format(item.total_value) }}</div>
+              <div class="inventory-total">
+                Total value:
+                {% if item.has_price %}
+                  ${{ '%.2f'|format(item.total_value) }}
+                {% else %}
+                  —
+                {% endif %}
+              </div>
               <form action="/inventory/rows/{{ item.id }}/remove"
                     method="post"
                     class="inline-form"
@@ -200,7 +212,11 @@
     </section>
   {% else %}
     <section class="panel">
-      <p>No inventory rows yet.</p>
+      {% if search or finish_filter or drawer_filter %}
+        <p>No matching inventory rows for the current filters.</p>
+      {% else %}
+        <p>No inventory rows yet.</p>
+      {% endif %}
     </section>
   {% endif %}
 {% endblock %}
