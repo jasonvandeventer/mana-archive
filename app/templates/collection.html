@@ -52,12 +52,20 @@
              placeholder="Drawer"
              value="{{ drawer_filter }}">
       <select name="sort">
-        <option value="newest" {% if sort == 'newest' %}selected{% endif %}>Newest</option>
+        <option value="newest" {% if sort == 'newest' %}selected{% endif %}>Date Added</option>
         <option value="name" {% if sort == 'name' %}selected{% endif %}>Name</option>
         <option value="set" {% if sort == 'set' %}selected{% endif %}>Set</option>
-        <option value="value" {% if sort == 'value' %}selected{% endif %}>Value</option>
+        <option value="value" {% if sort == 'value' %}selected{% endif %}>Price (Each)</option>
+        <option value="placement" {% if sort == 'placement' %}selected{% endif %}>Placement</option>
+      </select>
+      <select name="direction">
+        <option value="asc" {% if direction == 'asc' %}selected{% endif %}>Ascending</option>
+        <option value="desc" {% if direction == 'desc' %}selected{% endif %}>Descending</option>
       </select>
       <button type="submit">Apply</button>
+      <a href="/collection">
+        <button type="button">Clear</button>
+      </a>
     </form>
   </section>
   {% if items %}
@@ -137,23 +145,62 @@
       </div>
     </section>
     <section class="panel controls-panel" style="margin-top: 1rem;">
-      <div class="hero-row" style="align-items: center;">
+      <div class="hero-row"
+           style="align-items: center;
+                  justify-content: space-between;
+                  gap: 1rem;
+                  flex-wrap: wrap">
         <div class="muted">Page {{ page }} of {{ total_pages }} · {{ total_count }} matching rows</div>
-        <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+        <div style="display: flex;
+                    gap: 0.5rem;
+                    flex-wrap: wrap;
+                    align-items: center">
           {% if page > 1 %}
-            <a href="/collection?search={{ search }}&finish={{ finish_filter }}&drawer={{ drawer_filter }}&sort={{ sort }}&page={{ page - 1 }}">
+            <a href="/collection?search={{ search }}&finish={{ finish_filter }}&drawer={{ drawer_filter }}&sort={{ sort }}&direction={{ direction }}&page={{ page - 1 }}">
               <button type="button">Previous</button>
             </a>
           {% endif %}
+          {% for p in range(1, total_pages + 1) %}
+            {% if p == 1 or p == total_pages or (p >= page - 2 and p <= page + 2) %}
+              <a href="/collection?search={{ search }}&finish={{ finish_filter }}&drawer={{ drawer_filter }}&sort={{ sort }}&direction={{ direction }}&page={{ p }}">
+                <button type="button"
+                        {% if p == page %}style="font-weight: bold; opacity: 0.8;"{% endif %}>{{ p }}</button>
+              </a>
+            {% elif p == 2 and page > 4 %}
+              <span class="muted">…</span>
+            {% elif p == total_pages - 1 and page < total_pages - 3 %}
+              <span class="muted">…</span>
+            {% endif %}
+          {% endfor %}
           {% if page < total_pages %}
-            <a href="/collection?search={{ search }}&finish={{ finish_filter }}&drawer={{ drawer_filter }}&sort={{ sort }}&page={{ page + 1 }}">
+            <a href="/collection?search={{ search }}&finish={{ finish_filter }}&drawer={{ drawer_filter }}&sort={{ sort }}&direction={{ direction }}&page={{ page + 1 }}">
               <button type="button">Next</button>
             </a>
           {% endif %}
         </div>
-      {% else %}
-        <section class="panel">
-          <p>No inventory rows yet.</p>
-        </section>
-      {% endif %}
-    {% endblock %}
+        <form method="get"
+              action="/collection"
+              class="inline-form"
+              style="gap: 0.4rem;
+                     align-items: center">
+          <input type="hidden" name="search" value="{{ search }}">
+          <input type="hidden" name="finish" value="{{ finish_filter }}">
+          <input type="hidden" name="drawer" value="{{ drawer_filter }}">
+          <input type="hidden" name="sort" value="{{ sort }}">
+          <input type="hidden" name="direction" value="{{ direction }}">
+          <input type="number"
+                 name="page"
+                 min="1"
+                 max="{{ total_pages }}"
+                 value="{{ page }}"
+                 style="width: 80px">
+          <button type="submit">Go</button>
+        </form>
+      </div>
+    </section>
+  {% else %}
+    <section class="panel">
+      <p>No inventory rows yet.</p>
+    </section>
+  {% endif %}
+{% endblock %}

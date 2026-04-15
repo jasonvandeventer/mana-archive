@@ -230,11 +230,13 @@ def list_inventory_rows(
     finish: str = "",
     drawer: str = "",
     sort: str = "newest",
+    direction: str = "desc",
     page: int = 1,
     per_page: int = 50,
 ) -> tuple[list[InventoryRow], int]:
     page = max(page, 1)
     per_page = max(1, min(per_page, 100))
+    reverse = direction == "desc"
 
     base_query = session.query(InventoryRow).options(joinedload(InventoryRow.card)).join(Card)
 
@@ -252,40 +254,44 @@ def list_inventory_rows(
     # SQL-sortable cases
     if sort == "name":
         query = base_query.order_by(
-            Card.name.asc(),
-            Card.set_code.asc(),
-            Card.collector_number.asc(),
-            InventoryRow.id.asc(),
+            Card.name.desc() if reverse else Card.name.asc(),
+            Card.set_code.desc() if reverse else Card.set_code.asc(),
+            Card.collector_number.desc() if reverse else Card.collector_number.asc(),
+            InventoryRow.id.desc() if reverse else InventoryRow.id.asc(),
         )
         rows = query.offset((page - 1) * per_page).limit(per_page).all()
 
     elif sort == "set":
         query = base_query.order_by(
-            Card.set_code.asc(),
-            Card.collector_number.asc(),
-            Card.name.asc(),
-            InventoryRow.id.asc(),
+            Card.set_code.desc() if reverse else Card.set_code.asc(),
+            Card.collector_number.desc() if reverse else Card.collector_number.asc(),
+            Card.name.desc() if reverse else Card.name.asc(),
+            InventoryRow.id.desc() if reverse else InventoryRow.id.asc(),
         )
         rows = query.offset((page - 1) * per_page).limit(per_page).all()
 
     elif sort == "placement":
-        # Still Python-side because of assign_drawer/drawer_sort_key
         rows = base_query.all()
-        rows.sort(key=lambda r: (assign_drawer(r.card, r.finish), drawer_sort_key(r)))
+        rows.sort(
+            key=lambda r: (assign_drawer(r.card, r.finish), drawer_sort_key(r)),
+            reverse=reverse,
+        )
         start = (page - 1) * per_page
         end = start + per_page
         rows = rows[start:end]
 
     elif sort == "value":
-        # Still Python-side because effective_price() is Python logic
         rows = base_query.all()
-        rows.sort(key=lambda r: effective_price(r.card, r.finish) * r.quantity, reverse=True)
+        rows.sort(
+            key=lambda r: effective_price(r.card, r.finish),
+            reverse=reverse,
+        )
         start = (page - 1) * per_page
         end = start + per_page
         rows = rows[start:end]
 
     else:
-        query = base_query.order_by(InventoryRow.id.desc())
+        query = base_query.order_by(InventoryRow.id.desc() if reverse else InventoryRow.id.asc())
         rows = query.offset((page - 1) * per_page).limit(per_page).all()
 
     return rows, total_count

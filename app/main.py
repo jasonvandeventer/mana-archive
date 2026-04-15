@@ -342,6 +342,7 @@ def collection_page(
     finish: str = "",
     drawer: str = "",
     sort: str = "newest",
+    direction: str = "desc",
     page: int = 1,
 ):
     session = get_session()
@@ -354,6 +355,7 @@ def collection_page(
             finish=finish,
             drawer=drawer,
             sort=sort,
+            direction=direction,
             page=page,
             per_page=per_page,
         )
@@ -405,6 +407,7 @@ def collection_page(
             "finish_filter": finish,
             "drawer_filter": drawer,
             "sort": sort,
+            "direction": direction,
             "page": page,
             "per_page": per_page,
             "total_count": total_count,
