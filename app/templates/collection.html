@@ -70,7 +70,8 @@
                 <a href="/cards/{{ item.card.id }}">
                   <img class="inventory-thumb"
                        src="{{ item.card.image_url }}"
-                       alt="{{ item.card.name }}">
+                       alt="{{ item.card.name }}"
+                       loading="lazy">
                 </a>
               {% else %}
                 <a href="/cards/{{ item.card.id }}" class="inventory-thumb placeholder"></a>
@@ -135,9 +136,24 @@
         {% endfor %}
       </div>
     </section>
-  {% else %}
-    <section class="panel">
-      <p>No inventory rows yet.</p>
-    </section>
-  {% endif %}
-{% endblock %}
+    <section class="panel controls-panel" style="margin-top: 1rem;">
+      <div class="hero-row" style="align-items: center;">
+        <div class="muted">Page {{ page }} of {{ total_pages }} · {{ total_count }} matching rows</div>
+        <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+          {% if page > 1 %}
+            <a href="/collection?search={{ search }}&finish={{ finish_filter }}&drawer={{ drawer_filter }}&sort={{ sort }}&page={{ page - 1 }}">
+              <button type="button">Previous</button>
+            </a>
+          {% endif %}
+          {% if page < total_pages %}
+            <a href="/collection?search={{ search }}&finish={{ finish_filter }}&drawer={{ drawer_filter }}&sort={{ sort }}&page={{ page + 1 }}">
+              <button type="button">Next</button>
+            </a>
+          {% endif %}
+        </div>
+      {% else %}
+        <section class="panel">
+          <p>No inventory rows yet.</p>
+        </section>
+      {% endif %}
+    {% endblock %}

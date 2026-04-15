@@ -230,41 +230,65 @@ def list_inventory_rows(
     finish: str = "",
     drawer: str = "",
     sort: str = "newest",
-) -> list[InventoryRow]:
-    query = session.query(InventoryRow).options(joinedload(InventoryRow.card)).join(Card)
+    page: int = 1,
+    per_page: int = 50,
+) -> tuple[list[InventoryRow], int]:
+    page = max(page, 1)
+    per_page = max(1, min(per_page, 100))
+
+    base_query = session.query(InventoryRow).options(joinedload(InventoryRow.card)).join(Card)
+
     if search.strip():
-        query = query.filter(Card.name.ilike(f"%{search.strip()}%"))
+        base_query = base_query.filter(Card.name.ilike(f"%{search.strip()}%"))
+
     if finish.strip():
-        query = query.filter(InventoryRow.finish == finish.strip().lower())
+        base_query = base_query.filter(InventoryRow.finish == finish.strip().lower())
+
     if drawer.strip():
-        query = query.filter(InventoryRow.drawer == drawer.strip())
+        base_query = base_query.filter(InventoryRow.drawer == drawer.strip())
 
-    rows = query.all()
+    total_count = base_query.count()
 
+    # SQL-sortable cases
     if sort == "name":
-        rows.sort(
-            key=lambda r: (
-                (r.card.name or "").lower(),
-                (r.card.set_code or "").lower(),
-                collector_sort_key(r.card.collector_number),
-            )
+        query = base_query.order_by(
+            Card.name.asc(),
+            Card.set_code.asc(),
+            Card.collector_number.asc(),
+            InventoryRow.id.asc(),
         )
-    elif sort == "set":
-        rows.sort(
-            key=lambda r: (
-                (r.card.set_code or "").lower(),
-                collector_sort_key(r.card.collector_number),
-                (r.card.name or "").lower(),
-            )
-        )
-    elif sort == "value":
-        rows.sort(key=lambda r: effective_price(r.card, r.finish) * r.quantity, reverse=True)
-    elif sort == "placement":
-        rows.sort(key=lambda r: (assign_drawer(r.card, r.finish), drawer_sort_key(r)))
-    else:
-        rows.sort(key=lambda r: r.id, reverse=True)
+        rows = query.offset((page - 1) * per_page).limit(per_page).all()
 
-    return rows
+    elif sort == "set":
+        query = base_query.order_by(
+            Card.set_code.asc(),
+            Card.collector_number.asc(),
+            Card.name.asc(),
+            InventoryRow.id.asc(),
+        )
+        rows = query.offset((page - 1) * per_page).limit(per_page).all()
+
+    elif sort == "placement":
+        # Still Python-side because of assign_drawer/drawer_sort_key
+        rows = base_query.all()
+        rows.sort(key=lambda r: (assign_drawer(r.card, r.finish), drawer_sort_key(r)))
+        start = (page - 1) * per_page
+        end = start + per_page
+        rows = rows[start:end]
+
+    elif sort == "value":
+        # Still Python-side because effective_price() is Python logic
+        rows = base_query.all()
+        rows.sort(key=lambda r: effective_price(r.card, r.finish) * r.quantity, reverse=True)
+        start = (page - 1) * per_page
+        end = start + per_page
+        rows = rows[start:end]
+
+    else:
+        query = base_query.order_by(InventoryRow.id.desc())
+        rows = query.offset((page - 1) * per_page).limit(per_page).all()
+
+    return rows, total_count
 
 
 def update_inventory_location(

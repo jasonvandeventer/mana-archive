@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 import os
 
 from fastapi import FastAPI, File, Form, Request, UploadFile
@@ -336,19 +337,34 @@ def delete_inventory_row_action(
 
 @app.get("/collection")
 def collection_page(
-    request: Request, search: str = "", finish: str = "", drawer: str = "", sort: str = "newest"
+    request: Request,
+    search: str = "",
+    finish: str = "",
+    drawer: str = "",
+    sort: str = "newest",
+    page: int = 1,
 ):
     session = get_session()
+    per_page = 50
+
     try:
-        inventory_rows = list_inventory_rows(
-            session, search=search, finish=finish, drawer=drawer, sort=sort
+        inventory_rows, total_count = list_inventory_rows(
+            session,
+            search=search,
+            finish=finish,
+            drawer=drawer,
+            sort=sort,
+            page=page,
+            per_page=per_page,
         )
+
         items = []
         total_value = 0.0
         total_cards = 0
         unique_cards = 0
         drawer_counts = {str(i): 0 for i in range(1, 7)}
         unassigned_count = 0
+
         for row in inventory_rows:
             price = effective_price(row.card, row.finish)
             total = price * row.quantity
@@ -376,6 +392,8 @@ def collection_page(
     finally:
         session.close()
 
+    total_pages = max(1, math.ceil(total_count / per_page))
+
     return templates.TemplateResponse(
         request=request,
         name="collection.html",
@@ -387,6 +405,10 @@ def collection_page(
             "finish_filter": finish,
             "drawer_filter": drawer,
             "sort": sort,
+            "page": page,
+            "per_page": per_page,
+            "total_count": total_count,
+            "total_pages": total_pages,
             "total_value": total_value,
             "total_cards": total_cards,
             "unique_cards": unique_cards,
