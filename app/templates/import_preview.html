@@ -5,7 +5,6 @@
     <p>File: {{ filename }}</p>
     <p>Valid rows: {{ valid_rows|length }}</p>
     <p>Invalid rows: {{ invalid_rows|length }}</p>
-
     {% if valid_rows %}
       <form action="/import/commit" method="post">
         <input type="hidden" name="filename" value="{{ filename }}">
@@ -14,7 +13,9 @@
           <input type="hidden" name="name" value="{{ row.name or '' }}">
           <input type="hidden" name="scryfall_id" value="{{ row.scryfall_id }}">
           <input type="hidden" name="set_code" value="{{ row.set_code }}">
-          <input type="hidden" name="collector_number" value="{{ row.collector_number }}">
+          <input type="hidden"
+                 name="collector_number"
+                 value="{{ row.collector_number }}">
           <input type="hidden" name="finish" value="{{ row.finish }}">
           <input type="hidden" name="quantity" value="{{ row.quantity }}">
           <input type="hidden" name="location" value="{{ row.location }}">
@@ -23,7 +24,6 @@
       </form>
     {% endif %}
   </section>
-
   <section>
     <h3>Valid Rows</h3>
     {% if valid_rows %}
@@ -55,18 +55,17 @@
                              border-radius: 999px;
                              font-size: 0.85rem;
                              font-weight: 700;
-                             border: 1px solid #999;">
-                  {{ row.finish|capitalize }}
-                </span>
+                             border: 1px solid #999">{{ row.finish|capitalize }}</span>
               </td>
               <td>{{ row.quantity }}</td>
               <td>{{ row.location or '-' }}</td>
               <td>
                 {% if row.warnings %}
                   {% for warning in row.warnings %}
-                    <div style="color: #b45309; font-size: 0.9rem; font-weight: 600; margin-bottom: 0.25rem;">
-                      Warning: {{ warning }}
-                    </div>
+                    <div style="color: #b45309;
+                                font-size: 0.9rem;
+                                font-weight: 600;
+                                margin-bottom: 0.25rem">Warning: {{ warning }}</div>
                   {% endfor %}
                 {% else %}
                   <span style="color: #666;">—</span>
@@ -80,7 +79,6 @@
       <p>No valid rows found.</p>
     {% endif %}
   </section>
-
   <section>
     <h3>Invalid Rows</h3>
     {% if invalid_rows %}

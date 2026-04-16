@@ -370,6 +370,3 @@ def persist_import_rows(
         "batch_id": batch.id,
         "imported_row_ids": imported_row_ids,
     }
-
-
-
