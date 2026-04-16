@@ -778,3 +778,16 @@ def card_detail_page(request: Request, card_id: int):
             "total_value": total_value,
         },
     )
+
+
+@app.post("/cards/refresh-stale")
+async def refresh_stale_cards():
+    session = get_session()
+    try:
+        stale_cards = session.query(Card).all()
+        for card in stale_cards:
+            if is_price_stale(card.updated_at):
+                refresh_card_from_scryfall(session, card.id)
+    finally:
+        session.close()
+    return RedirectResponse(url="/collection", status_code=303)

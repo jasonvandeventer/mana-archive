@@ -7,6 +7,9 @@
         <h2 class="panel-title">Collection Overview</h2>
         <p class="muted">Your exact-printing inventory with assigned drawers and slots.</p>
       </div>
+      <form action="/cards/refresh-stale" method="post" class="inline-form">
+        <button type="submit">Refresh Stale Prices</button>
+      </form>
       <form action="/collection/resort" method="post" class="inline-form">
         <button type="submit">Apply Drawer Sorter</button>
       </form>
@@ -153,6 +156,10 @@
                       method="post"
                       class="inline-form">
                   <button type="submit" onclick="return confirm('Delete this row?')">Delete Row</button>
+                </form>
+                <form action="/cards/refresh" method="post" class="inline-form">
+                  <input type="hidden" name="card_id" value="{{ item.card.id }}">
+                  <button type="submit">Refresh Price</button>
                 </form>
               </div>
             </div>
