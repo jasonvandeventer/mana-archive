@@ -27,6 +27,7 @@ from app.inventory_service import (
     delete_inventory_row,
     get_drawer_label,
     get_inventory_row_stats,
+    is_price_stale,
     list_inventory_rows,
     list_pending_rows,
     resort_collection,
@@ -130,30 +131,6 @@ async def import_commit(
         session.close()
 
     return RedirectResponse(url="/pending", status_code=303)
-    rows = []
-    for i in range(len(line_number)):
-        rows.append(
-            {
-                "line_number": int(line_number[i]),
-                "name": name[i] if i < len(name) else "",
-                "scryfall_id": scryfall_id[i],
-                "set_code": set_code[i],
-                "collector_number": collector_number[i],
-                "finish": normalize_finish(finish[i]),
-                "quantity": int(quantity[i]),
-                "location": location[i],
-            }
-        )
-
-    session = get_session()
-
-    try:
-        result = persist_import_rows(session, rows, filename=filename)
-
-    finally:
-        session.close()
-
-    return RedirectResponse(url="/pending", status_code=303)
 
 
 @app.post("/import/manual/preview")
@@ -220,9 +197,6 @@ async def manual_import_commit(
             filename="manual import",
         )
         if result.get("imported_row_ids"):
-            # Manual import never assigns slots directly. It imports as pending, then
-            # runs a full resort so existing drawer positions are checked before any
-            # drawer/slot placement is assigned.
             resorted_count = resort_collection(session)
 
     finally:
@@ -371,9 +345,18 @@ def collection_page(
         items = []
         for row in inventory_rows:
             price = effective_price(row.card, row.finish)
+            price_updated_at = getattr(row.card, "updated_at", None)
+            is_stale = is_price_stale(price_updated_at)
             has_price = price is not None
-            display_price = price if has_price else 0.0
-            total = display_price * row.quantity
+
+            if has_price:
+                display_price = price
+                total = price * row.quantity
+                price_status = "stale" if is_stale else "current"
+            else:
+                display_price = 0.0
+                total = 0.0
+                price_status = "unknown"
 
             items.append(
                 {
@@ -386,6 +369,8 @@ def collection_page(
                     "is_pending": row.is_pending,
                     "effective_price": display_price,
                     "has_price": has_price,
+                    "price_status": price_status,
+                    "price_updated_at": price_updated_at,
                     "total_value": total,
                     "drawer_label": get_drawer_label(row.drawer),
                 }

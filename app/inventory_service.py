@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 from collections.abc import Iterable
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from sqlalchemy.orm import Session, joinedload
 
@@ -10,6 +10,8 @@ from app.audit_service import log_transaction
 from app.models import Card, InventoryRow, TransactionLog
 from app.pricing import effective_price
 from app.scryfall import fetch_card_by_scryfall_id, fetch_card_traits
+
+PRICE_STALE_DAYS = 7
 
 VALUE_THRESHOLD = 5.0
 _BASIC_LAND_NAMES = {"plains", "island", "swamp", "mountain", "forest", "wastes"}
@@ -251,7 +253,6 @@ def list_inventory_rows(
 
     total_count = base_query.count()
 
-    # SQL-sortable cases
     if sort == "name":
         query = base_query.order_by(
             Card.name.desc() if reverse else Card.name.asc(),
@@ -297,6 +298,12 @@ def list_inventory_rows(
     return rows, total_count
 
 
+def is_price_stale(price_updated_at: datetime | None) -> bool:
+    if price_updated_at is None:
+        return True
+    return price_updated_at < datetime.utcnow() - timedelta(days=PRICE_STALE_DAYS)
+
+
 def get_inventory_row_stats(
     session: Session,
     search: str = "",
@@ -324,7 +331,8 @@ def get_inventory_row_stats(
 
     for row in rows:
         price = effective_price(row.card, row.finish)
-        total_value += price * row.quantity
+        if price is not None:
+            total_value += price * row.quantity
         total_cards += row.quantity
         unique_cards += 1
 

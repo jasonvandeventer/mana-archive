@@ -96,8 +96,10 @@
               </div>
               <div class="inventory-meta">
                 {{ item.finish|capitalize }} · Qty {{ item.quantity }} ·
-                {% if item.has_price %}
+                {% if item.price_status == "current" %}
                   ${{ '%.2f'|format(item.effective_price) }} each
+                {% elif item.price_status == "stale" %}
+                  Stale: ${{ '%.2f'|format(item.effective_price) }} each
                 {% else %}
                   — each
                 {% endif %}
@@ -108,8 +110,10 @@
               </div>
               <div class="inventory-total">
                 Total value:
-                {% if item.has_price %}
+                {% if item.price_status == "current" %}
                   ${{ '%.2f'|format(item.total_value) }}
+                {% elif item.price_status == "stale" %}
+                  Stale: ${{ '%.2f'|format(item.total_value) }}
                 {% else %}
                   —
                 {% endif %}
