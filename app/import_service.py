@@ -55,6 +55,38 @@ def normalize_header(value: str | None) -> str:
     return HEADER_ALIASES.get(cleaned.replace("_", ""), HEADER_ALIASES.get(cleaned, cleaned))
 
 
+def build_finish_warnings(card_data: dict | None, finish: str) -> list[str]:
+    warnings: list[str] = []
+    normalized_finish = (finish or "normal").strip().lower()
+
+    if not card_data:
+        return warnings
+
+    normal_price = card_data.get("price_usd")
+    foil_price = card_data.get("price_usd_foil")
+    etched_price = card_data.get("price_usd_etched")
+
+    if normalized_finish == "foil":
+        if not foil_price and normal_price:
+            warnings.append(
+                "Selected finish is Foil, but foil pricing is missing while normal pricing exists. Check the scanned finish."
+            )
+
+    elif normalized_finish == "etched":
+        if not etched_price and (foil_price or normal_price):
+            warnings.append(
+                "Selected finish is Etched, but etched pricing is missing. Check the scanned finish."
+            )
+
+    else:  # normal
+        if not normal_price and (foil_price or etched_price):
+            warnings.append(
+                "Selected finish is Normal, but normal pricing is missing while foil/etched pricing exists. Check the scanned finish."
+            )
+
+    return warnings
+
+
 def parse_scanner_csv(file_bytes: bytes) -> dict[str, list[dict[str, Any]]]:
     text = file_bytes.decode("utf-8-sig", errors="replace")
     stream = io.StringIO(text)
@@ -68,7 +100,8 @@ def parse_scanner_csv(file_bytes: bytes) -> dict[str, list[dict[str, Any]]]:
         scryfall_id = row.get("scryfall_id", "")
         set_code = row.get("set_code", "").lower()
         collector_number = row.get("collector_number", "")
-        finish = normalize_finish(row.get("finish"))
+        raw_finish = row.get("finish", "")
+        finish = normalize_finish(raw_finish)
         location = row.get("location", "")
         quantity_raw = row.get("quantity", "1")
         name = row.get("name", "")
@@ -89,9 +122,31 @@ def parse_scanner_csv(file_bytes: bytes) -> dict[str, list[dict[str, Any]]]:
             "location": location,
             "name": name,
             "type": card_type,
+            "warnings": [],
         }
 
         if scryfall_id or (set_code and collector_number):
+            card_data: dict[str, Any] | None = None
+
+            try:
+                if scryfall_id:
+                    card_data = fetch_card_by_scryfall_id(scryfall_id)
+                elif set_code and collector_number:
+                    card_data = fetch_card_by_set_and_number(set_code, collector_number)
+                    if card_data and not cleaned["scryfall_id"]:
+                        cleaned["scryfall_id"] = card_data.get("scryfall_id", "")
+            except Exception:
+                card_data = None
+
+            cleaned["warnings"] = build_finish_warnings(card_data, finish, raw_finish)
+
+            if card_data:
+                cleaned["name"] = card_data.get("name") or cleaned["name"]
+                cleaned["set_code"] = card_data.get("set_code") or cleaned["set_code"]
+                cleaned["collector_number"] = (
+                    card_data.get("collector_number") or cleaned["collector_number"]
+                )
+
             valid_rows.append(cleaned)
         else:
             cleaned["reason"] = "Missing Scryfall ID and set/collector fallback fields."
@@ -315,3 +370,6 @@ def persist_import_rows(
         "batch_id": batch.id,
         "imported_row_ids": imported_row_ids,
     }
+
+
+

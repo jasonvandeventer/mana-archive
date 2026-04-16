@@ -438,13 +438,16 @@ async def collection_resort():
 
 
 @app.post("/cards/refresh")
-async def card_refresh(card_id: int = Form(...)):
+async def card_refresh(request: Request, card_id: int = Form(...)):
     session = get_session()
     try:
         refresh_card_from_scryfall(session, card_id)
     finally:
         session.close()
-    return RedirectResponse(url="/collection", status_code=303)
+    return RedirectResponse(
+        url=request.headers.get("referer") or "/collection",
+        status_code=303,
+    )
 
 
 @app.get("/pending")
@@ -781,7 +784,7 @@ def card_detail_page(request: Request, card_id: int):
 
 
 @app.post("/cards/refresh-stale")
-async def refresh_stale_cards():
+async def refresh_stale_cards(request: Request):
     session = get_session()
     try:
         stale_cards = session.query(Card).all()
@@ -790,4 +793,7 @@ async def refresh_stale_cards():
                 refresh_card_from_scryfall(session, card.id)
     finally:
         session.close()
-    return RedirectResponse(url="/collection", status_code=303)
+    return RedirectResponse(
+        url=request.headers.get("referer") or "/collection",
+        status_code=303,
+    )
