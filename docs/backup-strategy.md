@@ -1,69 +1,110 @@
 # Backup Strategy
 
-## Goal
+## Purpose
 
-Protect Mana Archive application data from accidental loss, storage failure, bad deployment changes, or failed migration work.
+Define how Mana Archive application data is protected and recovered in the K3s platform.
+
+---
 
 ## Scope
 
-This strategy currently applies to the persistent data used by Mana Archive.
+Applies to persistent data used by Mana Archive.
 
-## What is being protected
+---
+
+## Protected Resources
 
 - Application: Mana Archive
+- Namespace: `mana-archive`
 - PersistentVolumeClaim: `mana-archive-data`
-- Database type: SQLite
-- Deployment namespace: `mana-archive`
+- Database: SQLite (file-based)
 
-## Why this matters
+---
 
-Mana Archive is now running with real collection data. The platform is only credible if that data can be recovered after a failure.
+## Storage Architecture
 
-## Current State
+- StorageClass: `longhorn` (default)
+- Storage Backend: Longhorn distributed block storage
+- Replication: Longhorn volume replicas across nodes
 
-- Kubernetes storage class: `local-path`
-- Persistent data exists and is in use
-- No distributed storage layer is installed
-- No recurring snapshot schedule exists
-- No external backup target is configured
-- No tested restore procedure exists
+---
 
-## Current Risk
+## Backup Architecture
 
-The current setup provides persistence, but not strong durability. A storage problem, node issue, or operator mistake could result in data loss.
+- Backup Target: Unraid NFS share
+  - Path: `/mnt/user/backups/longhorn`
+- Protocol: NFSv4
 
-## Planned Direction
+---
 
-The storage and backup model will be improved in the following order:
+## Backup Policy
 
-1. Install Longhorn on the K3s cluster
-2. Move Mana Archive persistent storage to Longhorn
-3. Configure an external backup target
-4. Create recurring snapshot and backup jobs
-5. Test restore
-6. Document the restore procedure
+- Snapshots:
+  - Frequency: every 1 hour
+  - Retention: 24
 
-## Proposed Backup Target
+- Backups:
+  - Frequency: every 6 hours
+  - Retention: 10
 
-- Unraid-hosted NFS share dedicated to Longhorn backups
+- Managed via Longhorn recurring jobs
 
-## Proposed Backup Policy
+---
 
-- Snapshot frequency: every 6 hours
-- Backup frequency: daily
-- Retention: to be defined during Longhorn setup based on available storage and observed backup size
+## Guarantees
 
-## Restore Objective
+The system provides:
 
-Restore Mana Archive data from backup and return the application to a working state with collection data intact and validated.
+- Persistent storage across pod restarts
+- Resilience against node failure (via Longhorn replication)
+- Recovery from cluster-level failure (via NFS backups)
+- Verified ability to restore data into a new volume and reattach to workloads
 
-## Success Criteria
+---
 
-This strategy will be considered implemented only when all of the following are true:
+## Validation Status
 
-- Longhorn is installed and healthy
-- Mana Archive uses Longhorn-backed persistent storage
-- Backup target is configured and reachable
-- Recurring backups are running successfully
-- A restore test has been completed successfully
-- The restore process is documented in `docs/restore-runbook.md`
+The following has been tested and confirmed:
+
+1. Data written to Longhorn-backed volume
+2. Snapshot created from live data
+3. Backup stored on external NFS target
+4. Backup restored into new Longhorn volume
+5. Restored volume mounted in Kubernetes pod
+6. Data integrity verified (file + timestamp match)
+
+Detailed validation is documented in:
+    ~/lab/platform-docs/longhorn/backup-validation.md
+
+
+---
+
+## Restore Process
+
+High-level recovery flow:
+
+1. Identify latest valid backup
+2. Restore backup into new Longhorn volume
+3. Create PV pointing to restored volume
+4. Bind PVC to restored volume
+5. Reattach application pod to restored PVC
+6. Validate application functionality and data integrity
+
+A detailed restore runbook will be created separately.
+
+---
+
+## Risks / Limitations
+
+- Backup frequency introduces up to 6 hours of potential data loss
+- NFS backup target is a single location (no offsite redundancy)
+- Restore process is currently manual
+- SQLite database may not be optimal for concurrent or large-scale workloads
+
+---
+
+## Future Improvements
+
+- Add offsite backup (S3-compatible storage)
+- Automate restore workflow
+- Evaluate migration from SQLite to managed database (PostgreSQL)
