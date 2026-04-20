@@ -4,7 +4,7 @@ metadata:
   name: mana-archive
   namespace: mana-archive
 spec:
-  replicas: 1
+  replicas: 0
   selector:
     matchLabels:
       app: mana-archive
