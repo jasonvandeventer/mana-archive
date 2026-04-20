@@ -8,9 +8,11 @@ spec:
   source:
     repoURL: https://charts.longhorn.io
     chart: longhorn
-    targetRevision: 1.6.2
+    targetRevision: v1.11.1
     helm:
       values: |
+        preUpgradeChecker:
+          jobEnabled: false
         defaultSettings:
           defaultReplicaCount: 2
   destination:
