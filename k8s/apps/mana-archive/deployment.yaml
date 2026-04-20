@@ -4,7 +4,7 @@ metadata:
   name: mana-archive
   namespace: mana-archive
 spec:
-  replicas: 0
+  replicas: 1
   selector:
     matchLabels:
       app: mana-archive
@@ -28,4 +28,4 @@ spec:
       volumes:
         - name: mana-archive-data
           persistentVolumeClaim:
-            claimName: mana-archive-data
+            claimName: mana-archive-data-longhorn
