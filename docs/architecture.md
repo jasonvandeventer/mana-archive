@@ -1,12 +1,14 @@
 # Architecture
 
 ## Purpose
+
 This project serves two purposes at the same time:
 
 1. Mana Archive is a real application for managing a personal Magic: The Gathering collection.
 2. The K3s environment is a platform engineering lab used to build and demonstrate Kubernetes, GitOps, storage, and operational practices.
 
 ## High-Level Flow
+
 Developer workflow:
 
 1. Application code is maintained in GitHub
@@ -16,6 +18,7 @@ Developer workflow:
 5. K3s runs the application workloads
 
 ## Platform Components
+
 - K3s cluster
 - Argo CD for GitOps
 - GHCR for container image hosting
@@ -23,24 +26,31 @@ Developer workflow:
 - local-path provisioner for current persistent storage
 
 ## Application Components
+
 Mana Archive currently includes:
+
 - Python application code under `app/`
 - HTML templates under `app/templates/`
 - CSS under `app/static/`
 - SQLite database stored on a Kubernetes PVC
 
 ## Storage Model
+
 Current storage is based on:
+
 - `local-path` storage class
 - PVC: `mana-archive-data`
 
 This provides persistence, but not strong durability. The current model does not provide:
+
 - distributed replication
 - snapshot-based recovery
 - tested backup/restore process
 
 ## Future Architecture Direction
+
 The planned next storage evolution is:
+
 - Longhorn installation
 - recurring snapshots/backups
 - external backup target
