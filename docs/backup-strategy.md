@@ -74,8 +74,7 @@ The following has been tested and confirmed:
 6. Data integrity verified (file + timestamp match)
 
 Detailed validation is documented in:
-    ~/lab/platform-docs/longhorn/backup-validation.md
-
+~/lab/platform-docs/longhorn/backup-validation.md
 
 ---
 

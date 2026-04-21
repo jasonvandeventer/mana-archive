@@ -9,6 +9,7 @@ The goal of this project is to solve a real problem:
 > A physical card collection is difficult to search, organize, and maintain.
 
 Mana Archive provides:
+
 - searchable inventory
 - structured organization (drawers, sets, decks)
 - import workflows
@@ -64,9 +65,11 @@ http://localhost:8000
 The application uses a SQLite database.
 
 ### Local
+
 - Stored in a local `/data` directory
 
 ### Kubernetes
+
 - Backed by a Longhorn persistent volume
 - Mounted into the container at runtime
 
@@ -98,6 +101,7 @@ No database files are stored in this repository.
 This is not just an app.
 
 It demonstrates:
+
 - application development
 - containerization
 - Kubernetes deployment
