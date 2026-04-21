@@ -138,7 +138,7 @@ def parse_scanner_csv(file_bytes: bytes) -> dict[str, list[dict[str, Any]]]:
             except Exception:
                 card_data = None
 
-            cleaned["warnings"] = build_finish_warnings(card_data, finish, raw_finish)
+            cleaned["warnings"] = build_finish_warnings(card_data, finish) #raw_finish)
 
             if card_data:
                 cleaned["name"] = card_data.get("name") or cleaned["name"]
