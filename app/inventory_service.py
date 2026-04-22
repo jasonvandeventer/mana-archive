@@ -615,14 +615,22 @@ def resort_collection(session: Session, row_ids: Iterable[int] | None = None) ->
             target_slot = str(index)
 
             if row.drawer != target_drawer or row.slot != target_slot:
+                old_drawer = row.drawer
+                old_slot = row.slot
+                old_is_pending = row.is_pending
                 old_location = (
                     "pending"
-                    if row.is_pending
-                    else f"drawer={row.drawer or '-'} slot={row.slot or '-'}"
+                    if old_is_pending
+                    else f"drawer={old_drawer or '-'} slot={old_slot or '-'}"
+                )
+
+                moved_between_drawers = (
+                    not old_is_pending and old_drawer is not None and old_drawer != target_drawer
                 )
 
                 row.drawer = target_drawer
                 row.slot = target_slot
+                row.is_pending = old_is_pending or moved_between_drawers
                 row.updated_at = now
 
                 log_transaction(
@@ -634,7 +642,12 @@ def resort_collection(session: Session, row_ids: Iterable[int] | None = None) ->
                     source_location=old_location,
                     destination_location=f"drawer={target_drawer} slot={target_slot}",
                     inventory_row_id=row.id,
-                    note="Auto-sorted collection row by placement rules",
+                    note=(
+                        "Auto-sorted collection row; moved to a new drawer and marked pending "
+                        "for physical relocation"
+                        if moved_between_drawers
+                        else "Auto-sorted collection row by placement rules"
+                    ),
                     flush=False,
                 )
                 updated += 1
