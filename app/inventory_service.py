@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 from collections.abc import Iterable
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy.orm import Session, joinedload
 
@@ -364,7 +364,7 @@ def update_inventory_location(
     row.drawer = (drawer or "").strip() or None
     row.slot = (slot or "").strip() or None
     row.is_pending = row.drawer is None or row.slot is None
-    row.updated_at = datetime.utcnow()
+    row.updated_at = datetime.now(UTC)
 
     log_transaction(
         session=session,
@@ -583,6 +583,25 @@ def undo_last_batch(session: Session, batch_id: int) -> int:
 
     session.commit()
     return undone
+
+
+def get_previous_location_for_row(session: Session, row_id: int) -> str | None:
+    log = (
+        session.query(TransactionLog)
+        .filter(TransactionLog.inventory_row_id == row_id)
+        .filter(TransactionLog.event_type == "resort")
+        .filter(TransactionLog.source_location.isnot(None))
+        .order_by(TransactionLog.created_at.desc(), TransactionLog.id.desc())
+        .first()
+    )
+
+    if not log:
+        return None
+
+    if log.source_location == "pending":
+        return None
+
+    return log.source_location
 
 
 def resort_collection(session: Session, row_ids: Iterable[int] | None = None) -> int:

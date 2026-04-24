@@ -27,6 +27,7 @@ from app.inventory_service import (
     delete_inventory_row,
     get_drawer_label,
     get_inventory_row_stats,
+    get_previous_location_for_row,
     is_price_stale,
     list_inventory_rows,
     list_pending_rows,
@@ -461,6 +462,8 @@ def pending_page(request: Request):
         total_copies = 0
         for row in rows:
             price = effective_price(row.card, row.finish)
+            previous_location = get_previous_location_for_row(session, row.id)
+
             item = {
                 "id": row.id,
                 "card": row.card,
@@ -470,6 +473,7 @@ def pending_page(request: Request):
                 "slot": row.slot,
                 "price": price,
                 "drawer_label": get_drawer_label(row.drawer),
+                "previous_location": previous_location,
             }
             items.append(item)
             total_copies += row.quantity

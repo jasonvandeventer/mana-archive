@@ -4,25 +4,25 @@
 
 ### 1. Enhanced Pending View
 
-* Show: FROM → TO (previous location → new location)
-* Source: TransactionLog
-* Purpose: eliminate ambiguity during relocation
+- Show: FROM → TO (previous location → new location)
+- Source: TransactionLog
+- Purpose: eliminate ambiguity during relocation
 
 ### 2. Set Completion / Missing Cards (v2.2.0)
 
-* Route: /sets/<set_code>
-* Show:
+- Route: /sets/<set_code>
+- Show:
+  - Owned vs Missing count
+  - Completion %
 
-  * Owned vs Missing count
-  * Completion %
-* Missing list sorted by collector number
-* Source: Scryfall set data vs inventory
+- Missing list sorted by collector number
+- Source: Scryfall set data vs inventory
 
 ### 3. Drawer Audit Mode (Lightweight)
 
-* Show expected count vs physical count
-* Allow marking drawer as verified
-* Purpose: prevent silent drift
+- Show expected count vs physical count
+- Allow marking drawer as verified
+- Purpose: prevent silent drift
 
 ---
 
@@ -30,20 +30,20 @@
 
 ### 4. Duplicate Detection
 
-* Identify excess copies
-* Surface trade/sell candidates
+- Identify excess copies
+- Surface trade/sell candidates
 
 ### 5. Value Insights
 
-* Total collection value
-* Value by drawer
-* Value by set
-* Top valuable cards
+- Total collection value
+- Value by drawer
+- Value by set
+- Top valuable cards
 
 ### 6. Upgrade Suggestions
 
-* Highlight near-complete sets
-* Suggest low-cost missing cards
+- Highlight near-complete sets
+- Suggest low-cost missing cards
 
 ---
 
@@ -51,18 +51,18 @@
 
 ### 7. Deck ↔ Inventory Linking
 
-* Show if owned
-* Show physical location
+- Show if owned
+- Show physical location
 
 ### 8. Buildable Deck Detection
 
-* “You can build this”
-* “Missing X cards”
+- “You can build this”
+- “Missing X cards”
 
 ### 9. Deck Import
 
-* Import from Moxfield / EDHREC
-* Match against inventory
+- Import from Moxfield / EDHREC
+- Match against inventory
 
 ---
 
@@ -70,18 +70,18 @@
 
 ### 10. Audit Log UI
 
-* Filter by card, drawer, event type
-* Visualize movement history
+- Filter by card, drawer, event type
+- Visualize movement history
 
 ### 11. Backup / Restore UX
 
-* Trigger backup
-* Restore snapshot
+- Trigger backup
+- Restore snapshot
 
 ### 12. Bulk Operations
 
-* Bulk confirm pending
-* Bulk move/delete
+- Bulk confirm pending
+- Bulk move/delete
 
 ---
 
@@ -89,30 +89,29 @@
 
 ### 13. Multi-User Support
 
-* Single app, multiple users
-* Data scoped by user_id
-* Shared card metadata
-* Auth via OAuth/OIDC (preferred)
+- Single app, multiple users
+- Data scoped by user_id
+- Shared card metadata
+- Auth via OAuth/OIDC (preferred)
 
 ### 14. Barcode / Camera Scanning
 
-* Mobile-friendly input
+- Mobile-friendly input
 
 ### 15. Public Collection View
 
-* Shareable collection pages
+- Shareable collection pages
 
 ---
 
 ## Guiding Principles
 
-* Data integrity > features
-* One source of truth: physical collection
-* Every feature must improve:
-
-  * clarity
-  * correctness
-  * usability
+- Data integrity > features
+- One source of truth: physical collection
+- Every feature must improve:
+  - clarity
+  - correctness
+  - usability
 
 ---
 
@@ -123,4 +122,3 @@
 3. Tag release
 4. Set Completion feature
 5. Observability stack (Prometheus / Grafana / Loki)
-

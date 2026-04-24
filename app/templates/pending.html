@@ -53,7 +53,16 @@
                   <div class="pending-meta">
                     {{ item.card.set_name }} ({{ item.card.set_code|upper }}) · {{ item.finish|capitalize }} · Qty: {{ item.quantity }} · Price: ${{ '%.2f'|format(item.price) }}
                   </div>
-                  <div class="pending-location">Position {{ item.slot or '?' }} in {{ item.drawer_label }}</div>
+                  <div class="pending-location">
+  {% if item.previous_location %}
+    <div class="pending-location-from">
+      FROM: {{ item.previous_location }}
+    </div>
+  {% endif %}
+  <div class="pending-location-to">
+    TO: drawer={{ item.drawer or '?' }} slot={{ item.slot or '?' }} · {{ item.drawer_label }}
+  </div>
+</div>
                 </div>
                 <div class="pending-action">
                   <form action="/pending/confirm" method="post">
