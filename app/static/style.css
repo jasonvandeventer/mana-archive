@@ -408,7 +408,18 @@ textarea {
   margin-bottom: 0.28rem;
 }
 .pending-location {
+  display: grid;
+  gap: 0.2rem;
   color: #eef3ff;
+}
+.pending-location-from {
+  color: var(--accent -2);
+  font-size: 0.92rem;
+  font-weight: 700;
+}
+.pending-location-to {
+  color: #eef3ff;
+  font-size: 0.95rem;
 }
 .pending-action {
   justify-self: end;
