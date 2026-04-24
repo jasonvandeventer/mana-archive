@@ -385,6 +385,10 @@ textarea {
   gap: 1rem;
   align-items: center;
 }
+.pending-item.cross-drawer {
+  border: 1px solid var(--accent-2);
+  box-shadow: 0 0 0 1px rgba(255, 213, 122, 0.25);
+}
 .pending-thumb-wrap {
   width: 96px;
 }

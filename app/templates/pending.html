@@ -38,7 +38,11 @@
           <summary>{{ group.label }} ({{ group.count }} pending)</summary>
           <div class="pending-list">
             {% for item in group.entries %}
-              <article class="pending-item unified-card-row">
+              <article class="pending-item unified-card-row
+                {% if item.previous_location and ('drawer=' ~ item.drawer) not in item.previous_location %}
+                  cross-drawer
+                {% endif %}
+              ">
                 <div class="pending-thumb-wrap">
                   {% if item.card.image_url %}
                     <img class="pending-thumb"
