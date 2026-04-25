@@ -1,0 +1,13 @@
+<h1>{{ title }}</h1>
+
+<p>
+  {{ data.owned_cards }} / {{ data.total_cards }}
+  ({{ data.completion_pct }}%)
+</p>
+
+<h2>Missing Cards</h2>
+<ul>
+  {% for card in data.missing_cards %}
+    <li>{{ card.name }} ({{ card.collector_number }})</li>
+  {% endfor %}
+</ul>
