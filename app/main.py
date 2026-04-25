@@ -30,6 +30,7 @@ from app.inventory_service import (
     get_previous_location_for_row,
     is_price_stale,
     list_inventory_rows,
+    list_owned_sets,
     list_pending_rows,
     resort_collection,
     undo_last_batch,
@@ -43,7 +44,7 @@ from app.scryfall import (
     fetch_card_by_set_and_number,
     refresh_card_from_scryfall,
 )
-from app.set_service import get_set_completion
+from app.set_service import get_set_completion, list_set_completion_summaries
 
 app = FastAPI(title="Mana Archive")
 
@@ -804,11 +805,30 @@ async def refresh_stale_cards(request: Request):
     )
 
 
-@app.get("/sets/{set_code}")
-def set_detail_page(request: Request, set_code: str):
+@app.get("/sets")
+def sets_page(request: Request):
     session = get_session()
     try:
-        data = get_set_completion(session, set_code)
+        sets = list_set_completion_summaries(session)
+    finally:
+        session.close()
+
+    return templates.TemplateResponse(
+        request=request,
+        name="sets.html",
+        context={
+            "request": request,
+            "title": "Sets",
+            "sets": sets,
+        },
+    )
+
+
+@app.get("/sets/{set_code}")
+def set_detail_page(request: Request, set_code: str, view: str = "all"):
+    session = get_session()
+    try:
+        data = get_set_completion(session, set_code, view=view)
     finally:
         session.close()
 
@@ -817,7 +837,7 @@ def set_detail_page(request: Request, set_code: str):
         name="set_detail.html",
         context={
             "request": request,
-            "title": f"Set {set_code.upper()}",
+            "title": data["set_name"],
             "data": data,
         },
     )

@@ -4,6 +4,7 @@ import re
 from collections.abc import Iterable
 from datetime import UTC, datetime, timedelta
 
+from sqlalchemy import func
 from sqlalchemy.orm import Session, joinedload
 
 from app.audit_service import log_transaction
@@ -688,3 +689,26 @@ def get_owned_cards_by_set(session: Session, set_code: str) -> dict[str, int]:
         owned[key] = owned.get(key, 0) + row.quantity
 
     return owned
+
+
+def list_owned_sets(session: Session) -> list[dict]:
+    rows = (
+        session.query(
+            Card.set_code,
+            func.max(Card.set_name),
+            func.count(func.distinct(Card.collector_number)),
+        )
+        .join(InventoryRow)
+        .group_by(Card.set_code)
+        .order_by(Card.set_code.asc())
+        .all()
+    )
+
+    return [
+        {
+            "set_code": set_code,
+            "set_name": set_name or set_code.upper(),
+            "unique_owned": int(unique_owned or 0),
+        }
+        for set_code, set_name, unique_owned in rows
+    ]
