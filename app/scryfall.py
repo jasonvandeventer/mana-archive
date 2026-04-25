@@ -186,4 +186,3 @@ def fetch_set_cards(set_code: str) -> list[dict[str, Any]]:
             url = None
 
     return results
-

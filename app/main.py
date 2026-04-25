@@ -45,7 +45,6 @@ from app.scryfall import (
 )
 from app.set_service import get_set_completion
 
-
 app = FastAPI(title="Mana Archive")
 
 APP_VERSION = os.getenv("APP_VERSION", "dev")
@@ -804,6 +803,7 @@ async def refresh_stale_cards(request: Request):
         status_code=303,
     )
 
+
 @app.get("/sets/{set_code}")
 def set_detail_page(request: Request, set_code: str):
     session = get_session()
@@ -820,4 +820,4 @@ def set_detail_page(request: Request, set_code: str):
             "title": f"Set {set_code.upper()}",
             "data": data,
         },
-    )    
+    )

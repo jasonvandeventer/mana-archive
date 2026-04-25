@@ -674,16 +674,12 @@ def resort_collection(session: Session, row_ids: Iterable[int] | None = None) ->
     session.commit()
     return updated
 
+
 def get_owned_cards_by_set(session: Session, set_code: str) -> dict[str, int]:
     """
     Returns a mapping of collector_number -> total quanitity owned for a given set.
     """
-    rows = (
-        session.query(InventoryRow)
-        .join(Card)
-        .filter(Card.set_code == set_code.lower())
-        .all()
-    )
+    rows = session.query(InventoryRow).join(Card).filter(Card.set_code == set_code.lower()).all()
 
     owned = {}
 
