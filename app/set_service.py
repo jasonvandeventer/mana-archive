@@ -46,6 +46,7 @@ def get_set_completion(session: Session, set_code: str, view: str = "all") -> di
         "view": view,
     }
 
+
 def list_set_completion_summaries(session: Session) -> list[dict]:
     owned_sets = list_owned_sets(session)
     summaries = []
@@ -56,10 +57,7 @@ def list_set_completion_summaries(session: Session) -> list[dict]:
         owned_map = get_owned_cards_by_set(session, set_code)
 
         total_cards = len(set_cards)
-        owned_cards = sum(
-            1 for card in set_cards
-            if owned_map.get(card["collector_number"], 0) > 0
-        )
+        owned_cards = sum(1 for card in set_cards if owned_map.get(card["collector_number"], 0) > 0)
         missing_count = max(total_cards - owned_cards, 0)
         completion_pct = round((owned_cards / total_cards) * 100, 2) if total_cards else 0
 

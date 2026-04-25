@@ -30,7 +30,6 @@ from app.inventory_service import (
     get_previous_location_for_row,
     is_price_stale,
     list_inventory_rows,
-    list_owned_sets,
     list_pending_rows,
     resort_collection,
     undo_last_batch,
