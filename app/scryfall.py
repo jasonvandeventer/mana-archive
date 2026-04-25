@@ -161,3 +161,29 @@ def fetch_card_traits(scryfall_id: str) -> dict[str, bool] | None:
         "is_basic_land": "basic land" in type_line,
         "is_full_art": bool(raw.get("full_art")),
     }
+
+
+def fetch_set_cards(set_code: str) -> list[dict[str, Any]]:
+    set_code = (set_code or "").strip().lower()
+    if not set_code:
+        return []
+
+    results = []
+    url = f"https://api.scryfall.com/cards/search?q=e:{set_code}&unique=prints&order=set"
+
+    while url:
+        data = _get_json(url)
+        if not data:
+            break
+
+        for card in data.get("data", []):
+            normalized = _normalize_card_payload(card)
+            results.append(normalized)
+
+        if data.get("has_more"):
+            url = data.get("next_page")
+        else:
+            url = None
+
+    return results
+

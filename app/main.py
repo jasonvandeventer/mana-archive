@@ -43,6 +43,8 @@ from app.scryfall import (
     fetch_card_by_set_and_number,
     refresh_card_from_scryfall,
 )
+from app.set_service import get_set_completion
+
 
 app = FastAPI(title="Mana Archive")
 
@@ -801,3 +803,21 @@ async def refresh_stale_cards(request: Request):
         url=request.headers.get("referer") or "/collection",
         status_code=303,
     )
+
+@app.get("/sets/{set_code}")
+def set_detail_page(request: Request, set_code: str):
+    session = get_session()
+    try:
+        data = get_set_completion(session, set_code)
+    finally:
+        session.close()
+
+    return templates.TemplateResponse(
+        request=request,
+        name="set_detail.html",
+        context={
+            "request": request,
+            "title": f"Set {set_code.upper()}",
+            "data": data,
+        },
+    )    
