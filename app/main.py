@@ -31,6 +31,7 @@ from app.inventory_service import (
     is_price_stale,
     list_inventory_rows,
     list_pending_rows,
+    list_owned_sets,
     resort_collection,
     undo_last_batch,
     undo_last_import,
@@ -43,7 +44,7 @@ from app.scryfall import (
     fetch_card_by_set_and_number,
     refresh_card_from_scryfall,
 )
-from app.set_service import get_set_completion, list_set_completion_summaries
+from app.set_service import get_set_completion
 
 app = FastAPI(title="Mana Archive")
 
@@ -808,7 +809,7 @@ async def refresh_stale_cards(request: Request):
 def sets_page(request: Request):
     session = get_session()
     try:
-        sets = list_set_completion_summaries(session)
+        sets = list_owned_sets(session)
     finally:
         session.close()
 

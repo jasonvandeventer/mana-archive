@@ -3,24 +3,21 @@
 {% block content %}
 <h1>Sets</h1>
 
+<p class="muted">
+  Fast local overview. Open a set to calculate full Scryfall completion.
+</p>
+
 <div class="set-dashboard-grid">
   {% for s in sets %}
     <a href="/sets/{{ s.set_code }}" class="set-dashboard-card">
       <div class="set-code">{{ s.set_code.upper() }}</div>
       <div class="set-name">{{ s.set_name }}</div>
-
       <div class="set-progress-meta">
-        {{ s.owned_cards }} / {{ s.total_cards }} owned —
-        {{ s.completion_pct }}%
+        {{ s.unique_owned }} unique owned
       </div>
-
-      <div class="progress-bar">
-        <div class="progress-fill" style="width: {{ s.completion_pct }}%;"></div>
-      </div>
-
-      <div class="card-meta">
-        Missing: {{ s.missing_count }}
-      </div>
+      {% if s.total_copies is defined %}
+        <div class="card-meta">{{ s.total_copies }} total copies</div>
+      {% endif %}
     </a>
   {% endfor %}
 </div>

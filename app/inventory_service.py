@@ -697,8 +697,9 @@ def list_owned_sets(session: Session) -> list[dict]:
             Card.set_code,
             func.max(Card.set_name),
             func.count(func.distinct(Card.collector_number)),
+            func.sum(InventoryRow.quantity),
         )
-        .join(InventoryRow)
+        .join(InventoryRow, InventoryRow.card_id == Card.id)
         .group_by(Card.set_code)
         .order_by(Card.set_code.asc())
         .all()
@@ -709,6 +710,7 @@ def list_owned_sets(session: Session) -> list[dict]:
             "set_code": set_code,
             "set_name": set_name or set_code.upper(),
             "unique_owned": int(unique_owned or 0),
+            "total_copies": int(total_copies or 0),
         }
-        for set_code, set_name, unique_owned in rows
+        for set_code, set_name, unique_owned, total_copies in rows
     ]
