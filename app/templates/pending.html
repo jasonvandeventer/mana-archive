@@ -69,9 +69,17 @@
 </div>
                 </div>
                 <div class="pending-action">
-                  <form action="/pending/confirm" method="post">
+                  <form action="/pending/confirm" method="post" class="inline-form">
                     <input type="hidden" name="row_id" value="{{ item.id }}">
                     <button type="submit" class="danger-button">Confirm</button>
+                  </form>
+
+                  <form action="/pending/{{ item.id }}/remove" method="post" class="inline-form">
+                    <button type="submit"
+                            class="ghost-button"
+                            onclick="return confirm('Remove this pending card from your collection?');">
+                     Remove
+                    </button>
                   </form>
                 </div>
               </article>

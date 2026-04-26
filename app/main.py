@@ -3,7 +3,7 @@ from __future__ import annotations
 import math
 import os
 
-from fastapi import FastAPI, File, Form, Request, UploadFile
+from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -529,6 +529,30 @@ async def pending_confirm_all():
     finally:
         session.close()
     return RedirectResponse(url="/pending", status_code=303)
+
+
+@app.post("/pending/{row_id}/remove")
+def remove_pending_row(row_id: int):
+    session = get_session()
+    try:
+        row = (
+            session.query(InventoryRow)
+            .filter(
+                InventoryRow.id == row_id,
+                InventoryRow.is_pending,
+            )
+            .first()
+        )
+
+        if not row:
+            raise HTTPException(status_code=404, detail="Pending row not found")
+
+        session.delete(row)
+        session.commit()
+    finally:
+        session.close()
+
+    return RedirectResponse("/pending", status_code=303)
 
 
 @app.get("/drawers")
