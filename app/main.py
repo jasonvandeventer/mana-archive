@@ -345,6 +345,8 @@ def collection_page(
             drawer=drawer,
         )
 
+        decks = list_decks(session)
+
         items = []
         for row in inventory_rows:
             price = effective_price(row.card, row.finish)
@@ -404,6 +406,7 @@ def collection_page(
             "unique_cards": stats["unique_cards"],
             "drawer_counts": stats["drawer_counts"],
             "unassigned_count": stats["unassigned_count"],
+            "decks": decks,
         },
     )
 
@@ -748,6 +751,7 @@ async def decks_return(
     session = get_session()
     try:
         return_card_from_deck(session, deck_item_id=deck_item_id, drawer=drawer, slot=slot)
+        resort_collection(session)
     finally:
         session.close()
     return RedirectResponse(url=f"/decks/{deck_id}", status_code=303)

@@ -96,12 +96,13 @@ def return_card_from_deck(
         .filter(InventoryRow.finish == deck_item.finish)
         .filter(InventoryRow.drawer == (drawer.strip() or None))
         .filter(InventoryRow.slot == (slot.strip() or None))
-        .filter(InventoryRow.is_pending.is_(False))
+        .filter(InventoryRow.is_pending.is_(True))
         .first()
     )
 
     if existing_row:
         existing_row.quantity += deck_item.quantity
+        existing_row.is_pending = True
         existing_row.updated_at = datetime.utcnow()
     else:
         existing_row = InventoryRow(
@@ -110,7 +111,7 @@ def return_card_from_deck(
             quantity=deck_item.quantity,
             drawer=drawer.strip() or None,
             slot=slot.strip() or None,
-            is_pending=False,
+            is_pending=True,
         )
         session.add(existing_row)
         session.flush()
