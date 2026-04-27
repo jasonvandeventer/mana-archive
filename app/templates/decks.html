@@ -3,11 +3,7 @@
   <section>
     <h2>Decks</h2>
     <form action="/decks/create" method="post" class="deck-create-form">
-      <input type="text" 
-             name="name" 
-             placeholder="Deck Name" 
-             required>
-
+      <input type="text" name="name" placeholder="Deck Name" required>
       <select name="format_name">
         <option value="Commander" selected>Commander</option>
         <option value="Standard">Standard</option>
@@ -47,7 +43,7 @@
                 <form action="/decks/{{ deck.id }}/delete"
                       method="post"
                       class="inline-form"
-                      style="display:inline;">
+                      style="display:inline">
                   <button type="submit"
                           onclick="return confirm('Delete this deck? Cards in this deck will NOT be returned automatically.');">
                     Delete

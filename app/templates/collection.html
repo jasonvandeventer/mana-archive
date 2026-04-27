@@ -135,6 +135,28 @@
                        style="width: 64px">
                 <button type="submit">Remove</button>
               </form>
+              {% if decks %}
+                <form action="/decks/pull"
+                      method="post"
+                      class="deck-add-form"
+                      style="margin-top: 0.75rem;
+                             display: flex;
+                             gap: 0.4rem;
+                             align-items: center;
+                             flex-wrap: wrap">
+                  <input type="hidden" name="inventory_row_id" value="{{ item.id }}">
+                  <select name="deck_id" required>
+                    {% for deck in decks %}<option value="{{ deck.id }}">{{ deck.name }}</option>{% endfor %}
+                  </select>
+                  <input type="number"
+                         name="quantity"
+                         value="1"
+                         min="1"
+                         max="{{ item.quantity }}"
+                         style="width: 64px">
+                  <button type="submit">Add to Deck</button>
+                </form>
+              {% endif %}
               <div class="inventory-actions"
                    style="display: flex;
                           gap: 0.4rem;
@@ -161,30 +183,6 @@
                   <input type="hidden" name="card_id" value="{{ item.card.id }}">
                   <button type="submit">Refresh Price</button>
                 </form>
-                {% if decks %}
-                  <form action="/decks/pull"
-                        method="post"
-                        class="inline-form"
-                        style="gap: 0.4rem; align-items: center;">
-                    <input type="hidden" name="inventory_row_id" value="{{ item.id }}">
-
-                    <select name="deck_id" required>
-                      {% for deck in decks %}
-                        <option value="{{ deck.id }}">{{ deck.name }}</option>
-                      {% endfor %}
-                    </select>
-
-                    <input type="number"
-                           name="quantity"
-                           value="1"
-                           min="1"
-                           max="{{ item.quantity }}"
-                           style="width: 64px">
-
-                    <button type="submit">Add to Deck</button>
-                  </form>
-                {% endif %}
-
               </div>
             </div>
           </article>

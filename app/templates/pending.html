@@ -38,11 +38,7 @@
           <summary>{{ group.label }} ({{ group.count }} pending)</summary>
           <div class="pending-list">
             {% for item in group.entries %}
-              <article class="pending-item unified-card-row
-                {% if item.previous_location and ('drawer=' ~ item.drawer) not in item.previous_location %}
-                  cross-drawer
-                {% endif %}
-              ">
+              <article class="pending-item unified-card-row {% if item.previous_location and ('drawer=' ~ item.drawer) not in item.previous_location %}cross-drawer{% endif %} ">
                 <div class="pending-thumb-wrap">
                   {% if item.card.image_url %}
                     <img class="pending-thumb"
@@ -58,28 +54,23 @@
                     {{ item.card.set_name }} ({{ item.card.set_code|upper }}) · {{ item.finish|capitalize }} · Qty: {{ item.quantity }} · Price: ${{ '%.2f'|format(item.price) }}
                   </div>
                   <div class="pending-location">
-  {% if item.previous_location %}
-    <div class="pending-location-from">
-      FROM: {{ item.previous_location }}
-    </div>
-  {% endif %}
-  <div class="pending-location-to">
-    TO: drawer={{ item.drawer or '?' }} slot={{ item.slot or '?' }} · {{ item.drawer_label }}
-  </div>
-</div>
+                    {% if item.previous_location %}<div class="pending-location-from">FROM: {{ item.previous_location }}</div>{% endif %}
+                    <div class="pending-location-to">
+                      TO: drawer={{ item.drawer or '?' }} slot={{ item.slot or '?' }} · {{ item.drawer_label }}
+                    </div>
+                  </div>
                 </div>
                 <div class="pending-action">
                   <form action="/pending/confirm" method="post" class="inline-form">
                     <input type="hidden" name="row_id" value="{{ item.id }}">
                     <button type="submit" class="danger-button">Confirm</button>
                   </form>
-
-                  <form action="/pending/{{ item.id }}/remove" method="post" class="inline-form">
+                  <form action="/pending/{{ item.id }}/remove"
+                        method="post"
+                        class="inline-form">
                     <button type="submit"
                             class="ghost-button"
-                            onclick="return confirm('Remove this pending card from your collection?');">
-                     Remove
-                    </button>
+                            onclick="return confirm('Remove this pending card from your collection?');">Remove</button>
                   </form>
                 </div>
               </article>

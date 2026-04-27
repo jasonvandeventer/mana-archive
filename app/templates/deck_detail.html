@@ -7,10 +7,7 @@
           <div class="panel-topline">Deck</div>
           <h2 class="panel-title">{{ deck.name }}</h2>
           <p class="muted">{{ deck.format or 'Unspecified format' }}</p>
-
-          {% if deck.notes %}
-            <p class="muted">{{ deck.notes }}</p>
-          {% endif %}
+          {% if deck.notes %}<p class="muted">{{ deck.notes }}</p>{% endif %}
         </div>
         <div class="hero-stats-inline">
           <span>{{ items|length }} entries</span>
@@ -23,7 +20,6 @@
     {% endif %}
   </section>
   {% if deck %}
-
     {% if items %}
       <section class="card-grid-section">
         <div class="inventory-grid">
@@ -61,12 +57,10 @@
                   <div class="deck-item-actions">
                     <input type="text" name="drawer" placeholder="Drawer override">
                     <input type="text" name="slot" placeholder="Slot override">
-                    <button type="submit">Return to Pending</button>
+                    <button type="submit">Remove from Deck</button>
                   </div>
                 </form>
-                <p class="muted small-text">
-                  Leave drawer and slot blank to let Mana Archive assign placement through Pending.
-                </p>
+                <p class="muted small-text">Leave drawer and slot blank to remove this card from the deck and send it to Pending for placement.</p>
               </div>
             </article>
           {% endfor %}
@@ -74,7 +68,13 @@
       </section>
     {% else %}
       <section class="panel">
-        <p>No items in this deck yet.</p>
+        <p>No cards in this deck yet.</p>
+        <p class="muted small-text">
+          Go to your Collection and use "Add to Deck" to start building.
+        </p>
+        <a href="/collection">
+          <button type="button">Go to Collection</button>
+        </a>
       </section>
     {% endif %}
   {% endif %}

@@ -1,42 +1,33 @@
 {% extends "base.html" %}
-
 {% block content %}
-<h1>{{ title }}</h1>
-
-<p>
-  {{ data.owned_cards }} / {{ data.total_cards }}
-  ({{ data.completion_pct }}%)
-</p>
-
-<div class="progress-bar">
-  <div class="progress-fill" style="width: {{ data.completion_pct }}%;"></div>
-</div>
-
-<div class="filter-tabs">
-  <a href="/sets/{{ data.set_code }}?view=all">All</a>
-  <a href="/sets/{{ data.set_code }}?view=owned">Owned</a>
-  <a href="/sets/{{ data.set_code }}?view=missing">Missing</a>
-</div>
-
-<h2>Cards</h2>
-
-<div class="card-grid">
-  {% for card in data.visible_cards %}
-    <div class="card-tile">
-      {% if card.image_url %}
-        <img src="{{ card.image_url }}">
-      {% endif %}
-      <div class="card-name">{{ card.name }}</div>
-      <div class="card-meta">
-        #{{ card.collector_number }}
-        {% if card.quantity_owned and card.quantity_owned > 0 %}
-          · Owned: {{ card.quantity_owned }}
-        {% else %}
-          · Missing
-        {% endif %}
+  <h1>{{ title }}</h1>
+  <p>
+    {{ data.owned_cards }} / {{ data.total_cards }}
+    ({{ data.completion_pct }}%)
+  </p>
+  <div class="progress-bar">
+    <div class="progress-fill" style="width: {{ data.completion_pct }}%;"></div>
+  </div>
+  <div class="filter-tabs">
+    <a href="/sets/{{ data.set_code }}?view=all">All</a>
+    <a href="/sets/{{ data.set_code }}?view=owned">Owned</a>
+    <a href="/sets/{{ data.set_code }}?view=missing">Missing</a>
+  </div>
+  <h2>Cards</h2>
+  <div class="card-grid">
+    {% for card in data.visible_cards %}
+      <div class="card-tile">
+        {% if card.image_url %}<img src="{{ card.image_url }}">{% endif %}
+        <div class="card-name">{{ card.name }}</div>
+        <div class="card-meta">
+          #{{ card.collector_number }}
+          {% if card.quantity_owned and card.quantity_owned > 0 %}
+            · Owned: {{ card.quantity_owned }}
+          {% else %}
+            · Missing
+          {% endif %}
+        </div>
       </div>
-    </div>
-  {% endfor %}
-</div>
-
+    {% endfor %}
+  </div>
 {% endblock %}
