@@ -241,63 +241,26 @@ def parse_search_query(search: str) -> dict:
     }
 
     for term in terms:
-        if ":" not in term:
-            parsed["name"].append(term)
-            continue
+        if ":" in term:
+            key, value = term.split(":", 1)
+            key = key.lower()
 
-        key, value = term.split(":", 1)
-        key = key.strip().lower()
-        value = value.strip().lower()
+            if key in ["t", "type"]:
+                parsed["type"] = value
+            elif key in ["o", "oracle"]:
+                parsed["oracle"] = value
+            elif key in ["s", "set"]:
+                parsed["set"] = value
+            elif key in ["r", "rarity"]:
+                parsed["rarity"] = value
+            elif key == "finish":
+                parsed["finish"] = value
+            elif key == "drawer":
+                parsed["drawer"] = value
 
-        if not value:
-            continue
-
-        if key in ["t", "type"]:
-            parsed["type"] = value
-        elif key in ["o", "oracle"]:
-            parsed["oracle"] = value
-        elif key in ["s", "set"]:
-            parsed["set"] = value
-        elif key in ["r", "rarity"]:
-            parsed["rarity"] = value
-        elif key == "finish":
-            parsed["finish"] = value
-        elif key == "drawer":
-            parsed["drawer"] = value
         else:
             parsed["name"].append(term)
-
-    return parsed
-
-
-def apply_collection_search_filters(query, search: str):
-    if not search.strip():
-        return query
-
-    parsed = parse_search_query(search)
-
-    for term in parsed["name"]:
-        query = query.filter(Card.name.ilike(f"%{term}%"))
-
-    if parsed["type"]:
-        query = query.filter(Card.type_line.ilike(f"%{parsed['type']}%"))
-
-    if parsed["oracle"]:
-        query = query.filter(Card.oracle_text.ilike(f"%{parsed['oracle']}%"))
-
-    if parsed["set"]:
-        query = query.filter(Card.set_code.ilike(f"%{parsed['set']}%"))
-
-    if parsed["rarity"]:
-        query = query.filter(Card.rarity.ilike(f"%{parsed['rarity']}%"))
-
-    if parsed["finish"]:
-        query = query.filter(InventoryRow.finish == parsed["finish"])
-
-    if parsed["drawer"]:
-        query = query.filter(InventoryRow.drawer == parsed["drawer"])
-
-    return query
+        return parsed
 
 
 def list_inventory_rows(
@@ -316,7 +279,30 @@ def list_inventory_rows(
 
     base_query = session.query(InventoryRow).options(joinedload(InventoryRow.card)).join(Card)
 
-    base_query = apply_collection_search_filters(base_query, search)
+    if search.strip():
+        parsed = parse_search_query(search)
+
+    # Name search (multiple terms)
+    for term in parsed["name"]:
+        base_query = base_query.filter(Card.name.ilike(f"%{term}%"))
+
+    if parsed["type"]:
+        base_query = base_query.filter(Card.type_line.ilike(f"%{parsed['type']}%"))
+
+    if parsed["oracle"]:
+        base_query = base_query.filter(Card.oracle_text.ilike(f"%{parsed['oracle']}%"))
+
+    if parsed["set"]:
+        base_query = base_query.filter(Card.set_code.ilike(f"%{parsed['set']}%"))
+
+    if parsed["rarity"]:
+        base_query = base_query.filter(Card.rarity.ilike(f"%{parsed['rarity']}%"))
+
+    if parsed["finish"]:
+        base_query = base_query.filter(InventoryRow.finish == parsed["finish"].lower())
+
+    if parsed["drawer"]:
+        base_query = base_query.filter(InventoryRow.drawer == parsed["drawer"])
 
     if finish.strip():
         base_query = base_query.filter(InventoryRow.finish == finish.strip().lower())
@@ -385,7 +371,8 @@ def get_inventory_row_stats(
 ) -> dict:
     query = session.query(InventoryRow).options(joinedload(InventoryRow.card)).join(Card)
 
-    query = apply_collection_search_filters(query, search)
+    if search.strip():
+        query = query.filter(Card.name.ilike(f"%{search.strip()}%"))
 
     if finish.strip():
         query = query.filter(InventoryRow.finish == finish.strip().lower())

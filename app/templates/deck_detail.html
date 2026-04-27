@@ -20,6 +20,18 @@
     {% endif %}
   </section>
   {% if deck %}
+    <section class="panel controls-panel">
+      <form method="get" action="/decks/{{ deck.id }}" class="filter-row">
+        <input type="text"
+               name="search"
+               placeholder="Search cards in this deck"
+               value="{{ search }}">
+        <button type="submit">Search</button>
+        <a href="/decks/{{ deck.id }}">
+          <button type="button">Clear</button>
+        </a>
+      </form>
+    </section>
     {% if items %}
       <section class="card-grid-section">
         <div class="inventory-grid">
