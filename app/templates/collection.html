@@ -161,27 +161,29 @@
                   <input type="hidden" name="card_id" value="{{ item.card.id }}">
                   <button type="submit">Refresh Price</button>
                 </form>
-                <form action="/decks/pull"
-                      method="post"
-                      class="inline-form"
-                      style="gap: 0.4rem; align-items: center;">
-                  <input type="hidden" name="inventory_row_id" value="{{ item.id }}">
+                {% if decks %}
+                  <form action="/decks/pull"
+                        method="post"
+                        class="inline-form"
+                        style="gap: 0.4rem; align-items: center;">
+                    <input type="hidden" name="inventory_row_id" value="{{ item.id }}">
 
-                  <select name="deck_id" required>
-                    {% for deck in decks %}
-                      <option value="{{ deck.id }}">{{ deck.name }}</option>
-                    {% endfor %}
-                  </select>
+                    <select name="deck_id" required>
+                      {% for deck in decks %}
+                        <option value="{{ deck.id }}">{{ deck.name }}</option>
+                      {% endfor %}
+                    </select>
 
-                  <input type="number"
-                         name="quantity"
-                         value="1"
-                         min="1"
-                         max="{{ item.quantity }}"
-                         style="width: 64px">
+                    <input type="number"
+                           name="quantity"
+                           value="1"
+                           min="1"
+                           max="{{ item.quantity }}"
+                           style="width: 64px">
 
-                  <button type="submit">Add to Deck</button>
-                </form>
+                    <button type="submit">Add to Deck</button>
+                  </form>
+                {% endif %}
 
               </div>
             </div>

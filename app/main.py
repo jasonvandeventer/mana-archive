@@ -17,6 +17,7 @@ from app.deck_service import (
     list_decks,
     pull_card_to_deck,
     return_card_from_deck,
+    delete_deck
 )
 from app.drawer_service import list_drawer_groups, list_rows_for_drawer
 from app.import_service import normalize_finish, parse_scanner_csv, persist_import_rows
@@ -725,6 +726,17 @@ def deck_detail_page(request: Request, deck_id: int):
             "deck_total_cards": total_cards if deck else 0,
         },
     )
+
+
+@app.post("/decks/{deck_id}/delete")
+async def decks_delete(deck_id: int):
+    session = get_session()
+    try:
+        delete_deck(session, deck_id)
+    finally:
+        session.close()
+
+    return RedirectResponse(url="/decks", status_code=303)
 
 
 @app.post("/decks/pull")

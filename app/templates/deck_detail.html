@@ -7,6 +7,10 @@
           <div class="panel-topline">Deck</div>
           <h2 class="panel-title">{{ deck.name }}</h2>
           <p class="muted">{{ deck.format or 'Unspecified format' }}</p>
+
+          {% if deck.notes %}
+            <p class="muted">{{ deck.notes }}</p>
+          {% endif %}
         </div>
         <div class="hero-stats-inline">
           <span>{{ items|length }} entries</span>
@@ -19,29 +23,6 @@
     {% endif %}
   </section>
   {% if deck %}
-    <section class="panel">
-      <h3>Add Card From Collection</h3>
-      <form action="/decks/pull" method="post" class="compact-form-grid">
-        <input type="hidden" name="deck_id" value="{{ deck.id }}">
-
-        <input type="number"
-               name="inventory_row_id"
-               placeholder="Inventory Row ID"
-               min="1"
-               required>
-
-        <input type="number"
-               name="quantity"
-               value="1"
-               min="1"
-               required>
-
-        <button type="submit">Add to Deck</button>
-      </form>
-      <p class="muted">
-        Temporary test form. Use a row ID from the Collection page.
-      </p>
-    </section>
 
     {% if items %}
       <section class="card-grid-section">
@@ -77,10 +58,15 @@
                       class="return-form compact-form-grid">
                   <input type="hidden" name="deck_id" value="{{ deck.id }}">
                   <input type="hidden" name="deck_item_id" value="{{ item.id }}">
-                  <input type="text" name="drawer" placeholder="Drawer">
-                  <input type="text" name="slot" placeholder="Slot">
-                  <button type="submit">Return</button>
+                  <div class="deck-item-actions">
+                    <input type="text" name="drawer" placeholder="Drawer override">
+                    <input type="text" name="slot" placeholder="Slot override">
+                    <button type="submit">Return to Pending</button>
+                  </div>
                 </form>
+                <p class="muted small-text">
+                  Leave drawer and slot blank to let Mana Archive assign placement through Pending.
+                </p>
               </div>
             </article>
           {% endfor %}

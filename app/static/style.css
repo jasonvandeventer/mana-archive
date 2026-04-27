@@ -659,3 +659,56 @@ td {
   margin-top: 0.8rem;
   font-size: 0.9rem;
 }
+.deck-create-form {
+  display: grid;
+  grid-template-columns: 200px 180px 1fr auto;
+  gap: 0.6rem;
+  align-items: stretch;
+  margin: 1rem 0 2rem 0;
+}
+
+.deck-create-form input,
+.deck-create-form select,
+.deck-create-form button {
+  height: 42px;
+}
+.deck-create-form textarea {
+  min-height: 42px;
+  height: 42px;
+  max-height: 42px;
+  resize: none;
+}
+.deck-item-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.deck-item-actions input {
+  flex: 1 1 120px;
+  min-width: 0;
+}
+
+.deck-item-actions button {
+  width: 100%;
+}
+.deck-card,
+.deck-card * {
+  box-sizing: border-box;
+}
+
+.return-form,
+.deck-item-actions {
+  width: 100%;
+  max-width: 100%;
+}
+
+.deck-item-actions input,
+.deck-item-actions button {
+  min-width: 0;
+  max-width: 100%;
+}
+.deck-card .inventory-card-body {
+  min-width: 0;
+  overflow: hidden;
+}

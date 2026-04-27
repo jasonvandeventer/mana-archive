@@ -2,10 +2,22 @@
 {% block content %}
   <section>
     <h2>Decks</h2>
-    <form action="/decks/create" method="post" class="stack-form">
-      <input type="text" name="name" placeholder="Deck name" required>
-      <input type="text" name="format_name" placeholder="Format">
-      <textarea name="notes" placeholder="Notes"></textarea>
+    <form action="/decks/create" method="post" class="deck-create-form">
+      <input type="text" 
+             name="name" 
+             placeholder="Deck Name" 
+             required>
+
+      <select name="format_name">
+        <option value="Commander" selected>Commander</option>
+        <option value="Standard">Standard</option>
+        <option value="Pioneer">Pioneer</option>
+        <option value="Modern">Modern</option>
+        <option value="Legacy">Legacy</option>
+        <option value="Vintage">Vintage</option>
+        <option value="Cube">Cube</option>
+      </select>
+      <textarea name="notes" placeholder="Notes (optional)"></textarea>
       <button type="submit">Create Deck</button>
     </form>
   </section>
@@ -18,7 +30,7 @@
             <th>Name</th>
             <th>Format</th>
             <th>Cards</th>
-            <th>View</th>
+            <th>Actions</th>
           </tr>
         </thead>
         <tbody>
@@ -29,7 +41,18 @@
               <td>{{ deck.format or '-' }}</td>
               <td>{{ deck.items|length }}</td>
               <td>
-                <a href="/decks/{{ deck.id }}">Open</a>
+                <form action="/decks/{{ deck.id }}" method="get" style="display:inline;">
+                  <button type="submit">Open</button>
+                </form>
+                <form action="/decks/{{ deck.id }}/delete"
+                      method="post"
+                      class="inline-form"
+                      style="display:inline;">
+                  <button type="submit"
+                          onclick="return confirm('Delete this deck? Cards in this deck will NOT be returned automatically.');">
+                    Delete
+                  </button>
+                </form>
               </td>
             </tr>
           {% endfor %}
