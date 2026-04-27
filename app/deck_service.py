@@ -137,7 +137,7 @@ def delete_deck(session: Session, deck_id: int) -> bool:
     deck = get_deck(session, deck_id)
     if not deck:
         return False
-    
+
     for item in list(deck.items):
         session.delete(item)
 

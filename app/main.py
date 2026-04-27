@@ -13,11 +13,11 @@ from app.audit_service import list_transaction_logs
 from app.db import get_session, init_db
 from app.deck_service import (
     create_deck,
+    delete_deck,
     get_deck,
     list_decks,
     pull_card_to_deck,
     return_card_from_deck,
-    delete_deck
 )
 from app.drawer_service import list_drawer_groups, list_rows_for_drawer
 from app.import_service import normalize_finish, parse_scanner_csv, persist_import_rows
