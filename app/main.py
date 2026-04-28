@@ -28,7 +28,6 @@ from app.inventory_service import (
     delete_inventory_row,
     get_drawer_label,
     get_inventory_row_stats,
-    get_previous_location_for_row,
     is_price_stale,
     list_inventory_rows,
     list_owned_sets,
@@ -39,6 +38,7 @@ from app.inventory_service import (
     update_inventory_location,
 )
 from app.models import Card, ImportBatch, InventoryRow
+from app.presentation_service import build_pending_view_model
 from app.pricing import effective_price
 from app.scryfall import (
     fetch_card_by_scryfall_id,
@@ -463,39 +463,7 @@ def pending_page(request: Request):
     try:
         rows = list_pending_rows(session)
         latest_batch = session.query(ImportBatch).order_by(ImportBatch.id.desc()).first()
-        items = []
-        grouped = {}
-        total_copies = 0
-        for row in rows:
-            price = effective_price(row.card, row.finish)
-            previous_location = get_previous_location_for_row(session, row.id)
-
-            item = {
-                "id": row.id,
-                "card": row.card,
-                "finish": row.finish,
-                "quantity": row.quantity,
-                "drawer": row.drawer,
-                "slot": row.slot,
-                "price": price,
-                "drawer_label": get_drawer_label(row.drawer),
-                "previous_location": previous_location,
-            }
-            items.append(item)
-            total_copies += row.quantity
-            grouped.setdefault(str(row.drawer or "-"), []).append(item)
-        grouped_drawers = []
-        for key in sorted(
-            grouped.keys(), key=lambda x: (x == "-", int(x) if x.isdigit() else 999, x)
-        ):
-            grouped_drawers.append(
-                {
-                    "drawer": key,
-                    "label": get_drawer_label(key),
-                    "count": len(grouped[key]),
-                    "entries": grouped[key],
-                }
-            )
+        view_model = build_pending_view_model(rows)
     finally:
         session.close()
 
@@ -505,11 +473,7 @@ def pending_page(request: Request):
         context={
             "request": request,
             "title": "Pending Placement",
-            "items": items,
-            "grouped_drawers": grouped_drawers,
-            "pending_count": len(items),
-            "drawer_count": len(grouped_drawers),
-            "total_copies": total_copies,
+            **view_model,
             "latest_batch_id": latest_batch.id if latest_batch else None,
         },
     )

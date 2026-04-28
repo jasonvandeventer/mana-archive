@@ -38,7 +38,7 @@
           <summary>{{ group.label }} ({{ group.count }} pending)</summary>
           <div class="pending-list">
             {% for item in group.entries %}
-              <article class="pending-item unified-card-row {% if item.previous_location and ('drawer=' ~ item.drawer) not in item.previous_location %}cross-drawer{% endif %} ">
+              <article class="pending-item unified-card-row cross-drawer">
                 <div class="pending-thumb-wrap">
                   {% if item.card.image_url %}
                     <img class="pending-thumb"
@@ -54,10 +54,8 @@
                     {{ item.card.set_name }} ({{ item.card.set_code|upper }}) · {{ item.finish|capitalize }} · Qty: {{ item.quantity }} · Price: ${{ '%.2f'|format(item.price) }}
                   </div>
                   <div class="pending-location">
-                    {% if item.previous_location %}<div class="pending-location-from">FROM: {{ item.previous_location }}</div>{% endif %}
-                    <div class="pending-location-to">
-                      TO: drawer={{ item.drawer or '?' }} slot={{ item.slot or '?' }} · {{ item.drawer_label }}
-                    </div>
+                    <div class="pending-location-from">FROM: {{ item.current_location_label }}</div>
+                    <div class="pending-location-to">TO: {{ item.target_location_label }} · Slot {{ item.slot or '?' }}</div>
                   </div>
                 </div>
                 <div class="pending-action">

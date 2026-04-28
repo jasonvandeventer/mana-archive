@@ -8,7 +8,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session, joinedload
 
 from app.audit_service import log_transaction
-from app.models import Card, InventoryRow, TransactionLog
+from app.models import Card, InventoryRow, StorageLocation, TransactionLog
 from app.pricing import effective_price
 from app.scryfall import fetch_card_by_scryfall_id, fetch_card_traits
 
@@ -36,6 +36,12 @@ def collector_sort_key(value: str | None) -> tuple[int, str, str]:
 
 def get_drawer_label(drawer: str | None) -> str:
     return DRAWER_LABELS.get(str(drawer or "").strip(), f"Drawer {drawer or '-'}")
+
+
+def get_location_label(row: InventoryRow) -> str:
+    if row.storage_location:
+        return row.storage_location.name
+    return get_drawer_label(row.drawer)
 
 
 def basic_land_type_sort_key(card: Card) -> tuple[int, str]:
@@ -434,6 +440,15 @@ def update_inventory_location(
     )
 
     row.drawer = (drawer or "").strip() or None
+    if row.drawer:
+        location = (
+            session.query(StorageLocation)
+            .filter_by(user_id=row.user_id, name=f"Drawer {row.drawer}", type="drawer")
+            .first()
+        )
+
+        if location:
+            row.storage_location_id = location.id
     row.slot = (slot or "").strip() or None
     row.is_pending = row.drawer is None or row.slot is None
     row.updated_at = datetime.now(UTC)
@@ -458,7 +473,10 @@ def update_inventory_location(
 def list_pending_rows(session: Session) -> list[InventoryRow]:
     rows = (
         session.query(InventoryRow)
-        .options(joinedload(InventoryRow.card))
+        .options(
+            joinedload(InventoryRow.card),
+            joinedload(InventoryRow.storage_location),
+        )
         .filter(InventoryRow.is_pending.is_(True))
         .all()
     )

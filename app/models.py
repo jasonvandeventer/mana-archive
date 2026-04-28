@@ -48,10 +48,10 @@ class InventoryRow(Base):
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
-    
-    storage_location: Mapped["StorageLocation | None"] = relationship(back_populates="inventory_rows")
+
+    storage_location: Mapped[StorageLocation | None] = relationship(back_populates="inventory_rows")
     card: Mapped[Card] = relationship(back_populates="inventory_rows")
-    
+
 
 class Deck(Base):
     __tablename__ = "decks"
@@ -133,4 +133,4 @@ class StorageLocation(Base):
     )
     sort_order: Mapped[int] = mapped_column(Integer, default=0)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
-    inventory_rows: Mapped[list["InventoryRow"]] = relationship(back_populates="storage_location")
+    inventory_rows: Mapped[list[InventoryRow]] = relationship(back_populates="storage_location")

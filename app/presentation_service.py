@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from app.inventory_service import get_drawer_label
+from app.inventory_service import get_drawer_label, get_location_label
 from app.pricing import effective_price
 
 
@@ -29,7 +29,7 @@ def build_collection_view_model(inventory_rows) -> dict:
                 "is_pending": row.is_pending,
                 "effective_price": price,
                 "total_value": total,
-                "drawer_label": get_drawer_label(row.drawer),
+                "drawer_label": get_location_label(row),
             }
         )
         total_value += total
@@ -63,10 +63,11 @@ def build_pending_view_model(rows) -> dict:
             "card": row.card,
             "finish": row.finish,
             "quantity": row.quantity,
+            "current_location_label": get_location_label(row),
+            "target_location_label": get_drawer_label(row.drawer),
             "drawer": row.drawer,
             "slot": row.slot,
             "price": price,
-            "drawer_label": get_drawer_label(row.drawer),
         }
         items.append(item)
         total_copies += row.quantity
@@ -188,7 +189,7 @@ def build_card_detail_view_model(card, rows) -> dict:
                 "is_pending": row.is_pending,
                 "effective_price": price,
                 "total_value": total,
-                "drawer_label": get_drawer_label(row.drawer),
+                "drawer_label": get_location_label(row),
             }
         )
         total_copies += row.quantity

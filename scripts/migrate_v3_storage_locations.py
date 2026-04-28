@@ -3,8 +3,6 @@ from __future__ import annotations
 from sqlalchemy import inspect, text
 
 from app.db import Base, engine
-from app import models # noqa: f401
-
 
 DEFAULT_USERNAME = "jason.v"
 DEFAULT_PASSWORD_HASH = "CHANGE_ME_V3_BOOTSTRAP"
