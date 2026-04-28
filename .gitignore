@@ -5,3 +5,6 @@ __pycache__/
 logs/
 node_modules/
 data/
+backups/
+*.db
+*.sqlite
