@@ -528,7 +528,6 @@ def confirm_pending_row(session: Session, row_id: int) -> InventoryRow | None:
         row.is_pending = False
         row.updated_at = datetime.utcnow()
 
-
     log_transaction(
         session=session,
         event_type="placement_confirmed",
@@ -767,7 +766,7 @@ def resort_collection(session: Session, row_ids: Iterable[int] | None = None) ->
                 moved_between_drawers = (
                     not old_is_pending and old_drawer is not None and old_drawer != target_drawer
                 )
-                
+
                 row.drawer = target_drawer
                 row.slot = target_slot
 
