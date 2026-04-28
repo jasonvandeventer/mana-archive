@@ -28,6 +28,7 @@ from app.inventory_service import (
     delete_inventory_row,
     get_drawer_label,
     get_inventory_row_stats,
+    get_location_label,
     is_price_stale,
     list_inventory_rows,
     list_owned_sets,
@@ -378,7 +379,7 @@ def collection_page(
                     "price_status": price_status,
                     "price_updated_at": price_updated_at,
                     "total_value": total,
-                    "drawer_label": get_drawer_label(row.drawer),
+                    "drawer_label": get_location_label(row),
                 }
             )
     finally:

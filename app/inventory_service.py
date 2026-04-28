@@ -320,7 +320,14 @@ def list_inventory_rows(
     per_page = max(1, min(per_page, 100))
     reverse = direction == "desc"
 
-    base_query = session.query(InventoryRow).options(joinedload(InventoryRow.card)).join(Card)
+    base_query = (
+        session.query(InventoryRow)
+        .options(
+            joinedload(InventoryRow.card),
+            joinedload(InventoryRow.storage_location),
+        )
+        .join(Card)
+    )
 
     base_query = apply_collection_search_filters(base_query, search)
 
