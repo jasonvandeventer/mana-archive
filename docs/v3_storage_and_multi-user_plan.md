@@ -6,9 +6,9 @@ Transition Mana Archive from a single-user, drawer-specific inventory tool into 
 
 This version introduces:
 
-* User accounts
-* Flexible storage locations
-* Unified collection view across all locations
+- User accounts
+- Flexible storage locations
+- Unified collection view across all locations
 
 ---
 
@@ -16,20 +16,20 @@ This version introduces:
 
 ### Storage Model
 
-* Hardcoded to "drawer + slot"
-* Only supports one storage paradigm
-* Decks exist outside the main inventory model
+- Hardcoded to "drawer + slot"
+- Only supports one storage paradigm
+- Decks exist outside the main inventory model
 
 ### Deck System
 
-* Decks are not true storage locations
-* Cards are "pulled" from collection instead of existing in a location
+- Decks are not true storage locations
+- Cards are "pulled" from collection instead of existing in a location
 
 ### Multi-User
 
-* No user separation
-* All data is global
-* Unsafe for shared usage
+- No user separation
+- All data is global
+- Unsafe for shared usage
 
 ---
 
@@ -41,12 +41,12 @@ All physical or logical locations become first-class entities.
 
 Examples:
 
-* Drawer 1
-* Drawer 2
-* Deck: Wilhelt Zombies
-* Binder: Trade Binder
-* Box: Bulk
-* Pending
+- Drawer 1
+- Drawer 2
+- Deck: Wilhelt Zombies
+- Binder: Trade Binder
+- Box: Bulk
+- Pending
 
 ---
 
@@ -56,11 +56,11 @@ Examples:
 
 Fields:
 
-* id
-* name (e.g. "Drawer 1", "Wilhelt Deck")
-* type (drawer, deck, binder, box, pending, custom)
-* user_id
-* sort_order (optional)
+- id
+- name (e.g. "Drawer 1", "Wilhelt Deck")
+- type (drawer, deck, binder, box, pending, custom)
+- user_id
+- sort_order (optional)
 
 ---
 
@@ -68,14 +68,14 @@ Fields:
 
 Replace:
 
-* drawer
-* slot
+- drawer
+- slot
 
 With:
 
-* location_id (FK → StorageLocation)
-* position (string, replaces slot)
-* is_pending (may be derived or removed later)
+- location_id (FK → StorageLocation)
+- position (string, replaces slot)
+- is_pending (may be derived or removed later)
 
 ---
 
@@ -83,12 +83,12 @@ With:
 
 Options:
 
-* Either remove Deck table entirely
-* Or convert it into a wrapper over StorageLocation (type="deck")
+- Either remove Deck table entirely
+- Or convert it into a wrapper over StorageLocation (type="deck")
 
 Recommended:
 
-* Keep Deck as metadata, but link to StorageLocation
+- Keep Deck as metadata, but link to StorageLocation
 
 ---
 
@@ -96,10 +96,10 @@ Recommended:
 
 Fields:
 
-* id
-* username
-* password_hash
-* created_at
+- id
+- username
+- password_hash
+- created_at
 
 ---
 
@@ -107,36 +107,33 @@ Fields:
 
 ### Step 1 — Introduce User
 
-* Create default user for existing data
-* Assign all existing records to that user
+- Create default user for existing data
+- Assign all existing records to that user
 
 ### Step 2 — Create StorageLocation
 
-* Convert drawers into locations:
+- Convert drawers into locations:
+  - "Drawer 1" → type=drawer
+  - ...
 
-  * "Drawer 1" → type=drawer
-  * ...
-* Create:
-
-  * "Pending" location
+- Create:
+  - "Pending" location
 
 ### Step 3 — Migrate Inventory
 
-* Map:
-
-  * drawer → location_id
-  * slot → position
+- Map:
+  - drawer → location_id
+  - slot → position
 
 ### Step 4 — Convert Decks
 
-* For each deck:
-
-  * Create StorageLocation with type="deck"
-  * Move DeckItems into InventoryRow entries tied to that location
+- For each deck:
+  - Create StorageLocation with type="deck"
+  - Move DeckItems into InventoryRow entries tied to that location
 
 ### Step 5 — Remove old fields
 
-* Remove drawer and slot columns after migration is stable
+- Remove drawer and slot columns after migration is stable
 
 ---
 
@@ -146,16 +143,16 @@ Fields:
 
 Now shows:
 
-* All owned cards
-* Across ALL locations
+- All owned cards
+- Across ALL locations
 
 Columns:
 
-* Card
-* Quantity
-* Finish
-* Location (Drawer, Deck, Binder, etc.)
-* Position
+- Card
+- Quantity
+- Finish
+- Location (Drawer, Deck, Binder, etc.)
+- Position
 
 ---
 
@@ -163,13 +160,13 @@ Columns:
 
 Decks become:
 
-* Storage locations of type "deck"
+- Storage locations of type "deck"
 
 Behavior:
 
-* No sorting
-* No pending unless explicitly moved
-* Cards remain owned even if not in main drawers
+- No sorting
+- No pending unless explicitly moved
+- Cards remain owned even if not in main drawers
 
 ---
 
@@ -177,9 +174,9 @@ Behavior:
 
 New flows:
 
-* Move between locations
-* Assign to deck directly
-* Move from deck → pending or drawer
+- Move between locations
+- Assign to deck directly
+- Move from deck → pending or drawer
 
 ---
 
@@ -187,26 +184,26 @@ New flows:
 
 Each user:
 
-* Has their own StorageLocations
-* Has their own InventoryRows
-* Cannot see other users’ data
+- Has their own StorageLocations
+- Has their own InventoryRows
+- Cannot see other users’ data
 
 ---
 
 ## 8. Authentication (MVP)
 
-* Login page
-* Session-based auth
-* No roles/permissions yet
+- Login page
+- Session-based auth
+- No roles/permissions yet
 
 ---
 
 ## 9. UI Changes
 
-* Replace "Drawer" terminology with "Location"
-* Add location filters to Collection
-* Add "Move to Location" actions
-* Add "Create Location" UI
+- Replace "Drawer" terminology with "Location"
+- Add location filters to Collection
+- Add "Move to Location" actions
+- Add "Create Location" UI
 
 ---
 
@@ -214,25 +211,25 @@ Each user:
 
 Before playgroup testing:
 
-* [ ] Users cannot see each other's data
-* [ ] Locations are user-specific
-* [ ] Collection shows correct location for all cards
-* [ ] Decks behave like storage locations
-* [ ] Moving cards updates location correctly
-* [ ] Migration preserves all existing data
+- [ ] Users cannot see each other's data
+- [ ] Locations are user-specific
+- [ ] Collection shows correct location for all cards
+- [ ] Decks behave like storage locations
+- [ ] Moving cards updates location correctly
+- [ ] Migration preserves all existing data
 
 ---
 
 ## 11. Risks
 
-* Data migration errors
-* Breaking existing workflows
-* Mixing old and new models during transition
+- Data migration errors
+- Breaking existing workflows
+- Mixing old and new models during transition
 
 Mitigation:
 
-* Backup DB before migration
-* Test migration locally with real data
+- Backup DB before migration
+- Test migration locally with real data
 
 ---
 
@@ -240,9 +237,8 @@ Mitigation:
 
 v3.0.0 is complete when:
 
-* Users can log in
-* Users can define their own storage locations
-* Decks function as locations
-* Collection reflects all owned cards with accurate locations
-* No drawer-specific assumptions remain in the system
-
+- Users can log in
+- Users can define their own storage locations
+- Decks function as locations
+- Collection reflects all owned cards with accurate locations
+- No drawer-specific assumptions remain in the system
