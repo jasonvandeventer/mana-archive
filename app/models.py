@@ -36,6 +36,10 @@ class InventoryRow(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     card_id: Mapped[int] = mapped_column(ForeignKey("cards.id"), index=True)
+    user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True, index=True)
+    storage_location_id: Mapped[int | None] = mapped_column(
+        ForeignKey("storage_locations.id"), nullable=True, index=True
+    )
     finish: Mapped[str] = mapped_column(String(32), default="normal", index=True)
     quantity: Mapped[int] = mapped_column(Integer, default=1)
     drawer: Mapped[str | None] = mapped_column(String(32), nullable=True, index=True)
@@ -46,7 +50,7 @@ class InventoryRow(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
     card: Mapped[Card] = relationship(back_populates="inventory_rows")
-
+    
 
 class Deck(Base):
     __tablename__ = "decks"
@@ -105,3 +109,27 @@ class TransactionLog(Base):
 
     card: Mapped[Card] = relationship(back_populates="transaction_logs")
     batch: Mapped[ImportBatch] = relationship(back_populates="transaction_logs")
+
+
+class User(Base):
+    __tablename__ = "users"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    username: Mapped[str] = mapped_column(String(64), unique=True, index=True)
+    password_hash: Mapped[str] = mapped_column(String(255))
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
+class StorageLocation(Base):
+    __tablename__ = "storage_locations"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    name: Mapped[str] = mapped_column(String(255), index=True)
+    type: Mapped[str] = mapped_column(String(64), default="other", index=True)
+    parent_id: Mapped[int | None] = mapped_column(
+        ForeignKey("storage_locations.id"), nullable=True, index=True
+    )
+    sort_order: Mapped[int] = mapped_column(Integer, default=0)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    
