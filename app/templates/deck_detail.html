@@ -7,8 +7,12 @@
           <div class="panel-topline">Deck</div>
           <h2 class="panel-title">{{ deck.name }}</h2>
           <p class="muted">{{ deck.format or 'Unspecified format' }}</p>
-          {% if deck.notes %}<p class="muted">{{ deck.notes }}</p>{% endif %}
+
+          {% if deck.notes %}
+            <p class="muted">{{ deck.notes }}</p>
+          {% endif %}
         </div>
+
         <div class="hero-stats-inline">
           <span>{{ items|length }} entries</span>
           <span>{{ deck_total_cards }} copies</span>
@@ -19,19 +23,116 @@
       <h2 class="panel-title">Deck not found</h2>
     {% endif %}
   </section>
+
   {% if deck %}
     <section class="panel controls-panel">
+      <h3>Search Collection</h3>
+      <p class="muted small-text">
+        Search your owned cards using collection search syntax like
+        <code>dragon</code>, <code>t:creature</code>, <code>o:draw</code>, or <code>finish:foil</code>.
+      </p>
+
       <form method="get" action="/decks/{{ deck.id }}" class="filter-row">
+        <input type="hidden" name="search" value="{{ search }}">
+
+        <input type="text"
+               name="collection_search"
+               placeholder="Search your collection to add cards"
+               value="{{ collection_search }}">
+
+        <button type="submit">Search Collection</button>
+
+        <a href="/decks/{{ deck.id }}?search={{ search }}">
+          <button type="button">Clear</button>
+        </a>
+      </form>
+
+      {% if collection_search and collection_results %}
+        <div class="inventory-grid" style="margin-top: 1rem;">
+          {% for result in collection_results %}
+            <article class="inventory-card inventory-card-compact">
+              <div class="inventory-card-media">
+                {% if result.card.image_url %}
+                  <a href="/cards/{{ result.card.id }}">
+                    <img class="inventory-thumb"
+                         src="{{ result.card.image_url }}"
+                         alt="{{ result.card.name }}"
+                         loading="lazy">
+                  </a>
+                {% else %}
+                  <a href="/cards/{{ result.card.id }}" class="inventory-thumb placeholder"></a>
+                {% endif %}
+              </div>
+
+              <div class="inventory-card-body">
+                <h3 class="inventory-card-title">
+                  <a href="https://scryfall.com/card/{{ result.card.set_code }}/{{ result.card.collector_number }}"
+                     target="_blank"
+                     rel="noreferrer">{{ result.card.name }}</a>
+                </h3>
+
+                <div class="inventory-subtitle">
+                  {{ result.card.set_name }} · {{ result.card.set_code|upper }} #{{ result.card.collector_number }}
+                </div>
+
+                <div class="inventory-meta">
+                  {{ result.finish|capitalize }} · Owned Qty {{ result.quantity }}
+                  {% if result.effective_price is not none %}
+                    · ${{ '%.2f'|format(result.effective_price) }} each
+                  {% endif %}
+                </div>
+
+                <div class="inventory-location">
+                  Drawer {{ result.drawer or '-' }}
+                  {% if result.slot %}· Slot {{ result.slot }}{% endif %}
+                </div>
+
+                <form action="/decks/pull"
+                      method="post"
+                      class="deck-add-form"
+                      style="margin-top: 0.75rem; display: flex; gap: 0.4rem; align-items: center; flex-wrap: wrap;">
+                  <input type="hidden" name="deck_id" value="{{ deck.id }}">
+                  <input type="hidden" name="inventory_row_id" value="{{ result.id }}">
+
+                  <input type="number"
+                         name="quantity"
+                         value="1"
+                         min="1"
+                         max="{{ result.quantity }}"
+                         style="width: 64px">
+
+                  <button type="submit">Add to This Deck</button>
+                </form>
+              </div>
+            </article>
+          {% endfor %}
+        </div>
+      {% elif collection_search %}
+        <p class="muted" style="margin-top: 1rem;">
+          No owned cards matched that search.
+        </p>
+      {% endif %}
+    </section>
+
+    <section class="panel controls-panel">
+      <h3>Deck Cards</h3>
+
+      <form method="get" action="/decks/{{ deck.id }}" class="filter-row">
+        <input type="hidden" name="collection_search" value="{{ collection_search }}">
+
         <input type="text"
                name="search"
-               placeholder="Search cards in this deck"
+               placeholder="Search cards already in this deck"
                value="{{ search }}">
-        <button type="submit">Search</button>
-        <a href="/decks/{{ deck.id }}">
+
+        <button type="submit">Search Deck</button>
+
+        <a href="/decks/{{ deck.id }}?collection_search={{ collection_search }}">
           <button type="button">Clear</button>
         </a>
       </form>
     </section>
+
     {% if items %}
       <section class="card-grid-section">
         <div class="inventory-grid">
@@ -48,30 +149,39 @@
                   <a href="/cards/{{ item.card.id }}" class="inventory-thumb placeholder"></a>
                 {% endif %}
               </div>
+
               <div class="inventory-card-body">
                 <h3 class="inventory-card-title">
                   <a href="https://scryfall.com/card/{{ item.card.set_code }}/{{ item.card.collector_number }}"
                      target="_blank"
                      rel="noreferrer">{{ item.card.name }}</a>
                 </h3>
+
                 <div class="inventory-subtitle">
                   {{ item.card.set_name }} · {{ item.card.set_code|upper }} #{{ item.card.collector_number }}
                 </div>
+
                 <div class="inventory-meta">
                   {{ item.finish|capitalize }} · Qty {{ item.quantity }} · ${{ '%.2f'|format(item.effective_price) }} each
                 </div>
-                <div class="inventory-total">Total value: ${{ '%.2f'|format(item.total_value) }}</div>
+
+                <div class="inventory-total">
+                  Total value: ${{ '%.2f'|format(item.total_value) }}
+                </div>
+
                 <form action="/decks/return"
                       method="post"
                       class="return-form compact-form-grid">
                   <input type="hidden" name="deck_id" value="{{ deck.id }}">
                   <input type="hidden" name="deck_item_id" value="{{ item.id }}">
+
                   <div class="deck-item-actions">
                     <input type="text" name="drawer" placeholder="Drawer override">
                     <input type="text" name="slot" placeholder="Slot override">
                     <button type="submit">Remove from Deck</button>
                   </div>
                 </form>
+
                 <p class="muted small-text">
                   Leave drawer and slot blank to remove this card from the deck and send it to Pending for placement.
                 </p>
@@ -83,7 +193,9 @@
     {% else %}
       <section class="panel">
         <p>No cards in this deck yet.</p>
-        <p class="muted small-text">Go to your Collection and use "Add to Deck" to start building.</p>
+        <p class="muted small-text">
+          Use Search Collection above to find owned cards and add them to this deck.
+        </p>
         <a href="/collection">
           <button type="button">Go to Collection</button>
         </a>

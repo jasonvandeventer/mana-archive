@@ -688,19 +688,35 @@ async def decks_create(name: str = Form(...), format_name: str = Form(""), notes
 
 
 @app.get("/decks/{deck_id}")
-def deck_detail_page(request: Request, deck_id: int, search: str = ""):
+def deck_detail_page(
+    request: Request, 
+    deck_id: int, 
+    search: str = "",
+    collection_search: str = "",
+):
     session = get_session()
     try:
         deck = get_deck(session, deck_id)
         items = []
+        collection_results = []
         deck_total_value = 0.0
         total_cards = 0
+
         if deck:
             normalized_search = search.strip().lower()
 
             for item in deck.items:
-                if normalized_search and normalized_search not in item.card.name.lower():
-                    continue
+                if normalized_search:
+                    name = (item.card.name or "").lower()
+                    type_line = (item.card.type_line  or "").lower()
+                    oracle = (item.card.oracle_text or "").lower()
+
+                    if (
+                        normalized_search not in name
+                        and normalized_search not in type_line
+                        and normalized_search not in oracle
+                    ):
+                        continue
 
                 price = effective_price(item.card, item.finish)
                 total_value = price * item.quantity
@@ -714,6 +730,28 @@ def deck_detail_page(request: Request, deck_id: int, search: str = ""):
                         "quantity": item.quantity,
                         "effective_price": price,
                         "total_value": total_value,
+                    }
+                )
+
+        if collection_search.strip():
+            rows, _ = list_inventory_rows(
+                session,
+                search=collection_search,
+                page=1,
+                per_page=20,
+            )
+
+            for row in rows:
+                price = effective_price(row.card, row.finish)
+                collection_results.append(
+                    {
+                        "id": row.id,
+                        "card": row.card,
+                        "finish": row.finish,
+                        "quantity": row.quantity,
+                        "drawer": row.drawer,
+                        "slot": row.slot,
+                        "effective_price": price,
                     }
                 )
     finally:
@@ -730,6 +768,8 @@ def deck_detail_page(request: Request, deck_id: int, search: str = ""):
             "deck_total_value": deck_total_value if deck else 0.0,
             "deck_total_cards": total_cards if deck else 0,
             "search": search,
+            "collection_search": collection_search,
+            "collection_results": collection_results if deck else [],
         },
     )
 
