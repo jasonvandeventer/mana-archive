@@ -689,8 +689,8 @@ async def decks_create(name: str = Form(...), format_name: str = Form(""), notes
 
 @app.get("/decks/{deck_id}")
 def deck_detail_page(
-    request: Request, 
-    deck_id: int, 
+    request: Request,
+    deck_id: int,
     search: str = "",
     collection_search: str = "",
 ):
@@ -708,7 +708,7 @@ def deck_detail_page(
             for item in deck.items:
                 if normalized_search:
                     name = (item.card.name or "").lower()
-                    type_line = (item.card.type_line  or "").lower()
+                    type_line = (item.card.type_line or "").lower()
                     oracle = (item.card.oracle_text or "").lower()
 
                     if (
