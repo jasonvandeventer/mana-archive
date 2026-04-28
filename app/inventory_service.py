@@ -495,8 +495,25 @@ def confirm_pending_row(session: Session, row_id: int) -> InventoryRow | None:
     if not row.is_pending:
         return row
 
-    row.is_pending = False
-    row.updated_at = datetime.utcnow()
+    if row.drawer:
+        location = (
+            session.query(StorageLocation)
+            .filter(
+                StorageLocation.user_id == row.user_id,
+                StorageLocation.name == f"Drawer {row.drawer}",
+                StorageLocation.type == "drawer",
+            )
+            .one_or_none()
+        )
+
+        if location is None:
+            raise ValueError(f"No storage location found for Drawer {row.drawer}")
+
+        row.storage_location_id = location.id
+
+        row.is_pending = False
+        row.updated_at = datetime.utcnow()
+
 
     log_transaction(
         session=session,
@@ -736,10 +753,17 @@ def resort_collection(session: Session, row_ids: Iterable[int] | None = None) ->
                 moved_between_drawers = (
                     not old_is_pending and old_drawer is not None and old_drawer != target_drawer
                 )
-
+                
                 row.drawer = target_drawer
                 row.slot = target_slot
-                row.is_pending = old_is_pending or moved_between_drawers
+
+                if old_is_pending:
+                    row.is_pending = True
+                elif old_drawer != target_drawer:
+                    row.is_pending = True
+                else:
+                    row.is_pending = False
+
                 row.updated_at = now
 
                 log_transaction(
