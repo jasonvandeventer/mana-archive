@@ -40,7 +40,14 @@ def get_drawer_label(drawer: str | None) -> str:
 
 def get_location_label(row: InventoryRow) -> str:
     if row.storage_location:
-        return row.storage_location.name
+        location = row.storage_location
+
+        if location.type == "drawer":
+            drawer_number = location.name.replace("Drawer", "").strip()
+            return get_drawer_label(drawer_number)
+
+        return location.name
+
     return get_drawer_label(row.drawer)
 
 

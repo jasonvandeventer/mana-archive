@@ -796,7 +796,10 @@ def card_detail_page(request: Request, card_id: int):
 
         inventory_rows = (
             session.query(InventoryRow)
-            .options(joinedload(InventoryRow.card))
+            .options(
+                joinedload(InventoryRow.card),
+                joinedload(InventoryRow.storage_location),
+            )
             .filter(InventoryRow.card_id == card_id)
             .all()
         )
@@ -818,7 +821,7 @@ def card_detail_page(request: Request, card_id: int):
                     "is_pending": row.is_pending,
                     "effective_price": price,
                     "total_value": total,
-                    "drawer_label": get_drawer_label(row.drawer),
+                    "drawer_label": get_location_label(row),
                 }
             )
             total_copies += row.quantity
