@@ -89,11 +89,10 @@ def return_card_from_deck(
     )
     if not deck_item:
         return False
-    
+
     default_user = session.query(User).filter(User.username == "jason.v").first()
     if not default_user:
         raise ValueError("Default user jason.v not found")
-
 
     existing_row = (
         session.query(InventoryRow)

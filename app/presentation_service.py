@@ -71,7 +71,7 @@ def build_pending_view_model(rows) -> dict:
         }
         items.append(item)
         total_copies += row.quantity
-       
+
         if row.storage_location and row.storage_location.type == "drawer":
             drawer_number = row.storage_location.name.replace("Drawer", "").strip()
         else:

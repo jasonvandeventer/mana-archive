@@ -343,10 +343,9 @@ def list_inventory_rows(
 
     if drawer.strip():
         base_query = base_query.join(InventoryRow.storage_location).filter(
-            StorageLocation.name == f"Drawer {drawer.strip()}",    
+            StorageLocation.name == f"Drawer {drawer.strip()}",
             StorageLocation.type == "drawer",
         )
-
 
     total_count = base_query.count()
 

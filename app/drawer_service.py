@@ -34,8 +34,8 @@ def list_drawer_groups(session: Session) -> dict[str, list[InventoryRow]]:
 
     rows.sort(
         key=lambda r: (
-            _drawer_number_from_location(r.storage_location), 
-            _slot_sort_key(r.slot), 
+            _drawer_number_from_location(r.storage_location),
+            _slot_sort_key(r.slot),
             r.id,
         )
     )
@@ -43,7 +43,7 @@ def list_drawer_groups(session: Session) -> dict[str, list[InventoryRow]]:
     grouped: dict[str, list[InventoryRow]] = defaultdict(list)
     for row in rows:
         grouped[_drawer_number_from_location(row.storage_location)].append(row)
-    
+
     return dict(grouped)
 
 
