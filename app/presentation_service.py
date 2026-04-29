@@ -71,7 +71,13 @@ def build_pending_view_model(rows) -> dict:
         }
         items.append(item)
         total_copies += row.quantity
-        grouped.setdefault(str(row.drawer or "-"), []).append(item)
+       
+        if row.storage_location and row.storage_location.type == "drawer":
+            drawer_number = row.storage_location.name.replace("Drawer", "").strip()
+        else:
+            drawer_number = "-"
+
+        grouped.setdefault(drawer_number, []).append(item)
 
     grouped_drawers = []
     for key in sorted(grouped.keys(), key=lambda x: (x == "-", int(x) if x.isdigit() else 999, x)):

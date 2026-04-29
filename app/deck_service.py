@@ -5,7 +5,7 @@ from datetime import datetime
 from sqlalchemy.orm import Session, joinedload
 
 from app.audit_service import log_transaction
-from app.models import Deck, DeckItem, InventoryRow
+from app.models import Deck, DeckItem, InventoryRow, User
 
 
 def create_deck(session: Session, name: str, format_name: str = "", notes: str = "") -> Deck:
@@ -89,6 +89,11 @@ def return_card_from_deck(
     )
     if not deck_item:
         return False
+    
+    default_user = session.query(User).filter(User.username == "jason.v").first()
+    if not default_user:
+        raise ValueError("Default user jason.v not found")
+
 
     existing_row = (
         session.query(InventoryRow)
@@ -97,6 +102,7 @@ def return_card_from_deck(
         .filter(InventoryRow.drawer == (drawer.strip() or None))
         .filter(InventoryRow.slot == (slot.strip() or None))
         .filter(InventoryRow.is_pending.is_(True))
+        .filter(InventoryRow.user_id == default_user.id)
         .first()
     )
 
@@ -106,6 +112,7 @@ def return_card_from_deck(
         existing_row.updated_at = datetime.utcnow()
     else:
         existing_row = InventoryRow(
+            user_id=default_user.id,
             card_id=deck_item.card_id,
             finish=deck_item.finish,
             quantity=deck_item.quantity,

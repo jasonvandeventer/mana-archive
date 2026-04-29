@@ -342,7 +342,11 @@ def list_inventory_rows(
         base_query = base_query.filter(InventoryRow.finish == finish.strip().lower())
 
     if drawer.strip():
-        base_query = base_query.filter(InventoryRow.drawer == drawer.strip())
+        base_query = base_query.join(InventoryRow.storage_location).filter(
+            StorageLocation.name == f"Drawer {drawer.strip()}",    
+            StorageLocation.type == "drawer",
+        )
+
 
     total_count = base_query.count()
 
@@ -411,7 +415,10 @@ def get_inventory_row_stats(
         query = query.filter(InventoryRow.finish == finish.strip().lower())
 
     if drawer.strip():
-        query = query.filter(InventoryRow.drawer == drawer.strip())
+        query = query.join(InventoryRow.storage_location).filter(
+            StorageLocation.name == f"Drawer {drawer.strip()}",
+            StorageLocation.type == "drawer",
+        )
 
     rows = query.all()
 
