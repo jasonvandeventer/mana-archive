@@ -219,14 +219,14 @@ def create_or_merge_inventory_row(
     notes: str | None = None,
 ) -> InventoryRow:
     existing = find_matching_inventory_row(
-    session,
-    user_id,
-    card_id,
-    finish,
-    drawer,
-    slot,
-    is_pending,
-    )   
+        session,
+        user_id,
+        card_id,
+        finish,
+        drawer,
+        slot,
+        is_pending,
+    )
 
     if existing:
         existing.quantity += quantity
