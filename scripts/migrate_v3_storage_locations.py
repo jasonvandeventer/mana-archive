@@ -18,8 +18,14 @@ def scalar(conn, sql: str, params: dict | None = None):
 
 
 def main() -> None:
-    if str(engine.url) != "sqlite:////tmp/mana_archive.db":
+    allowed_urls = {
+        "sqlite:////tmp/mana_archive.db",
+        "sqlite:////data/mana_archive.db",
+    }   
+
+    if str(engine.url) not in allowed_urls:
         raise RuntimeError(f"Refusing to run migration against unexpected DB: {engine.url}")
+
 
     print(f"Using database: {engine.url}")
 
