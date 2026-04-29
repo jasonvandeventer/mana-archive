@@ -28,6 +28,23 @@ def main() -> None:
 
     print(f"Using database: {engine.url}")
 
+    if column_exists("inventory_rows", "user_id") and column_exists(
+        "inventory_rows", "storage_location_id"
+    ):
+        with engine.begin() as conn:
+            missing_users = scalar(
+                conn,
+                "SELECT COUNT(*) FROM inventory_rows WHERE user_id IS NULL",
+            )
+            missing_locations = scalar(
+                conn,
+                "SELECT COUNT(*) FROM inventory_rows WHERE storage_location_id IS NULL",
+            )
+
+            if missing_users == 0 and missing_locations == 0:
+                print("v3 migration already applied. Exiting cleanly.")
+                return
+
     # Create new v3 tables.
     Base.metadata.create_all(bind=engine)
 
