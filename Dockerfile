@@ -16,6 +16,8 @@ RUN apt-get update \
 
 COPY requirements.txt .
 
+COPY scripts ./scripts
+
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY app ./app
