@@ -156,8 +156,13 @@ def parse_scanner_csv(file_bytes: bytes) -> dict[str, list[dict[str, Any]]]:
 
 
 def persist_import_rows(
-    session: Session, rows: list[dict[str, Any]], filename: str = "manual import"
+    session: Session,
+    rows: list[dict[str, Any]],
+    filename: str = "manual import",
+    user_id: int | None = None,
 ) -> dict[str, Any]:
+    if user_id is None:
+        raise ValueError("user_id is required when importing rows")
     imported_count = 0
     failed_rows: list[dict[str, Any]] = []
     imported_row_ids: list[int] = []
@@ -278,6 +283,7 @@ def persist_import_rows(
         existing_pending_rows = (
             session.query(InventoryRow)
             .filter(InventoryRow.card_id.in_(card_ids))
+            .filter(InventoryRow.user_id == user_id)
             .filter(InventoryRow.drawer.is_(None))
             .filter(InventoryRow.slot.is_(None))
             .filter(InventoryRow.is_pending.is_(True))
@@ -285,7 +291,7 @@ def persist_import_rows(
         )
 
     inventory_map: dict[tuple[int, str, str | None, str | None, bool], InventoryRow] = {
-        (row.card_id, row.finish, row.drawer, row.slot, row.is_pending): row
+        (row.user_id, row.card_id, row.finish, row.drawer, row.slot, row.is_pending): row
         for row in existing_pending_rows
     }
 
@@ -308,7 +314,7 @@ def persist_import_rows(
         finish = (row.get("finish") or "normal").strip().lower()
         location_note = (row.get("location") or "").strip() or None
 
-        key = (card.id, finish, None, None, True)
+        key = (user_id, card.id, finish, None, None, True)
         target_row = inventory_map.get(key)
 
         if target_row:
@@ -318,6 +324,7 @@ def persist_import_rows(
                 target_row.notes = location_note
         else:
             target_row = InventoryRow(
+                user_id=user_id,
                 card_id=card.id,
                 finish=finish,
                 quantity=qty,

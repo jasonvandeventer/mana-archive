@@ -3,11 +3,11 @@ from __future__ import annotations
 import math
 import os
 
-from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
+from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import Session, joinedload
 
 from app.audit_service import list_transaction_logs
 from app.db import get_session, init_db
@@ -19,6 +19,7 @@ from app.deck_service import (
     pull_card_to_deck,
     return_card_from_deck,
 )
+from app.dependencies import get_current_user, get_db_session
 from app.drawer_service import list_drawer_groups, list_rows_for_drawer
 from app.import_service import normalize_finish, parse_scanner_csv, persist_import_rows
 from app.inventory_service import (
@@ -38,7 +39,7 @@ from app.inventory_service import (
     undo_last_import,
     update_inventory_location,
 )
-from app.models import Card, ImportBatch, InventoryRow
+from app.models import Card, ImportBatch, InventoryRow, User
 from app.presentation_service import build_pending_view_model
 from app.pricing import effective_price
 from app.scryfall import (
@@ -110,6 +111,8 @@ async def import_commit(
     finish: list[str] = Form([]),
     quantity: list[str] = Form([]),
     location: list[str] = Form([]),
+    session: Session = Depends(get_db_session),
+    current_user: User = Depends(get_current_user),
 ):
     rows = []
     for i in range(len(line_number)):
@@ -126,14 +129,15 @@ async def import_commit(
             }
         )
 
-    session = get_session()
-    try:
-        result = persist_import_rows(session, rows, filename=filename)
+    result = persist_import_rows(
+        session,
+        rows,
+        filename=filename,
+        user_id=current_user.id,
+    )
 
-        if result.get("imported_row_ids"):
-            resort_collection(session)
-    finally:
-        session.close()
+    if result.get("imported_row_ids"):
+        resort_collection(session, user_id=current_user.id)
 
     return RedirectResponse(url="/pending", status_code=303)
 
@@ -181,31 +185,30 @@ async def manual_import_commit(
     collector_number: str = Form(""),
     finish: str = Form("normal"),
     quantity: int = Form(1),
+    session: Session = Depends(get_db_session),
+    current_user: User = Depends(get_current_user),
 ):
-    session = get_session()
-    resorted_count = 0
-    try:
-        result = persist_import_rows(
-            session,
-            [
-                {
-                    "line_number": 1,
-                    "scryfall_id": scryfall_id,
-                    "set_code": set_code,
-                    "collector_number": collector_number,
-                    "finish": normalize_finish(finish),
-                    "quantity": max(1, quantity),
-                    "location": "",
-                    "name": "",
-                }
-            ],
-            filename="manual import",
-        )
-        if result.get("imported_row_ids"):
-            resorted_count = resort_collection(session)
+    result = persist_import_rows(
+        session,
+        [
+            {
+                "line_number": 1,
+                "scryfall_id": scryfall_id,
+                "set_code": set_code,
+                "collector_number": collector_number,
+                "finish": normalize_finish(finish),
+                "quantity": max(1, quantity),
+                "location": "",
+                "name": "",
+            }
+        ],
+        filename="manual import",
+        user_id=current_user.id,
+    )
 
-    finally:
-        session.close()
+    resorted_count = 0
+    if result.get("imported_row_ids"):
+        resorted_count = resort_collection(session, user_id=current_user.id)
 
     return templates.TemplateResponse(
         request=request,
@@ -228,19 +231,18 @@ def remove_inventory_row_action(
     row_id: int,
     quantity: int = Form(...),
     note: str = Form(""),
+    session: Session = Depends(get_db_session),
+    current_user: User = Depends(get_current_user),
 ):
-    session = get_session()
-    try:
-        adjust_inventory_row_quantity(
-            session=session,
-            row_id=row_id,
-            quantity=quantity,
-            event_type="remove",
-            note=note or None,
-        )
-        session.commit()
-    finally:
-        session.close()
+
+    adjust_inventory_row_quantity(
+        session=session,
+        row_id=row_id,
+        user_id=current_user.id,
+        quantity=quantity,
+        event_type="remove",
+        note=note or None,
+    )
 
     return RedirectResponse(url=request.headers.get("referer") or "/collection", status_code=303)
 
@@ -251,19 +253,17 @@ def sell_inventory_row_action(
     row_id: int,
     quantity: int = Form(...),
     note: str = Form(""),
+    session: Session = Depends(get_db_session),
+    current_user: User = Depends(get_current_user),
 ):
-    session = get_session()
-    try:
-        adjust_inventory_row_quantity(
-            session=session,
-            row_id=row_id,
-            quantity=quantity,
-            event_type="sold",
-            note=note or None,
-        )
-        session.commit()
-    finally:
-        session.close()
+    adjust_inventory_row_quantity(
+        session=session,
+        row_id=row_id,
+        user_id=current_user.id,
+        quantity=quantity,
+        event_type="sold",
+        note=note or None,
+    )
 
     return RedirectResponse(url=request.headers.get("referer") or "/collection", status_code=303)
 
@@ -274,19 +274,17 @@ def trade_inventory_row_action(
     row_id: int,
     quantity: int = Form(...),
     note: str = Form(""),
+    session: Session = Depends(get_db_session),
+    current_user: User = Depends(get_current_user),
 ):
-    session = get_session()
-    try:
-        adjust_inventory_row_quantity(
-            session=session,
-            row_id=row_id,
-            quantity=quantity,
-            event_type="traded",
-            note=note or None,
-        )
-        session.commit()
-    finally:
-        session.close()
+    adjust_inventory_row_quantity(
+        session=session,
+        row_id=row_id,
+        user_id=current_user.id,
+        quantity=quantity,
+        event_type="traded",
+        note=note or None,
+    )
 
     return RedirectResponse(url=request.headers.get("referer") or "/collection", status_code=303)
 
@@ -296,23 +294,19 @@ def delete_inventory_row_action(
     request: Request,
     row_id: int,
     note: str = Form(""),
+    session: Session = Depends(get_db_session),
+    current_user: User = Depends(get_current_user),
 ):
-    session = get_session()
-    try:
-        row = session.query(InventoryRow).filter(InventoryRow.id == row_id).first()
-        if row:
-            adjust_inventory_row_quantity(
-                session=session,
-                row_id=row_id,
-                quantity=row.quantity,
-                event_type="row_deleted",
-                note=note or f"Deleted inventory row {row_id}",
-            )
-            session.commit()
-    finally:
-        session.close()
+    delete_inventory_row(
+        session=session,
+        row_id=row_id,
+        user_id=current_user.id,
+    )
 
-    return RedirectResponse(url=request.headers.get("referer") or "/collection", status_code=303)
+    return RedirectResponse(
+        url=request.headers.get("referer") or "/collection",
+        status_code=303,
+    )
 
 
 @app.get("/collection")
@@ -324,66 +318,66 @@ def collection_page(
     sort: str = "newest",
     direction: str = "desc",
     page: int = 1,
+    session: Session = Depends(get_db_session),
+    current_user: User = Depends(get_current_user),
 ):
-    session = get_session()
     per_page = 50
 
-    try:
-        inventory_rows, total_count = list_inventory_rows(
-            session,
-            search=search,
-            finish=finish,
-            drawer=drawer,
-            sort=sort,
-            direction=direction,
-            page=page,
-            per_page=per_page,
+    inventory_rows, total_count = list_inventory_rows(
+        session,
+        user_id=current_user.id,
+        search=search,
+        finish=finish,
+        drawer=drawer,
+        sort=sort,
+        direction=direction,
+        page=page,
+        per_page=per_page,
+    )
+
+    stats = get_inventory_row_stats(
+        session,
+        user_id=current_user.id,
+        search=search,
+        finish=finish,
+        drawer=drawer,
+    )
+
+    decks = list_decks(session, user_id=current_user.id)
+
+    items = []
+    for row in inventory_rows:
+        price = effective_price(row.card, row.finish)
+        price_updated_at = getattr(row.card, "updated_at", None)
+        is_stale = is_price_stale(price_updated_at)
+        has_price = price is not None
+
+        if has_price:
+            display_price = price
+            total = price * row.quantity
+            price_status = "stale" if is_stale else "current"
+        else:
+            display_price = 0.0
+            total = 0.0
+            price_status = "unknown"
+
+        items.append(
+            {
+                "id": row.id,
+                "card": row.card,
+                "finish": row.finish,
+                "quantity": row.quantity,
+                "drawer": row.drawer,
+                "slot": row.slot,
+                "is_pending": row.is_pending,
+                "effective_price": display_price,
+                "has_price": has_price,
+                "price_status": price_status,
+                "price_updated_at": price_updated_at,
+                "total_value": total,
+                "drawer_label": get_location_label(row),
+            }
         )
-
-        stats = get_inventory_row_stats(
-            session,
-            search=search,
-            finish=finish,
-            drawer=drawer,
-        )
-
-        decks = list_decks(session)
-
-        items = []
-        for row in inventory_rows:
-            price = effective_price(row.card, row.finish)
-            price_updated_at = getattr(row.card, "updated_at", None)
-            is_stale = is_price_stale(price_updated_at)
-            has_price = price is not None
-
-            if has_price:
-                display_price = price
-                total = price * row.quantity
-                price_status = "stale" if is_stale else "current"
-            else:
-                display_price = 0.0
-                total = 0.0
-                price_status = "unknown"
-
-            items.append(
-                {
-                    "id": row.id,
-                    "card": row.card,
-                    "finish": row.finish,
-                    "quantity": row.quantity,
-                    "drawer": row.drawer,
-                    "slot": row.slot,
-                    "is_pending": row.is_pending,
-                    "effective_price": display_price,
-                    "has_price": has_price,
-                    "price_status": price_status,
-                    "price_updated_at": price_updated_at,
-                    "total_value": total,
-                    "drawer_label": get_location_label(row),
-                }
-            )
-    finally:
-        session.close()
 
     total_pages = max(1, math.ceil(total_count / per_page))
 
@@ -415,23 +409,29 @@ def collection_page(
 
 @app.post("/collection/update-location")
 async def collection_update_location(
-    row_id: int = Form(...), drawer: str = Form(""), slot: str = Form("")
+    row_id: int = Form(...),
+    drawer: str = Form(""),
+    slot: str = Form(""),
+    session: Session = Depends(get_db_session),
+    current_user: User = Depends(get_current_user),
 ):
-    session = get_session()
-    try:
-        update_inventory_location(session, row_id=row_id, drawer=drawer, slot=slot)
-    finally:
-        session.close()
+    update_inventory_location(
+        session,
+        row_id=row_id,
+        user_id=current_user.id,
+        drawer=drawer,
+        slot=slot,
+    )
     return RedirectResponse(url="/collection", status_code=303)
 
 
 @app.post("/collection/delete")
-async def collection_delete(row_id: int = Form(...)):
-    session = get_session()
-    try:
-        delete_inventory_row(session, row_id)
-    finally:
-        session.close()
+async def collection_delete(
+    row_id: int = Form(...),
+    session: Session = Depends(get_db_session),
+    current_user: User = Depends(get_current_user),
+):
+    delete_inventory_row(session, row_id=row_id, user_id=current_user.id)
     return RedirectResponse(url="/collection", status_code=303)
 
 
@@ -459,14 +459,16 @@ async def card_refresh(request: Request, card_id: int = Form(...)):
 
 
 @app.get("/pending")
-def pending_page(request: Request):
-    session = get_session()
-    try:
-        rows = list_pending_rows(session)
-        latest_batch = session.query(ImportBatch).order_by(ImportBatch.id.desc()).first()
-        view_model = build_pending_view_model(rows)
-    finally:
-        session.close()
+def pending_page(
+    request: Request,
+    session: Session = Depends(get_db_session),
+    current_user: User = Depends(get_current_user),
+):
+    rows = list_pending_rows(session, user_id=current_user.id)
+
+    latest_batch = session.query(ImportBatch).order_by(ImportBatch.id.desc()).first()
+
+    view_model = build_pending_view_model(rows)
 
     return templates.TemplateResponse(
         request=request,
@@ -481,47 +483,47 @@ def pending_page(request: Request):
 
 
 @app.post("/pending/confirm")
-async def pending_confirm(row_id: int = Form(...)):
-    session = get_session()
-    try:
-        confirm_pending_row(session, row_id=row_id)
-    finally:
-        session.close()
+async def pending_confirm(
+    row_id: int = Form(...),
+    session: Session = Depends(get_db_session),
+    current_user: User = Depends(get_current_user),
+):
+    confirm_pending_row(session, row_id=row_id, user_id=current_user.id)
     return RedirectResponse(url="/pending", status_code=303)
 
 
 @app.post("/pending/confirm-all")
-async def pending_confirm_all():
-    session = get_session()
-    try:
-        confirm_all_pending(session)
-    finally:
-        session.close()
+async def pending_confirm_all(
+    session: Session = Depends(get_db_session),
+    current_user: User = Depends(get_current_user),
+):
+    confirm_all_pending(session, user_id=current_user.id)
     return RedirectResponse(url="/pending", status_code=303)
 
 
 @app.post("/pending/{row_id}/remove")
-def remove_pending_row(row_id: int):
-    session = get_session()
-    try:
-        row = (
-            session.query(InventoryRow)
-            .filter(
-                InventoryRow.id == row_id,
-                InventoryRow.is_pending,
-            )
-            .first()
+def remove_pending_row(
+    row_id: int,
+    session: Session = Depends(get_db_session),
+    current_user: User = Depends(get_current_user),
+):
+    row = (
+        session.query(InventoryRow)
+        .filter(
+            InventoryRow.id == row_id,
+            InventoryRow.is_pending,
+            InventoryRow.user_id == current_user.id,
         )
+        .first()
+    )
 
-        if not row:
-            raise HTTPException(status_code=404, detail="Pending row not found")
+    if not row:
+        raise HTTPException(status_code=404, detail="Pending row not found")
 
-        session.delete(row)
-        session.commit()
-    finally:
-        session.close()
+    session.delete(row)
+    session.commit()
 
-    return RedirectResponse("/pending", status_code=303)
+    return RedirectResponse(url="/pending", status_code=303)
 
 
 @app.get("/drawers")

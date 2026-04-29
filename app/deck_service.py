@@ -16,10 +16,11 @@ def create_deck(session: Session, name: str, format_name: str = "", notes: str =
     return deck
 
 
-def list_decks(session: Session) -> list[Deck]:
+def list_decks(session, user_id: int | None = None) -> list[Deck]:
     return (
         session.query(Deck)
         .options(joinedload(Deck.items).joinedload(DeckItem.card))
+        # .filter(Deck.user_id == user_id)
         .order_by(Deck.name.asc())
         .all()
     )

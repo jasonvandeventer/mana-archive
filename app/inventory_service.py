@@ -188,6 +188,7 @@ def get_or_create_card(
 
 def find_matching_inventory_row(
     session: Session,
+    user_id: int,
     card_id: int,
     finish: str,
     drawer: str | None,
@@ -196,6 +197,7 @@ def find_matching_inventory_row(
 ) -> InventoryRow | None:
     return (
         session.query(InventoryRow)
+        .filter(InventoryRow.user_id == user_id)
         .filter(InventoryRow.card_id == card_id)
         .filter(InventoryRow.finish == finish)
         .filter(InventoryRow.drawer == drawer)
@@ -207,6 +209,7 @@ def find_matching_inventory_row(
 
 def create_or_merge_inventory_row(
     session: Session,
+    user_id: int,
     card_id: int,
     finish: str,
     quantity: int,
@@ -215,7 +218,16 @@ def create_or_merge_inventory_row(
     is_pending: bool = True,
     notes: str | None = None,
 ) -> InventoryRow:
-    existing = find_matching_inventory_row(session, card_id, finish, drawer, slot, is_pending)
+    existing = find_matching_inventory_row(
+    session,
+    user_id,
+    card_id,
+    finish,
+    drawer,
+    slot,
+    is_pending,
+    )   
+
     if existing:
         existing.quantity += quantity
         existing.updated_at = datetime.utcnow()
@@ -225,6 +237,7 @@ def create_or_merge_inventory_row(
         return existing
 
     row = InventoryRow(
+        user_id=user_id,
         card_id=card_id,
         finish=finish,
         quantity=quantity,
@@ -314,7 +327,8 @@ def apply_collection_search_filters(query, search: str):
 
 
 def list_inventory_rows(
-    session: Session,
+    session,
+    user_id: int,
     search: str = "",
     finish: str = "",
     drawer: str = "",
@@ -334,6 +348,7 @@ def list_inventory_rows(
             joinedload(InventoryRow.storage_location),
         )
         .join(Card)
+        .filter(InventoryRow.user_id == user_id)
     )
 
     base_query = apply_collection_search_filters(base_query, search)
@@ -402,11 +417,17 @@ def is_price_stale(price_updated_at: datetime | None) -> bool:
 
 def get_inventory_row_stats(
     session: Session,
+    user_id: int,
     search: str = "",
     finish: str = "",
     drawer: str = "",
 ) -> dict:
-    query = session.query(InventoryRow).options(joinedload(InventoryRow.card)).join(Card)
+    query = (
+        session.query(InventoryRow)
+        .options(joinedload(InventoryRow.card))
+        .join(Card)
+        .filter(InventoryRow.user_id == user_id)
+    )
 
     query = apply_collection_search_filters(query, search)
 
@@ -449,9 +470,16 @@ def get_inventory_row_stats(
 
 
 def update_inventory_location(
-    session: Session, row_id: int, drawer: str | None, slot: str | None
+    session: Session, row_id: int, user_id: int, drawer: str | None, slot: str | None
 ) -> InventoryRow | None:
-    row = session.query(InventoryRow).filter(InventoryRow.id == row_id).first()
+    row = (
+        session.query(InventoryRow)
+        .filter(
+            InventoryRow.id == row_id,
+            InventoryRow.user_id == user_id,
+        )
+        .first()
+    )
     if not row:
         return None
 
@@ -490,22 +518,33 @@ def update_inventory_location(
     return row
 
 
-def list_pending_rows(session: Session) -> list[InventoryRow]:
+def list_pending_rows(session: Session, user_id: int) -> list[InventoryRow]:
     rows = (
         session.query(InventoryRow)
         .options(
             joinedload(InventoryRow.card),
             joinedload(InventoryRow.storage_location),
         )
-        .filter(InventoryRow.is_pending.is_(True))
+        .filter(
+            InventoryRow.is_pending.is_(True),
+            InventoryRow.user_id == user_id,
+        )
         .all()
     )
     rows.sort(key=lambda r: (assign_drawer(r.card, r.finish), drawer_sort_key(r)))
     return rows
 
 
-def confirm_pending_row(session: Session, row_id: int) -> InventoryRow | None:
-    row = session.query(InventoryRow).filter(InventoryRow.id == row_id).first()
+def confirm_pending_row(session: Session, row_id: int, user_id: int) -> InventoryRow | None:
+    row = (
+        session.query(InventoryRow)
+        .filter(
+            InventoryRow.id == row_id,
+            InventoryRow.user_id == user_id,
+        )
+        .first()
+    )
+
     if not row:
         return None
 
@@ -549,9 +588,15 @@ def confirm_pending_row(session: Session, row_id: int) -> InventoryRow | None:
     return row
 
 
-def confirm_all_pending(session: Session) -> int:
-    rows = session.query(InventoryRow).filter(InventoryRow.is_pending.is_(True)).all()
-
+def confirm_all_pending(session: Session, user_id: int) -> int:
+    rows = (
+        session.query(InventoryRow)
+        .filter(
+            InventoryRow.is_pending.is_(True),
+            InventoryRow.user_id == user_id,
+        )
+        .all()
+    )
     count = 0
     now = datetime.utcnow()
 
@@ -583,6 +628,7 @@ def confirm_all_pending(session: Session) -> int:
 def adjust_inventory_row_quantity(
     session: Session,
     row_id: int,
+    user_id: int,
     quantity: int,
     event_type: str,
     note: str | None = None,
@@ -591,7 +637,15 @@ def adjust_inventory_row_quantity(
     if event_type not in valid_event_types:
         raise ValueError(f"Unsupported event_type: {event_type}")
 
-    row = session.query(InventoryRow).filter(InventoryRow.id == row_id).first()
+    row = (
+        session.query(InventoryRow)
+        .filter(
+            InventoryRow.id == row_id,
+            InventoryRow.user_id == user_id,
+        )
+        .first()
+    )
+
     if not row:
         raise ValueError("Inventory row not found.")
     if quantity <= 0:
@@ -618,26 +672,38 @@ def adjust_inventory_row_quantity(
 
     if quantity == row.quantity:
         session.delete(row)
+        session.commit()
         return None
 
     row.quantity -= quantity
     row.updated_at = datetime.utcnow()
+
+    session.commit()
     return row
 
 
-def delete_inventory_row(session: Session, row_id: int) -> bool:
-    row = session.query(InventoryRow).filter(InventoryRow.id == row_id).first()
+def delete_inventory_row(session: Session, row_id: int, user_id: int) -> bool:
+    row = (
+        session.query(InventoryRow)
+        .filter(
+            InventoryRow.id == row_id,
+            InventoryRow.user_id == user_id,
+        )
+        .first()
+    )
+
     if not row:
         return False
 
     adjust_inventory_row_quantity(
         session=session,
         row_id=row_id,
+        user_id=user_id,
         quantity=row.quantity,
         event_type="row_deleted",
         note=f"Deleted inventory row {row_id}",
     )
-    session.commit()
+
     return True
 
 
@@ -730,18 +796,21 @@ def get_previous_location_for_row(session: Session, row_id: int) -> str | None:
     return log.source_location
 
 
-def resort_collection(session: Session, row_ids: Iterable[int] | None = None) -> int:
+def resort_collection(
+    session: Session,
+    user_id: int | None = None,
+    row_ids: Iterable[int] | None = None,
+) -> int:
     """
     Compute drawer/slot placement for the full collection.
-
-    Important:
-    - Placement must always be computed against the full collection to avoid
-      slot collisions inside a drawer.
-    - Pending rows keep is_pending=True so the UI can show proposed placement
-      before confirmation.
-    - row_ids is retained only for API compatibility.
     """
-    rows = session.query(InventoryRow).options(joinedload(InventoryRow.card)).all()
+    query = session.query(InventoryRow).options(joinedload(InventoryRow.card))
+
+    if user_id is not None:
+        query = query.filter(InventoryRow.user_id == user_id)
+
+    rows = query.all()
+
     if not rows:
         return 0
 
