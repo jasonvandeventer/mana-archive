@@ -5,6 +5,7 @@ __pycache__/
 logs/
 node_modules/
 data/
+dev-data/
 backups/
 *.db
 *.sqlite

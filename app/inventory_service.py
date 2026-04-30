@@ -13,9 +13,10 @@ from app.pricing import effective_price
 from app.scryfall import fetch_card_by_scryfall_id, fetch_card_traits
 
 PRICE_STALE_DAYS = 7
-
 VALUE_THRESHOLD = 5.0
+
 _BASIC_LAND_NAMES = {"plains", "island", "swamp", "mountain", "forest", "wastes"}
+
 DRAWER_LABELS = {
     "1": "Drawer 1 – Value ($5+)",
     "2": "Drawer 2 – Sets A–D",
@@ -79,7 +80,8 @@ def is_basic_land_candidate(card: Card, finish: str) -> bool:
 
 
 def assign_drawer(card: Card, finish: str) -> int:
-    if effective_price(card, finish) >= VALUE_THRESHOLD:
+    price = effective_price(card, finish) or 0.0
+    if price >= VALUE_THRESHOLD:
         return 1
     if is_basic_land_candidate(card, finish):
         return 6
@@ -98,14 +100,6 @@ def assign_drawer(card: Card, finish: str) -> int:
 
 
 def drawer_sort_key(row: InventoryRow) -> tuple:
-    """
-    Return the in-drawer sort key for an inventory row.
-
-    Drawer 6 has three explicit sections:
-    1. Cards whose set codes begin with a numeral
-    2. Normal-finish basic lands (non-full-art)
-    3. Miscellaneous fallback rows
-    """
     card = row.card
     drawer = assign_drawer(card, row.finish)
     set_code = (card.set_code or "").strip().lower()
@@ -124,14 +118,7 @@ def drawer_sort_key(row: InventoryRow) -> tuple:
             return (0, set_code, collector, name, row.id)
 
         if is_basic:
-            return (
-                1,
-                basic_land_type_sort_key(card),
-                set_code,
-                collector,
-                name,
-                row.id,
-            )
+            return (1, basic_land_type_sort_key(card), set_code, collector, name, row.id)
 
         return (2, set_code, collector, name, row.id)
 
@@ -139,7 +126,9 @@ def drawer_sort_key(row: InventoryRow) -> tuple:
 
 
 def get_or_create_card(
-    session: Session, scryfall_id: str, card_data: dict | None = None
+    session: Session,
+    scryfall_id: str,
+    card_data: dict | None = None,
 ) -> Card | None:
     existing = session.query(Card).filter(Card.scryfall_id == scryfall_id).first()
     if existing:
@@ -219,13 +208,13 @@ def create_or_merge_inventory_row(
     notes: str | None = None,
 ) -> InventoryRow:
     existing = find_matching_inventory_row(
-        session,
-        user_id,
-        card_id,
-        finish,
-        drawer,
-        slot,
-        is_pending,
+        session=session,
+        user_id=user_id,
+        card_id=card_id,
+        finish=finish,
+        drawer=drawer,
+        slot=slot,
+        is_pending=is_pending,
     )
 
     if existing:
@@ -327,7 +316,7 @@ def apply_collection_search_filters(query, search: str):
 
 
 def list_inventory_rows(
-    session,
+    session: Session,
     user_id: int,
     search: str = "",
     finish: str = "",
@@ -343,10 +332,7 @@ def list_inventory_rows(
 
     base_query = (
         session.query(InventoryRow)
-        .options(
-            joinedload(InventoryRow.card),
-            joinedload(InventoryRow.storage_location),
-        )
+        .options(joinedload(InventoryRow.card), joinedload(InventoryRow.storage_location))
         .join(Card)
         .filter(InventoryRow.user_id == user_id)
     )
@@ -358,6 +344,7 @@ def list_inventory_rows(
 
     if drawer.strip():
         base_query = base_query.join(InventoryRow.storage_location).filter(
+            StorageLocation.user_id == user_id,
             StorageLocation.name == f"Drawer {drawer.strip()}",
             StorageLocation.type == "drawer",
         )
@@ -372,7 +359,6 @@ def list_inventory_rows(
             InventoryRow.id.desc() if reverse else InventoryRow.id.asc(),
         )
         rows = query.offset((page - 1) * per_page).limit(per_page).all()
-
     elif sort == "set":
         query = base_query.order_by(
             Card.set_code.desc() if reverse else Card.set_code.asc(),
@@ -381,27 +367,17 @@ def list_inventory_rows(
             InventoryRow.id.desc() if reverse else InventoryRow.id.asc(),
         )
         rows = query.offset((page - 1) * per_page).limit(per_page).all()
-
     elif sort == "placement":
         rows = base_query.all()
         rows.sort(
             key=lambda r: (assign_drawer(r.card, r.finish), drawer_sort_key(r)),
             reverse=reverse,
         )
-        start = (page - 1) * per_page
-        end = start + per_page
-        rows = rows[start:end]
-
+        rows = rows[(page - 1) * per_page : (page - 1) * per_page + per_page]
     elif sort == "value":
         rows = base_query.all()
-        rows.sort(
-            key=lambda r: effective_price(r.card, r.finish),
-            reverse=reverse,
-        )
-        start = (page - 1) * per_page
-        end = start + per_page
-        rows = rows[start:end]
-
+        rows.sort(key=lambda r: effective_price(r.card, r.finish) or 0.0, reverse=reverse)
+        rows = rows[(page - 1) * per_page : (page - 1) * per_page + per_page]
     else:
         query = base_query.order_by(InventoryRow.id.desc() if reverse else InventoryRow.id.asc())
         rows = query.offset((page - 1) * per_page).limit(per_page).all()
@@ -436,6 +412,7 @@ def get_inventory_row_stats(
 
     if drawer.strip():
         query = query.join(InventoryRow.storage_location).filter(
+            StorageLocation.user_id == user_id,
             StorageLocation.name == f"Drawer {drawer.strip()}",
             StorageLocation.type == "drawer",
         )
@@ -470,14 +447,15 @@ def get_inventory_row_stats(
 
 
 def update_inventory_location(
-    session: Session, row_id: int, user_id: int, drawer: str | None, slot: str | None
+    session: Session,
+    row_id: int,
+    user_id: int,
+    drawer: str | None,
+    slot: str | None,
 ) -> InventoryRow | None:
     row = (
         session.query(InventoryRow)
-        .filter(
-            InventoryRow.id == row_id,
-            InventoryRow.user_id == user_id,
-        )
+        .filter(InventoryRow.id == row_id, InventoryRow.user_id == user_id)
         .first()
     )
     if not row:
@@ -488,21 +466,27 @@ def update_inventory_location(
     )
 
     row.drawer = (drawer or "").strip() or None
-    if row.drawer:
-        location = (
-            session.query(StorageLocation)
-            .filter_by(user_id=row.user_id, name=f"Drawer {row.drawer}", type="drawer")
-            .first()
-        )
-
-        if location:
-            row.storage_location_id = location.id
     row.slot = (slot or "").strip() or None
     row.is_pending = row.drawer is None or row.slot is None
     row.updated_at = datetime.now(UTC)
 
+    if row.drawer:
+        location = (
+            session.query(StorageLocation)
+            .filter(
+                StorageLocation.user_id == user_id,
+                StorageLocation.name == f"Drawer {row.drawer}",
+                StorageLocation.type == "drawer",
+            )
+            .first()
+        )
+        row.storage_location_id = location.id if location else None
+    else:
+        row.storage_location_id = None
+
     log_transaction(
         session=session,
+        user_id=user_id,
         event_type="location_updated",
         card_id=row.card_id,
         finish=row.finish,
@@ -521,14 +505,8 @@ def update_inventory_location(
 def list_pending_rows(session: Session, user_id: int) -> list[InventoryRow]:
     rows = (
         session.query(InventoryRow)
-        .options(
-            joinedload(InventoryRow.card),
-            joinedload(InventoryRow.storage_location),
-        )
-        .filter(
-            InventoryRow.is_pending.is_(True),
-            InventoryRow.user_id == user_id,
-        )
+        .options(joinedload(InventoryRow.card), joinedload(InventoryRow.storage_location))
+        .filter(InventoryRow.is_pending.is_(True), InventoryRow.user_id == user_id)
         .all()
     )
     rows.sort(key=lambda r: (assign_drawer(r.card, r.finish), drawer_sort_key(r)))
@@ -538,10 +516,7 @@ def list_pending_rows(session: Session, user_id: int) -> list[InventoryRow]:
 def confirm_pending_row(session: Session, row_id: int, user_id: int) -> InventoryRow | None:
     row = (
         session.query(InventoryRow)
-        .filter(
-            InventoryRow.id == row_id,
-            InventoryRow.user_id == user_id,
-        )
+        .filter(InventoryRow.id == row_id, InventoryRow.user_id == user_id)
         .first()
     )
 
@@ -554,27 +529,26 @@ def confirm_pending_row(session: Session, row_id: int, user_id: int) -> Inventor
     if not row.is_pending:
         return row
 
-    if row.drawer:
-        location = (
-            session.query(StorageLocation)
-            .filter(
-                StorageLocation.user_id == row.user_id,
-                StorageLocation.name == f"Drawer {row.drawer}",
-                StorageLocation.type == "drawer",
-            )
-            .one_or_none()
+    location = (
+        session.query(StorageLocation)
+        .filter(
+            StorageLocation.user_id == user_id,
+            StorageLocation.name == f"Drawer {row.drawer}",
+            StorageLocation.type == "drawer",
         )
+        .one_or_none()
+    )
 
-        if location is None:
-            raise ValueError(f"No storage location found for Drawer {row.drawer}")
+    if location is None:
+        raise ValueError(f"No storage location found for Drawer {row.drawer}")
 
-        row.storage_location_id = location.id
-
-        row.is_pending = False
-        row.updated_at = datetime.utcnow()
+    row.storage_location_id = location.id
+    row.is_pending = False
+    row.updated_at = datetime.utcnow()
 
     log_transaction(
         session=session,
+        user_id=user_id,
         event_type="placement_confirmed",
         card_id=row.card_id,
         finish=row.finish,
@@ -591,10 +565,7 @@ def confirm_pending_row(session: Session, row_id: int, user_id: int) -> Inventor
 def confirm_all_pending(session: Session, user_id: int) -> int:
     rows = (
         session.query(InventoryRow)
-        .filter(
-            InventoryRow.is_pending.is_(True),
-            InventoryRow.user_id == user_id,
-        )
+        .filter(InventoryRow.is_pending.is_(True), InventoryRow.user_id == user_id)
         .all()
     )
     count = 0
@@ -604,11 +575,25 @@ def confirm_all_pending(session: Session, user_id: int) -> int:
         if not row.drawer or not row.slot:
             continue
 
+        location = (
+            session.query(StorageLocation)
+            .filter(
+                StorageLocation.user_id == user_id,
+                StorageLocation.name == f"Drawer {row.drawer}",
+                StorageLocation.type == "drawer",
+            )
+            .one_or_none()
+        )
+        if location is None:
+            continue
+
+        row.storage_location_id = location.id
         row.is_pending = False
         row.updated_at = now
 
         log_transaction(
             session=session,
+            user_id=user_id,
             event_type="placement_confirmed",
             card_id=row.card_id,
             finish=row.finish,
@@ -639,10 +624,7 @@ def adjust_inventory_row_quantity(
 
     row = (
         session.query(InventoryRow)
-        .filter(
-            InventoryRow.id == row_id,
-            InventoryRow.user_id == user_id,
-        )
+        .filter(InventoryRow.id == row_id, InventoryRow.user_id == user_id)
         .first()
     )
 
@@ -659,6 +641,7 @@ def adjust_inventory_row_quantity(
 
     log_transaction(
         session=session,
+        user_id=user_id,
         event_type=event_type,
         card_id=row.card_id,
         finish=row.finish,
@@ -685,10 +668,7 @@ def adjust_inventory_row_quantity(
 def delete_inventory_row(session: Session, row_id: int, user_id: int) -> bool:
     row = (
         session.query(InventoryRow)
-        .filter(
-            InventoryRow.id == row_id,
-            InventoryRow.user_id == user_id,
-        )
+        .filter(InventoryRow.id == row_id, InventoryRow.user_id == user_id)
         .first()
     )
 
@@ -707,10 +687,13 @@ def delete_inventory_row(session: Session, row_id: int, user_id: int) -> bool:
     return True
 
 
-def undo_last_import(session: Session) -> bool:
+def undo_last_import(session: Session, user_id: int) -> bool:
     last_import = (
         session.query(TransactionLog)
-        .filter(TransactionLog.event_type == "import")
+        .filter(
+            TransactionLog.user_id == user_id,
+            TransactionLog.event_type == "import",
+        )
         .order_by(TransactionLog.id.desc())
         .first()
     )
@@ -718,7 +701,12 @@ def undo_last_import(session: Session) -> bool:
         return False
 
     row = (
-        session.query(InventoryRow).filter(InventoryRow.id == last_import.inventory_row_id).first()
+        session.query(InventoryRow)
+        .filter(
+            InventoryRow.id == last_import.inventory_row_id,
+            InventoryRow.user_id == user_id,
+        )
+        .first()
     )
     if row:
         row.quantity -= abs(last_import.quantity_delta)
@@ -730,6 +718,7 @@ def undo_last_import(session: Session) -> bool:
 
     log_transaction(
         session=session,
+        user_id=user_id,
         event_type="undo_import",
         card_id=last_import.card_id,
         finish=last_import.finish,
@@ -742,18 +731,28 @@ def undo_last_import(session: Session) -> bool:
     return True
 
 
-def undo_last_batch(session: Session, batch_id: int) -> int:
+def undo_last_batch(session: Session, batch_id: int, user_id: int) -> int:
     logs = (
         session.query(TransactionLog)
-        .filter(TransactionLog.batch_id == batch_id)
-        .filter(TransactionLog.event_type == "import")
+        .filter(
+            TransactionLog.user_id == user_id,
+            TransactionLog.batch_id == batch_id,
+            TransactionLog.event_type == "import",
+        )
         .order_by(TransactionLog.id.desc())
         .all()
     )
 
     undone = 0
     for log in logs:
-        row = session.query(InventoryRow).filter(InventoryRow.id == log.inventory_row_id).first()
+        row = (
+            session.query(InventoryRow)
+            .filter(
+                InventoryRow.id == log.inventory_row_id,
+                InventoryRow.user_id == user_id,
+            )
+            .first()
+        )
         if row:
             row.quantity -= abs(log.quantity_delta)
             row.updated_at = datetime.utcnow()
@@ -762,6 +761,7 @@ def undo_last_batch(session: Session, batch_id: int) -> int:
 
         log_transaction(
             session=session,
+            user_id=user_id,
             event_type="undo_batch_import",
             card_id=log.card_id,
             finish=log.finish,
@@ -777,20 +777,20 @@ def undo_last_batch(session: Session, batch_id: int) -> int:
     return undone
 
 
-def get_previous_location_for_row(session: Session, row_id: int) -> str | None:
+def get_previous_location_for_row(session: Session, row_id: int, user_id: int) -> str | None:
     log = (
         session.query(TransactionLog)
-        .filter(TransactionLog.inventory_row_id == row_id)
-        .filter(TransactionLog.event_type == "resort")
-        .filter(TransactionLog.source_location.isnot(None))
+        .filter(
+            TransactionLog.user_id == user_id,
+            TransactionLog.inventory_row_id == row_id,
+            TransactionLog.event_type == "resort",
+            TransactionLog.source_location.isnot(None),
+        )
         .order_by(TransactionLog.created_at.desc(), TransactionLog.id.desc())
         .first()
     )
 
-    if not log:
-        return None
-
-    if log.source_location == "pending":
+    if not log or log.source_location == "pending":
         return None
 
     return log.source_location
@@ -798,16 +798,17 @@ def get_previous_location_for_row(session: Session, row_id: int) -> str | None:
 
 def resort_collection(
     session: Session,
-    user_id: int | None = None,
+    user_id: int,
     row_ids: Iterable[int] | None = None,
 ) -> int:
-    """
-    Compute drawer/slot placement for the full collection.
-    """
-    query = session.query(InventoryRow).options(joinedload(InventoryRow.card))
+    query = (
+        session.query(InventoryRow)
+        .options(joinedload(InventoryRow.card))
+        .filter(InventoryRow.user_id == user_id)
+    )
 
-    if user_id is not None:
-        query = query.filter(InventoryRow.user_id == user_id)
+    if row_ids is not None:
+        query = query.filter(InventoryRow.id.in_(list(row_ids)))
 
     rows = query.all()
 
@@ -824,6 +825,16 @@ def resort_collection(
     now = datetime.utcnow()
 
     for drawer_number, drawer_rows in grouped.items():
+        location = (
+            session.query(StorageLocation)
+            .filter(
+                StorageLocation.user_id == user_id,
+                StorageLocation.name == f"Drawer {drawer_number}",
+                StorageLocation.type == "drawer",
+            )
+            .one_or_none()
+        )
+
         for index, row in enumerate(drawer_rows, start=1):
             target_drawer = str(drawer_number)
             target_slot = str(index)
@@ -844,6 +855,7 @@ def resort_collection(
 
                 row.drawer = target_drawer
                 row.slot = target_slot
+                row.storage_location_id = location.id if location else None
 
                 if old_is_pending:
                     row.is_pending = True
@@ -856,6 +868,7 @@ def resort_collection(
 
                 log_transaction(
                     session=session,
+                    user_id=user_id,
                     event_type="resort",
                     card_id=row.card_id,
                     finish=row.finish,
@@ -877,14 +890,18 @@ def resort_collection(
     return updated
 
 
-def get_owned_cards_by_set(session: Session, set_code: str) -> dict[str, int]:
-    """
-    Returns a mapping of collector_number -> total quanitity owned for a given set.
-    """
-    rows = session.query(InventoryRow).join(Card).filter(Card.set_code == set_code.lower()).all()
+def get_owned_cards_by_set(session: Session, set_code: str, user_id: int) -> dict[str, int]:
+    rows = (
+        session.query(InventoryRow)
+        .join(Card)
+        .filter(
+            InventoryRow.user_id == user_id,
+            Card.set_code == set_code.lower(),
+        )
+        .all()
+    )
 
-    owned = {}
-
+    owned: dict[str, int] = {}
     for row in rows:
         key = row.card.collector_number
         owned[key] = owned.get(key, 0) + row.quantity
@@ -892,7 +909,7 @@ def get_owned_cards_by_set(session: Session, set_code: str) -> dict[str, int]:
     return owned
 
 
-def list_owned_sets(session: Session) -> list[dict]:
+def list_owned_sets(session: Session, user_id: int) -> list[dict]:
     rows = (
         session.query(
             Card.set_code,
@@ -901,6 +918,7 @@ def list_owned_sets(session: Session) -> list[dict]:
             func.sum(InventoryRow.quantity),
         )
         .join(InventoryRow, InventoryRow.card_id == Card.id)
+        .filter(InventoryRow.user_id == user_id)
         .group_by(Card.set_code)
         .order_by(Card.set_code.asc())
         .all()

@@ -20,16 +20,6 @@ from app.audit_service import create_import_batch, log_transaction
 from app.models import Card, InventoryRow
 from app.scryfall import fetch_card_by_scryfall_id, fetch_card_by_set_and_number
 
-
-def normalize_finish(value: str | None) -> str:
-    cleaned = (value or "").strip().lower()
-    if cleaned in {"foil", "traditional foil"}:
-        return "foil"
-    if cleaned in {"etched", "foil etched", "etched foil"}:
-        return "etched"
-    return "normal"
-
-
 HEADER_ALIASES = {
     "scryfallid": "scryfall_id",
     "scryfall_id": "scryfall_id",
@@ -47,6 +37,15 @@ HEADER_ALIASES = {
     "name": "name",
     "type": "type",
 }
+
+
+def normalize_finish(value: str | None) -> str:
+    cleaned = (value or "").strip().lower()
+    if cleaned in {"foil", "traditional foil"}:
+        return "foil"
+    if cleaned in {"etched", "foil etched", "etched foil"}:
+        return "etched"
+    return "normal"
 
 
 def normalize_header(value: str | None) -> str:
@@ -71,14 +70,12 @@ def build_finish_warnings(card_data: dict | None, finish: str) -> list[str]:
             warnings.append(
                 "Selected finish is Foil, but foil pricing is missing while normal pricing exists. Check the scanned finish."
             )
-
     elif normalized_finish == "etched":
         if not etched_price and (foil_price or normal_price):
             warnings.append(
                 "Selected finish is Etched, but etched pricing is missing. Check the scanned finish."
             )
-
-    else:  # normal
+    else:
         if not normal_price and (foil_price or etched_price):
             warnings.append(
                 "Selected finish is Normal, but normal pricing is missing while foil/etched pricing exists. Check the scanned finish."
@@ -100,8 +97,7 @@ def parse_scanner_csv(file_bytes: bytes) -> dict[str, list[dict[str, Any]]]:
         scryfall_id = row.get("scryfall_id", "")
         set_code = row.get("set_code", "").lower()
         collector_number = row.get("collector_number", "")
-        raw_finish = row.get("finish", "")
-        finish = normalize_finish(raw_finish)
+        finish = normalize_finish(row.get("finish", ""))
         location = row.get("location", "")
         quantity_raw = row.get("quantity", "1")
         name = row.get("name", "")
@@ -138,7 +134,7 @@ def parse_scanner_csv(file_bytes: bytes) -> dict[str, list[dict[str, Any]]]:
             except Exception:
                 card_data = None
 
-            cleaned["warnings"] = build_finish_warnings(card_data, finish)  # raw_finish)
+            cleaned["warnings"] = build_finish_warnings(card_data, finish)
 
             if card_data:
                 cleaned["name"] = card_data.get("name") or cleaned["name"]
@@ -163,10 +159,16 @@ def persist_import_rows(
 ) -> dict[str, Any]:
     if user_id is None:
         raise ValueError("user_id is required when importing rows")
+
     imported_count = 0
     failed_rows: list[dict[str, Any]] = []
     imported_row_ids: list[int] = []
-    batch = create_import_batch(session, filename=filename, row_count=len(rows))
+    batch = create_import_batch(
+        session=session,
+        user_id=user_id,
+        filename=filename,
+        row_count=len(rows),
+    )
     now = datetime.utcnow()
 
     candidate_rows: list[dict[str, Any]] = []
@@ -290,7 +292,7 @@ def persist_import_rows(
             .all()
         )
 
-    inventory_map: dict[tuple[int, str, str | None, str | None, bool], InventoryRow] = {
+    inventory_map: dict[tuple[int, int, str, str | None, str | None, bool], InventoryRow] = {
         (row.user_id, row.card_id, row.finish, row.drawer, row.slot, row.is_pending): row
         for row in existing_pending_rows
     }
@@ -358,6 +360,7 @@ def persist_import_rows(
         imported_row_ids.append(payload["inventory_row"].id)
         log_transaction(
             session=session,
+            user_id=user_id,
             event_type="import",
             card_id=payload["card_id"],
             finish=payload["finish"],

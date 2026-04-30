@@ -10,7 +10,7 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session, joinedload
 
 from app.audit_service import list_transaction_logs
-from app.db import get_session, init_db
+from app.db import init_db
 from app.deck_service import (
     create_deck,
     delete_deck,
@@ -73,6 +73,11 @@ def home(request: Request):
     )
 
 
+# -----------------------------------------------------------------------------
+# Imports
+# -----------------------------------------------------------------------------
+
+
 @app.get("/import")
 def import_page(request: Request):
     return templates.TemplateResponse(
@@ -86,6 +91,7 @@ def import_page(request: Request):
 async def import_preview(request: Request, file: UploadFile = File(...)):
     file_bytes = await file.read()
     result = parse_scanner_csv(file_bytes)
+
     return templates.TemplateResponse(
         request=request,
         name="import_preview.html",
@@ -153,6 +159,7 @@ async def manual_import_preview(
 ):
     card = None
     resolved_id = ""
+
     if scryfall_id.strip():
         resolved_id = scryfall_id.strip()
         card = fetch_card_by_scryfall_id(resolved_id)
@@ -225,6 +232,11 @@ async def manual_import_commit(
     )
 
 
+# -----------------------------------------------------------------------------
+# Inventory mutations
+# -----------------------------------------------------------------------------
+
+
 @app.post("/inventory/rows/{row_id}/remove")
 def remove_inventory_row_action(
     request: Request,
@@ -234,7 +246,6 @@ def remove_inventory_row_action(
     session: Session = Depends(get_db_session),
     current_user: User = Depends(get_current_user),
 ):
-
     adjust_inventory_row_quantity(
         session=session,
         row_id=row_id,
@@ -307,6 +318,11 @@ def delete_inventory_row_action(
         url=request.headers.get("referer") or "/collection",
         status_code=303,
     )
+
+
+# -----------------------------------------------------------------------------
+# Collection
+# -----------------------------------------------------------------------------
 
 
 @app.get("/collection")
@@ -422,6 +438,7 @@ async def collection_update_location(
         drawer=drawer,
         slot=slot,
     )
+
     return RedirectResponse(url="/collection", status_code=303)
 
 
@@ -436,26 +453,17 @@ async def collection_delete(
 
 
 @app.post("/collection/resort")
-async def collection_resort():
-    session = get_session()
-    try:
-        resort_collection(session)
-    finally:
-        session.close()
+async def collection_resort(
+    session: Session = Depends(get_db_session),
+    current_user: User = Depends(get_current_user),
+):
+    resort_collection(session, user_id=current_user.id)
     return RedirectResponse(url="/collection", status_code=303)
 
 
-@app.post("/cards/refresh")
-async def card_refresh(request: Request, card_id: int = Form(...)):
-    session = get_session()
-    try:
-        refresh_card_from_scryfall(session, card_id)
-    finally:
-        session.close()
-    return RedirectResponse(
-        url=request.headers.get("referer") or "/collection",
-        status_code=303,
-    )
+# -----------------------------------------------------------------------------
+# Pending placement
+# -----------------------------------------------------------------------------
 
 
 @app.get("/pending")
@@ -466,7 +474,12 @@ def pending_page(
 ):
     rows = list_pending_rows(session, user_id=current_user.id)
 
-    latest_batch = session.query(ImportBatch).order_by(ImportBatch.id.desc()).first()
+    latest_batch = (
+        session.query(ImportBatch)
+        .filter(ImportBatch.user_id == current_user.id)
+        .order_by(ImportBatch.id.desc())
+        .first()
+    )
 
     view_model = build_pending_view_model(rows)
 
@@ -526,20 +539,29 @@ def remove_pending_row(
     return RedirectResponse(url="/pending", status_code=303)
 
 
+# -----------------------------------------------------------------------------
+# Drawers
+# -----------------------------------------------------------------------------
+
+
 @app.get("/drawers")
-def drawers_page(request: Request):
-    session = get_session()
-    try:
-        grouped = list_drawer_groups(session)
-        drawer_summaries = []
-        for drawer_name, rows in grouped.items():
-            total_value = sum(effective_price(row.card, row.finish) * row.quantity for row in rows)
-            drawer_summaries.append(
-                {"drawer": drawer_name, "row_count": len(rows), "total_value": total_value}
-            )
-        drawer_summaries.sort(key=lambda d: d["drawer"])
-    finally:
-        session.close()
+def drawers_page(
+    request: Request,
+    session: Session = Depends(get_db_session),
+    current_user: User = Depends(get_current_user),
+):
+    grouped = list_drawer_groups(session, user_id=current_user.id)
+
+    drawer_summaries = []
+    for drawer_name, rows in grouped.items():
+        total_value = sum(
+            (effective_price(row.card, row.finish) or 0.0) * row.quantity for row in rows
+        )
+        drawer_summaries.append(
+            {"drawer": drawer_name, "row_count": len(rows), "total_value": total_value}
+        )
+
+    drawer_summaries.sort(key=lambda d: d["drawer"])
 
     return templates.TemplateResponse(
         request=request,
@@ -549,33 +571,36 @@ def drawers_page(request: Request):
 
 
 @app.get("/drawers/{drawer}")
-def drawer_detail_page(request: Request, drawer: str):
-    session = get_session()
-    try:
-        rows = list_rows_for_drawer(session, drawer)
-        items = []
-        total_copies = 0
-        total_value = 0.0
-        for row in rows:
-            price = effective_price(row.card, row.finish)
-            total = price * row.quantity
-            items.append(
-                {
-                    "id": row.id,
-                    "card": row.card,
-                    "finish": row.finish,
-                    "quantity": row.quantity,
-                    "slot": row.slot,
-                    "is_pending": row.is_pending,
-                    "effective_price": price,
-                    "total_value": total,
-                    "drawer_label": get_drawer_label(drawer),
-                }
-            )
-            total_copies += row.quantity
-            total_value += total
-    finally:
-        session.close()
+def drawer_detail_page(
+    request: Request,
+    drawer: str,
+    session: Session = Depends(get_db_session),
+    current_user: User = Depends(get_current_user),
+):
+    rows = list_rows_for_drawer(session, drawer, user_id=current_user.id)
+
+    items = []
+    total_copies = 0
+    total_value = 0.0
+
+    for row in rows:
+        price = effective_price(row.card, row.finish) or 0.0
+        total = price * row.quantity
+        items.append(
+            {
+                "id": row.id,
+                "card": row.card,
+                "finish": row.finish,
+                "quantity": row.quantity,
+                "slot": row.slot,
+                "is_pending": row.is_pending,
+                "effective_price": price,
+                "total_value": total,
+                "drawer_label": get_drawer_label(drawer),
+            }
+        )
+        total_copies += row.quantity
+        total_value += total
 
     return templates.TemplateResponse(
         request=request,
@@ -593,14 +618,24 @@ def drawer_detail_page(request: Request, drawer: str):
     )
 
 
+# -----------------------------------------------------------------------------
+# Audit / import undo
+# -----------------------------------------------------------------------------
+
+
 @app.get("/audit")
-def audit_page(request: Request):
-    session = get_session()
-    try:
-        logs = list_transaction_logs(session)
-        batches = session.query(ImportBatch).order_by(ImportBatch.id.desc()).all()
-    finally:
-        session.close()
+def audit_page(
+    request: Request,
+    session: Session = Depends(get_db_session),
+    current_user: User = Depends(get_current_user),
+):
+    logs = list_transaction_logs(session, user_id=current_user.id)
+    batches = (
+        session.query(ImportBatch)
+        .filter(ImportBatch.user_id == current_user.id)
+        .order_by(ImportBatch.id.desc())
+        .all()
+    )
 
     return templates.TemplateResponse(
         request=request,
@@ -610,32 +645,36 @@ def audit_page(request: Request):
 
 
 @app.post("/imports/undo-last")
-async def imports_undo_last():
-    session = get_session()
-    try:
-        undo_last_import(session)
-    finally:
-        session.close()
+async def imports_undo_last(
+    session: Session = Depends(get_db_session),
+    current_user: User = Depends(get_current_user),
+):
+    undo_last_import(session, user_id=current_user.id)
     return RedirectResponse(url="/audit", status_code=303)
 
 
 @app.post("/imports/undo-batch")
-async def imports_undo_batch(batch_id: int = Form(...)):
-    session = get_session()
-    try:
-        undo_last_batch(session, batch_id)
-    finally:
-        session.close()
+async def imports_undo_batch(
+    batch_id: int = Form(...),
+    session: Session = Depends(get_db_session),
+    current_user: User = Depends(get_current_user),
+):
+    undo_last_batch(session, batch_id=batch_id, user_id=current_user.id)
     return RedirectResponse(url="/pending", status_code=303)
 
 
+# -----------------------------------------------------------------------------
+# Decks
+# -----------------------------------------------------------------------------
+
+
 @app.get("/decks")
-def decks_page(request: Request):
-    session = get_session()
-    try:
-        decks = list_decks(session)
-    finally:
-        session.close()
+def decks_page(
+    request: Request,
+    session: Session = Depends(get_db_session),
+    current_user: User = Depends(get_current_user),
+):
+    decks = list_decks(session, user_id=current_user.id)
 
     return templates.TemplateResponse(
         request=request,
@@ -645,12 +684,21 @@ def decks_page(request: Request):
 
 
 @app.post("/decks/create")
-async def decks_create(name: str = Form(...), format_name: str = Form(""), notes: str = Form("")):
-    session = get_session()
-    try:
-        create_deck(session, name=name, format_name=format_name, notes=notes)
-    finally:
-        session.close()
+async def decks_create(
+    name: str = Form(...),
+    format_name: str = Form(""),
+    notes: str = Form(""),
+    session: Session = Depends(get_db_session),
+    current_user: User = Depends(get_current_user),
+):
+    create_deck(
+        session,
+        user_id=current_user.id,
+        name=name,
+        format_name=format_name,
+        notes=notes,
+    )
+
     return RedirectResponse(url="/decks", status_code=303)
 
 
@@ -660,69 +708,68 @@ def deck_detail_page(
     deck_id: int,
     search: str = "",
     collection_search: str = "",
+    session: Session = Depends(get_db_session),
+    current_user: User = Depends(get_current_user),
 ):
-    session = get_session()
-    try:
-        deck = get_deck(session, deck_id)
-        items = []
-        collection_results = []
-        deck_total_value = 0.0
-        total_cards = 0
+    deck = get_deck(session, deck_id=deck_id, user_id=current_user.id)
+    items = []
+    collection_results = []
+    deck_total_value = 0.0
+    total_cards = 0
 
-        if deck:
-            normalized_search = search.strip().lower()
+    if deck:
+        normalized_search = search.strip().lower()
 
-            for item in deck.items:
-                if normalized_search:
-                    name = (item.card.name or "").lower()
-                    type_line = (item.card.type_line or "").lower()
-                    oracle = (item.card.oracle_text or "").lower()
+        for item in deck.items:
+            if normalized_search:
+                name = (item.card.name or "").lower()
+                type_line = (item.card.type_line or "").lower()
+                oracle = (item.card.oracle_text or "").lower()
 
-                    if (
-                        normalized_search not in name
-                        and normalized_search not in type_line
-                        and normalized_search not in oracle
-                    ):
-                        continue
+                if (
+                    normalized_search not in name
+                    and normalized_search not in type_line
+                    and normalized_search not in oracle
+                ):
+                    continue
 
-                price = effective_price(item.card, item.finish)
-                total_value = price * item.quantity
-                deck_total_value += total_value
-                total_cards += item.quantity
-                items.append(
-                    {
-                        "id": item.id,
-                        "card": item.card,
-                        "finish": item.finish,
-                        "quantity": item.quantity,
-                        "effective_price": price,
-                        "total_value": total_value,
-                    }
-                )
-
-        if collection_search.strip():
-            rows, _ = list_inventory_rows(
-                session,
-                search=collection_search,
-                page=1,
-                per_page=20,
+            price = effective_price(item.card, item.finish) or 0.0
+            total_value = price * item.quantity
+            deck_total_value += total_value
+            total_cards += item.quantity
+            items.append(
+                {
+                    "id": item.id,
+                    "card": item.card,
+                    "finish": item.finish,
+                    "quantity": item.quantity,
+                    "effective_price": price,
+                    "total_value": total_value,
+                }
             )
 
-            for row in rows:
-                price = effective_price(row.card, row.finish)
-                collection_results.append(
-                    {
-                        "id": row.id,
-                        "card": row.card,
-                        "finish": row.finish,
-                        "quantity": row.quantity,
-                        "drawer": row.drawer,
-                        "slot": row.slot,
-                        "effective_price": price,
-                    }
-                )
-    finally:
-        session.close()
+    if collection_search.strip():
+        rows, _ = list_inventory_rows(
+            session,
+            user_id=current_user.id,
+            search=collection_search,
+            page=1,
+            per_page=20,
+        )
+
+        for row in rows:
+            price = effective_price(row.card, row.finish) or 0.0
+            collection_results.append(
+                {
+                    "id": row.id,
+                    "card": row.card,
+                    "finish": row.finish,
+                    "quantity": row.quantity,
+                    "drawer": row.drawer,
+                    "slot": row.slot,
+                    "effective_price": price,
+                }
+            )
 
     return templates.TemplateResponse(
         request=request,
@@ -742,27 +789,31 @@ def deck_detail_page(
 
 
 @app.post("/decks/{deck_id}/delete")
-async def decks_delete(deck_id: int):
-    session = get_session()
-    try:
-        delete_deck(session, deck_id)
-    finally:
-        session.close()
-
+async def decks_delete(
+    deck_id: int,
+    session: Session = Depends(get_db_session),
+    current_user: User = Depends(get_current_user),
+):
+    delete_deck(session, deck_id=deck_id, user_id=current_user.id)
     return RedirectResponse(url="/decks", status_code=303)
 
 
 @app.post("/decks/pull")
 async def decks_pull(
-    inventory_row_id: int = Form(...), deck_id: int = Form(...), quantity: int = Form(...)
+    inventory_row_id: int = Form(...),
+    deck_id: int = Form(...),
+    quantity: int = Form(...),
+    session: Session = Depends(get_db_session),
+    current_user: User = Depends(get_current_user),
 ):
-    session = get_session()
-    try:
-        pull_card_to_deck(
-            session, deck_id=deck_id, inventory_row_id=inventory_row_id, quantity=quantity
-        )
-    finally:
-        session.close()
+    pull_card_to_deck(
+        session,
+        user_id=current_user.id,
+        deck_id=deck_id,
+        inventory_row_id=inventory_row_id,
+        quantity=quantity,
+    )
+
     return RedirectResponse(url=f"/decks/{deck_id}", status_code=303)
 
 
@@ -772,14 +823,25 @@ async def decks_return(
     deck_item_id: int = Form(...),
     drawer: str = Form(""),
     slot: str = Form(""),
+    session: Session = Depends(get_db_session),
+    current_user: User = Depends(get_current_user),
 ):
-    session = get_session()
-    try:
-        return_card_from_deck(session, deck_item_id=deck_item_id, drawer=drawer, slot=slot)
-        resort_collection(session)
-    finally:
-        session.close()
+    return_card_from_deck(
+        session,
+        user_id=current_user.id,
+        deck_item_id=deck_item_id,
+        drawer=drawer,
+        slot=slot,
+    )
+
+    resort_collection(session, user_id=current_user.id)
+
     return RedirectResponse(url=f"/decks/{deck_id}", status_code=303)
+
+
+# -----------------------------------------------------------------------------
+# Cards / pricing
+# -----------------------------------------------------------------------------
 
 
 @app.get("/test-scryfall/{scryfall_id}")
@@ -789,47 +851,51 @@ def test_scryfall(scryfall_id: str):
 
 
 @app.get("/cards/{card_id}")
-def card_detail_page(request: Request, card_id: int):
-    session = get_session()
-    try:
-        target_card = session.query(Card).filter(Card.id == card_id).first()
-        if target_card is None:
-            return RedirectResponse(url="/collection", status_code=303)
+def card_detail_page(
+    request: Request,
+    card_id: int,
+    session: Session = Depends(get_db_session),
+    current_user: User = Depends(get_current_user),
+):
+    target_card = session.query(Card).filter(Card.id == card_id).first()
+    if target_card is None:
+        return RedirectResponse(url="/collection", status_code=303)
 
-        inventory_rows = (
-            session.query(InventoryRow)
-            .options(
-                joinedload(InventoryRow.card),
-                joinedload(InventoryRow.storage_location),
-            )
-            .filter(InventoryRow.card_id == card_id)
-            .all()
+    inventory_rows = (
+        session.query(InventoryRow)
+        .options(
+            joinedload(InventoryRow.card),
+            joinedload(InventoryRow.storage_location),
         )
+        .filter(
+            InventoryRow.card_id == card_id,
+            InventoryRow.user_id == current_user.id,
+        )
+        .all()
+    )
 
-        card_rows = []
-        total_copies = 0
-        total_value = 0.0
+    card_rows = []
+    total_copies = 0
+    total_value = 0.0
 
-        for row in inventory_rows:
-            price = effective_price(target_card, row.finish)
-            total = price * row.quantity
-            card_rows.append(
-                {
-                    "id": row.id,
-                    "finish": row.finish,
-                    "quantity": row.quantity,
-                    "drawer": row.drawer,
-                    "slot": row.slot,
-                    "is_pending": row.is_pending,
-                    "effective_price": price,
-                    "total_value": total,
-                    "drawer_label": get_location_label(row),
-                }
-            )
-            total_copies += row.quantity
-            total_value += total
-    finally:
-        session.close()
+    for row in inventory_rows:
+        price = effective_price(target_card, row.finish) or 0.0
+        total = price * row.quantity
+        card_rows.append(
+            {
+                "id": row.id,
+                "finish": row.finish,
+                "quantity": row.quantity,
+                "drawer": row.drawer,
+                "slot": row.slot,
+                "is_pending": row.is_pending,
+                "effective_price": price,
+                "total_value": total,
+                "drawer_label": get_location_label(row),
+            }
+        )
+        total_copies += row.quantity
+        total_value += total
 
     return templates.TemplateResponse(
         request=request,
@@ -845,29 +911,69 @@ def card_detail_page(request: Request, card_id: int):
     )
 
 
-@app.post("/cards/refresh-stale")
-async def refresh_stale_cards(request: Request):
-    session = get_session()
-    try:
-        stale_cards = session.query(Card).all()
-        for card in stale_cards:
-            if is_price_stale(card.updated_at):
-                refresh_card_from_scryfall(session, card.id)
-    finally:
-        session.close()
+@app.post("/cards/refresh")
+async def card_refresh(
+    request: Request,
+    card_id: int = Form(...),
+    session: Session = Depends(get_db_session),
+    current_user: User = Depends(get_current_user),
+):
+    owned_row = (
+        session.query(InventoryRow)
+        .filter(
+            InventoryRow.card_id == card_id,
+            InventoryRow.user_id == current_user.id,
+        )
+        .first()
+    )
+
+    if owned_row is None:
+        raise HTTPException(status_code=404, detail="Card not found in current user's collection")
+
+    refresh_card_from_scryfall(session, card_id)
+
     return RedirectResponse(
         url=request.headers.get("referer") or "/collection",
         status_code=303,
     )
 
 
+@app.post("/cards/refresh-stale")
+async def refresh_stale_cards(
+    request: Request,
+    session: Session = Depends(get_db_session),
+    current_user: User = Depends(get_current_user),
+):
+    stale_cards = (
+        session.query(Card)
+        .join(InventoryRow, InventoryRow.card_id == Card.id)
+        .filter(InventoryRow.user_id == current_user.id)
+        .distinct()
+        .all()
+    )
+
+    for card in stale_cards:
+        if is_price_stale(card.updated_at):
+            refresh_card_from_scryfall(session, card.id)
+
+    return RedirectResponse(
+        url=request.headers.get("referer") or "/collection",
+        status_code=303,
+    )
+
+
+# -----------------------------------------------------------------------------
+# Sets
+# -----------------------------------------------------------------------------
+
+
 @app.get("/sets")
-def sets_page(request: Request):
-    session = get_session()
-    try:
-        sets = list_owned_sets(session)
-    finally:
-        session.close()
+def sets_page(
+    request: Request,
+    session: Session = Depends(get_db_session),
+    current_user: User = Depends(get_current_user),
+):
+    sets = list_owned_sets(session, user_id=current_user.id)
 
     return templates.TemplateResponse(
         request=request,
@@ -881,12 +987,14 @@ def sets_page(request: Request):
 
 
 @app.get("/sets/{set_code}")
-def set_detail_page(request: Request, set_code: str, view: str = "all"):
-    session = get_session()
-    try:
-        data = get_set_completion(session, set_code, view=view)
-    finally:
-        session.close()
+def set_detail_page(
+    request: Request,
+    set_code: str,
+    view: str = "all",
+    session: Session = Depends(get_db_session),
+    current_user: User = Depends(get_current_user),
+):
+    data = get_set_completion(session, set_code, view=view, user_id=current_user.id)
 
     return templates.TemplateResponse(
         request=request,

@@ -6,9 +6,18 @@ from app.models import ImportBatch, TransactionLog
 
 
 def create_import_batch(
-    session: Session, filename: str, row_count: int, note: str | None = None
+    session: Session,
+    user_id: int,
+    filename: str,
+    row_count: int,
+    note: str | None = None,
 ) -> ImportBatch:
-    batch = ImportBatch(filename=filename, row_count=row_count, note=note)
+    batch = ImportBatch(
+        user_id=user_id,
+        filename=filename,
+        row_count=row_count,
+        note=note,
+    )
     session.add(batch)
     session.flush()
     return batch
@@ -16,6 +25,7 @@ def create_import_batch(
 
 def log_transaction(
     session: Session,
+    user_id: int,
     event_type: str,
     card_id: int | None,
     finish: str | None,
@@ -28,6 +38,7 @@ def log_transaction(
     flush: bool = False,
 ) -> TransactionLog:
     log = TransactionLog(
+        user_id=user_id,
         event_type=event_type,
         card_id=card_id,
         finish=finish,
@@ -44,5 +55,10 @@ def log_transaction(
     return log
 
 
-def list_transaction_logs(session: Session) -> list[TransactionLog]:
-    return session.query(TransactionLog).order_by(TransactionLog.id.desc()).all()
+def list_transaction_logs(session: Session, user_id: int) -> list[TransactionLog]:
+    return (
+        session.query(TransactionLog)
+        .filter(TransactionLog.user_id == user_id)
+        .order_by(TransactionLog.id.desc())
+        .all()
+    )

@@ -5,7 +5,7 @@ from datetime import datetime
 from sqlalchemy.orm import Session, joinedload
 
 from app.audit_service import log_transaction
-from app.models import Deck, DeckItem, InventoryRow, User
+from app.models import Deck, DeckItem, InventoryRow
 
 
 def create_deck(session: Session, name: str, format_name: str = "", notes: str = "") -> Deck:
@@ -20,7 +20,7 @@ def list_decks(session, user_id: int | None = None) -> list[Deck]:
     return (
         session.query(Deck)
         .options(joinedload(Deck.items).joinedload(DeckItem.card))
-        # .filter(Deck.user_id == user_id)
+        .filter(Deck.user_id == user_id)
         .order_by(Deck.name.asc())
         .all()
     )
@@ -35,8 +35,22 @@ def get_deck(session: Session, deck_id: int) -> Deck | None:
     )
 
 
-def pull_card_to_deck(session: Session, deck_id: int, inventory_row_id: int, quantity: int) -> bool:
-    row = session.query(InventoryRow).filter(InventoryRow.id == inventory_row_id).first()
+def pull_card_to_deck(
+    session: Session,
+    user_id: int,
+    deck_id: int,
+    inventory_row_id: int,
+    quantity: int,
+) -> bool:
+    row = (
+        session.query(InventoryRow)
+        .filter(
+            InventoryRow.id == inventory_row_id,
+            InventoryRow.user_id == user_id,
+        )
+        .first()
+    )
+
     deck = session.query(Deck).filter(Deck.id == deck_id).first()
 
     if not row or not deck or quantity < 1 or row.quantity < quantity:
@@ -57,7 +71,10 @@ def pull_card_to_deck(session: Session, deck_id: int, inventory_row_id: int, qua
         deck_item.quantity += quantity
     else:
         deck_item = DeckItem(
-            deck_id=deck_id, card_id=row.card_id, finish=row.finish, quantity=quantity
+            deck_id=deck_id,
+            card_id=row.card_id,
+            finish=row.finish,
+            quantity=quantity,
         )
         session.add(deck_item)
         session.flush()
@@ -75,12 +92,17 @@ def pull_card_to_deck(session: Session, deck_id: int, inventory_row_id: int, qua
         destination_location=f"deck:{deck.name}",
         note=f"Pulled into deck {deck.name}",
     )
+
     session.commit()
     return True
 
 
 def return_card_from_deck(
-    session: Session, deck_item_id: int, drawer: str = "", slot: str = ""
+    session: Session,
+    user_id: int,
+    deck_item_id: int,
+    drawer: str = "",
+    slot: str = "",
 ) -> bool:
     deck_item = (
         session.query(DeckItem)
@@ -88,12 +110,9 @@ def return_card_from_deck(
         .filter(DeckItem.id == deck_item_id)
         .first()
     )
+
     if not deck_item:
         return False
-
-    default_user = session.query(User).filter(User.username == "jason.v").first()
-    if not default_user:
-        raise ValueError("Default user jason.v not found")
 
     existing_row = (
         session.query(InventoryRow)
@@ -102,7 +121,7 @@ def return_card_from_deck(
         .filter(InventoryRow.drawer == (drawer.strip() or None))
         .filter(InventoryRow.slot == (slot.strip() or None))
         .filter(InventoryRow.is_pending.is_(True))
-        .filter(InventoryRow.user_id == default_user.id)
+        .filter(InventoryRow.user_id == user_id)
         .first()
     )
 
@@ -112,7 +131,7 @@ def return_card_from_deck(
         existing_row.updated_at = datetime.utcnow()
     else:
         existing_row = InventoryRow(
-            user_id=default_user.id,
+            user_id=user_id,
             card_id=deck_item.card_id,
             finish=deck_item.finish,
             quantity=deck_item.quantity,
