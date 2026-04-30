@@ -154,11 +154,16 @@ def parse_scanner_csv(file_bytes: bytes) -> dict[str, list[dict[str, Any]]]:
 def persist_import_rows(
     session: Session,
     rows: list[dict[str, Any]],
+    user_id: int,
     filename: str = "manual import",
-    user_id: int | None = None,
 ) -> dict[str, Any]:
-    if user_id is None:
-        raise ValueError("user_id is required when importing rows")
+    """Persist imported rows into the current user's pending inventory.
+
+    User ownership is required at the service boundary. Authentication can change
+    later, but this function must never infer or default the owning user.
+    """
+    if user_id <= 0:
+        raise ValueError("user_id must be a positive integer when importing rows")
 
     imported_count = 0
     failed_rows: list[dict[str, Any]] = []

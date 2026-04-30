@@ -1,3 +1,9 @@
+"""Scryfall API integration.
+
+This module owns HTTP retry/throttle behavior and normalization of Scryfall
+responses into the Card model shape used by the rest of the app.
+"""
+
 from __future__ import annotations
 
 import time

@@ -1,0 +1,1 @@
+"""Mana Archive application package."""

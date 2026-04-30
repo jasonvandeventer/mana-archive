@@ -16,7 +16,7 @@ def build_collection_view_model(inventory_rows) -> dict:
     unassigned_count = 0
 
     for row in inventory_rows:
-        price = effective_price(row.card, row.finish)
+        price = effective_price(row.card, row.finish) or 0.0
         total = price * row.quantity
         items.append(
             {
@@ -118,7 +118,7 @@ def build_drawer_detail_view_model(drawer: str, rows) -> dict:
     total_value = 0.0
 
     for row in rows:
-        price = effective_price(row.card, row.finish)
+        price = effective_price(row.card, row.finish) or 0.0
         total = price * row.quantity
         items.append(
             {
@@ -154,7 +154,7 @@ def build_deck_detail_view_model(deck) -> dict:
 
     if deck:
         for item in deck.items:
-            price = effective_price(item.card, item.finish)
+            price = effective_price(item.card, item.finish) or 0.0
             total_value = price * item.quantity
             deck_total_value += total_value
             total_cards += item.quantity
@@ -183,7 +183,7 @@ def build_card_detail_view_model(card, rows) -> dict:
     total_value = 0.0
 
     for row in rows:
-        price = effective_price(row.card, row.finish)
+        price = effective_price(row.card, row.finish) or 0.0
         total = price * row.quantity
         card_rows.append(
             {

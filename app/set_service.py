@@ -1,15 +1,27 @@
+from __future__ import annotations
+
 from sqlalchemy.orm import Session
 
 from app.inventory_service import get_owned_cards_by_set, list_owned_sets
 from app.scryfall import fetch_set_cards
 
 
-def get_set_completion(session: Session, set_code: str, view: str = "all") -> dict:
+def get_set_completion(
+    session: Session,
+    set_code: str,
+    user_id: int,
+    view: str = "all",
+) -> dict:
+    """Build set-completion data for one user's collection.
+
+    Scryfall set/card metadata is global, but ownership counts must always be
+    scoped to the current user.
+    """
     set_code = (set_code or "").strip().lower()
     view = view if view in {"all", "owned", "missing"} else "all"
 
     set_cards = fetch_set_cards(set_code)
-    owned_map = get_owned_cards_by_set(session, set_code)
+    owned_map = get_owned_cards_by_set(session, set_code=set_code, user_id=user_id)
 
     owned_cards_list = []
     missing_cards = []
@@ -47,14 +59,15 @@ def get_set_completion(session: Session, set_code: str, view: str = "all") -> di
     }
 
 
-def list_set_completion_summaries(session: Session) -> list[dict]:
-    owned_sets = list_owned_sets(session)
+def list_set_completion_summaries(session: Session, user_id: int) -> list[dict]:
+    """Build set-completion summaries for one user's owned sets."""
+    owned_sets = list_owned_sets(session, user_id=user_id)
     summaries = []
 
     for owned_set in owned_sets:
         set_code = owned_set["set_code"]
         set_cards = fetch_set_cards(set_code)
-        owned_map = get_owned_cards_by_set(session, set_code)
+        owned_map = get_owned_cards_by_set(session, set_code=set_code, user_id=user_id)
 
         total_cards = len(set_cards)
         owned_cards = sum(1 for card in set_cards if owned_map.get(card["collector_number"], 0) > 0)

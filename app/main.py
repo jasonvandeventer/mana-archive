@@ -1,3 +1,10 @@
+"""FastAPI route entrypoint for Mana Archive.
+
+Routes are grouped by feature flow rather than alphabetically. User-owned
+operations receive `current_user.id` at the route boundary and pass it into the
+service layer.
+"""
+
 from __future__ import annotations
 
 import math

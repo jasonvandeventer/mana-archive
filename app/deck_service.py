@@ -8,15 +8,26 @@ from app.audit_service import log_transaction
 from app.models import Deck, DeckItem, InventoryRow
 
 
-def create_deck(session: Session, name: str, format_name: str = "", notes: str = "") -> Deck:
-    deck = Deck(name=name.strip(), format=format_name.strip() or None, notes=notes.strip() or None)
+def create_deck(
+    session: Session,
+    user_id: int,
+    name: str,
+    format_name: str = "",
+    notes: str = "",
+) -> Deck:
+    deck = Deck(
+        user_id=user_id,
+        name=name.strip(),
+        format=format_name.strip() or None,
+        notes=notes.strip() or None,
+    )
     session.add(deck)
     session.commit()
     session.refresh(deck)
     return deck
 
 
-def list_decks(session, user_id: int | None = None) -> list[Deck]:
+def list_decks(session: Session, user_id: int) -> list[Deck]:
     return (
         session.query(Deck)
         .options(joinedload(Deck.items).joinedload(DeckItem.card))
@@ -26,11 +37,14 @@ def list_decks(session, user_id: int | None = None) -> list[Deck]:
     )
 
 
-def get_deck(session: Session, deck_id: int) -> Deck | None:
+def get_deck(session: Session, deck_id: int, user_id: int) -> Deck | None:
     return (
         session.query(Deck)
         .options(joinedload(Deck.items).joinedload(DeckItem.card))
-        .filter(Deck.id == deck_id)
+        .filter(
+            Deck.id == deck_id,
+            Deck.user_id == user_id,
+        )
         .first()
     )
 
@@ -42,6 +56,18 @@ def pull_card_to_deck(
     inventory_row_id: int,
     quantity: int,
 ) -> bool:
+    if quantity < 1:
+        return False
+
+    deck = (
+        session.query(Deck)
+        .filter(
+            Deck.id == deck_id,
+            Deck.user_id == user_id,
+        )
+        .first()
+    )
+
     row = (
         session.query(InventoryRow)
         .filter(
@@ -51,9 +77,7 @@ def pull_card_to_deck(
         .first()
     )
 
-    deck = session.query(Deck).filter(Deck.id == deck_id).first()
-
-    if not row or not deck or quantity < 1 or row.quantity < quantity:
+    if not row or not deck or row.quantity < quantity:
         return False
 
     row.quantity -= quantity
@@ -61,9 +85,13 @@ def pull_card_to_deck(
 
     deck_item = (
         session.query(DeckItem)
-        .filter(DeckItem.deck_id == deck_id)
-        .filter(DeckItem.card_id == row.card_id)
-        .filter(DeckItem.finish == row.finish)
+        .join(Deck)
+        .filter(
+            Deck.user_id == user_id,
+            DeckItem.deck_id == deck.id,
+            DeckItem.card_id == row.card_id,
+            DeckItem.finish == row.finish,
+        )
         .first()
     )
 
@@ -71,7 +99,7 @@ def pull_card_to_deck(
         deck_item.quantity += quantity
     else:
         deck_item = DeckItem(
-            deck_id=deck_id,
+            deck_id=deck.id,
             card_id=row.card_id,
             finish=row.finish,
             quantity=quantity,
@@ -84,12 +112,14 @@ def pull_card_to_deck(
 
     log_transaction(
         session=session,
+        user_id=user_id,
         event_type="pull_to_deck",
         card_id=deck_item.card_id,
         finish=deck_item.finish,
         quantity_delta=-quantity,
         source_location="collection",
         destination_location=f"deck:{deck.name}",
+        inventory_row_id=inventory_row_id,
         note=f"Pulled into deck {deck.name}",
     )
 
@@ -106,22 +136,34 @@ def return_card_from_deck(
 ) -> bool:
     deck_item = (
         session.query(DeckItem)
-        .options(joinedload(DeckItem.deck))
-        .filter(DeckItem.id == deck_item_id)
+        .options(
+            joinedload(DeckItem.deck),
+            joinedload(DeckItem.card),
+        )
+        .join(Deck)
+        .filter(
+            Deck.user_id == user_id,
+            DeckItem.id == deck_item_id,
+        )
         .first()
     )
 
     if not deck_item:
         return False
 
+    normalized_drawer = drawer.strip() or None
+    normalized_slot = slot.strip() or None
+
     existing_row = (
         session.query(InventoryRow)
-        .filter(InventoryRow.card_id == deck_item.card_id)
-        .filter(InventoryRow.finish == deck_item.finish)
-        .filter(InventoryRow.drawer == (drawer.strip() or None))
-        .filter(InventoryRow.slot == (slot.strip() or None))
-        .filter(InventoryRow.is_pending.is_(True))
-        .filter(InventoryRow.user_id == user_id)
+        .filter(
+            InventoryRow.user_id == user_id,
+            InventoryRow.card_id == deck_item.card_id,
+            InventoryRow.finish == deck_item.finish,
+            InventoryRow.drawer == normalized_drawer,
+            InventoryRow.slot == normalized_slot,
+            InventoryRow.is_pending.is_(True),
+        )
         .first()
     )
 
@@ -135,15 +177,18 @@ def return_card_from_deck(
             card_id=deck_item.card_id,
             finish=deck_item.finish,
             quantity=deck_item.quantity,
-            drawer=drawer.strip() or None,
-            slot=slot.strip() or None,
+            drawer=normalized_drawer,
+            slot=normalized_slot,
             is_pending=True,
+            created_at=datetime.utcnow(),
+            updated_at=datetime.utcnow(),
         )
         session.add(existing_row)
         session.flush()
 
     log_transaction(
         session=session,
+        user_id=user_id,
         event_type="return_from_deck",
         card_id=deck_item.card_id,
         finish=deck_item.finish,
@@ -159,8 +204,8 @@ def return_card_from_deck(
     return True
 
 
-def delete_deck(session: Session, deck_id: int) -> bool:
-    deck = get_deck(session, deck_id)
+def delete_deck(session: Session, deck_id: int, user_id: int) -> bool:
+    deck = get_deck(session, deck_id=deck_id, user_id=user_id)
     if not deck:
         return False
 
