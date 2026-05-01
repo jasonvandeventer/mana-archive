@@ -751,7 +751,12 @@ def drawers_page(
     return templates.TemplateResponse(
         request=request,
         name="drawers.html",
-        context={"request": request, "title": "Drawers", "drawer_summaries": drawer_summaries, "current_user": current_user,},
+        context={
+            "request": request,
+            "title": "Drawers",
+            "drawer_summaries": drawer_summaries,
+            "current_user": current_user,
+        },
     )
 
 
@@ -826,7 +831,13 @@ def audit_page(
     return templates.TemplateResponse(
         request=request,
         name="audit.html",
-        context={"request": request, "title": "Audit Log", "logs": logs, "batches": batches, "current_user": current_user,},
+        context={
+            "request": request,
+            "title": "Audit Log",
+            "logs": logs,
+            "batches": batches,
+            "current_user": current_user,
+        },
     )
 
 
@@ -865,7 +876,12 @@ def decks_page(
     return templates.TemplateResponse(
         request=request,
         name="decks.html",
-        context={"request": request, "title": "Decks", "decks": decks, "current_user": current_user,},
+        context={
+            "request": request,
+            "title": "Decks",
+            "decks": decks,
+            "current_user": current_user,
+        },
     )
 
 
