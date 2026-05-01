@@ -71,7 +71,7 @@ app.add_middleware(
     SessionMiddleware,
     secret_key=os.getenv("SESSION_SECRET_KEY", "dev-only-change-me"),
     same_site="lax",
-    https_only=False,
+    https_only=os.getenv("DEV_MODE", "false").lower() != "true",
 )
 
 app.include_router(auth.router)

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import os
 from collections.abc import Generator
 
 from fastapi import Depends, HTTPException, Request, status
@@ -8,12 +7,6 @@ from sqlalchemy.orm import Session
 
 from app.db import SessionLocal
 from app.models import User
-
-# Temporary v3.x development user seam.
-#
-# Real authentication should replace get_current_user(), not the route/service
-# code that already depends on an explicit User object.
-DEV_USERNAME = os.getenv("MANA_ARCHIVE_DEV_USER", "jason.v")
 
 
 def get_db_session() -> Generator[Session, None, None]:
