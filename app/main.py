@@ -15,6 +15,7 @@ from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session, joinedload
+from starlette.middleware.sessions import SessionMiddleware
 
 from app.audit_service import list_transaction_logs
 from app.db import init_db
@@ -56,6 +57,7 @@ from app.location_service import (
 from app.models import Card, ImportBatch, InventoryRow, User
 from app.presentation_service import build_pending_view_model
 from app.pricing import effective_price
+from app.routes import auth
 from app.scryfall import (
     fetch_card_by_scryfall_id,
     fetch_card_by_set_and_number,
@@ -64,6 +66,15 @@ from app.scryfall import (
 from app.set_service import get_set_completion
 
 app = FastAPI(title="Mana Archive")
+
+app.add_middleware(
+    SessionMiddleware,
+    secret_key=os.getenv("SESSION_SECRET_KEY", "dev-only-change-me"),
+    same_site="lax",
+    https_only=False,
+)
+
+app.include_router(auth.router)
 
 APP_VERSION = os.getenv("APP_VERSION", "dev")
 
@@ -79,11 +90,18 @@ def on_startup() -> None:
 
 
 @app.get("/")
-def home(request: Request):
+def home(
+    request: Request,
+    current_user: User = Depends(get_current_user),
+):
     return templates.TemplateResponse(
         request=request,
         name="home.html",
-        context={"request": request, "title": "Mana Archive"},
+        context={
+            "request": request,
+            "title": "Mana Archive",
+            "current_user": current_user,
+        },
     )
 
 
