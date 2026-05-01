@@ -274,6 +274,7 @@ async def manual_import_commit(
             "batch_id": result["batch_id"],
             "resorted_count": resorted_count,
             "resort_skipped": False,
+            "current_user": current_user,
         },
     )
 
@@ -492,6 +493,7 @@ def collection_page(
             "decks": decks,
             "locations": locations,
             "location_id": location_id,
+            "current_user": current_user,
         },
     )
 
@@ -564,6 +566,7 @@ def pending_page(
             "title": "Pending Placement",
             **view_model,
             "latest_batch_id": latest_batch.id if latest_batch else None,
+            "current_user": current_user,
         },
     )
 
@@ -638,6 +641,7 @@ def locations_page(
             "parent_locations": parent_locations,
             "location_types": ["drawer", "binder", "box", "deck", "other"],
             "location_summaries": location_summaries,
+            "current_user": current_user,
         },
     )
 
@@ -715,6 +719,7 @@ def location_detail_page(
             "items": items,
             "total_quantity": total_quantity,
             "total_value": total_value,
+            "current_user": current_user,
         },
     )
 
@@ -746,7 +751,7 @@ def drawers_page(
     return templates.TemplateResponse(
         request=request,
         name="drawers.html",
-        context={"request": request, "title": "Drawers", "drawer_summaries": drawer_summaries},
+        context={"request": request, "title": "Drawers", "drawer_summaries": drawer_summaries, "current_user": current_user,},
     )
 
 
@@ -794,6 +799,7 @@ def drawer_detail_page(
             "entry_count": len(items),
             "total_copies": total_copies,
             "total_value": total_value,
+            "current_user": current_user,
         },
     )
 
@@ -820,7 +826,7 @@ def audit_page(
     return templates.TemplateResponse(
         request=request,
         name="audit.html",
-        context={"request": request, "title": "Audit Log", "logs": logs, "batches": batches},
+        context={"request": request, "title": "Audit Log", "logs": logs, "batches": batches, "current_user": current_user,},
     )
 
 
@@ -859,7 +865,7 @@ def decks_page(
     return templates.TemplateResponse(
         request=request,
         name="decks.html",
-        context={"request": request, "title": "Decks", "decks": decks},
+        context={"request": request, "title": "Decks", "decks": decks, "current_user": current_user,},
     )
 
 
@@ -964,6 +970,7 @@ def deck_detail_page(
             "search": search,
             "collection_search": collection_search,
             "collection_results": collection_results if deck else [],
+            "current_user": current_user,
         },
     )
 
@@ -1090,6 +1097,7 @@ def card_detail_page(
             "rows": card_rows,
             "total_copies": total_copies,
             "total_value": total_value,
+            "current_user": current_user,
         },
     )
 
@@ -1165,6 +1173,7 @@ def sets_page(
             "request": request,
             "title": "Sets",
             "sets": sets,
+            "current_user": current_user,
         },
     )
 
@@ -1186,5 +1195,6 @@ def set_detail_page(
             "request": request,
             "title": data["set_name"],
             "data": data,
+            "current_user": current_user,
         },
     )

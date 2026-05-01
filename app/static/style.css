@@ -712,3 +712,26 @@ td {
   min-width: 0;
   overflow: hidden;
 }
+.nav-user {
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.nav-logout-form {
+  display: inline;
+  margin: 0;
+}
+
+.nav-logout-button {
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text);
+  padding: 0.4rem 0.75rem;
+  cursor: pointer;
+}
+
+.nav-logout-button:hover {
+  background: var(--surface-muted);
+}

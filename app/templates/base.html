@@ -29,6 +29,12 @@
           <a href="/decks">Decks</a>
           <a href="/audit">Audit</a>
           <a href="/sets">Sets</a>
+          {% if current_user %}
+            <span class="nav-user">Logged in as {{ current_user.username }}</span>
+            <form method="post" action="/logout" class="nav-logout-form">
+              <button type="submit" class="nav-logout-button">Logout</button>
+            </form>
+          {% endif %}
         </nav>
       </div>
     </header>
