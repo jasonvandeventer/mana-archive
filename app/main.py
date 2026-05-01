@@ -111,16 +111,27 @@ def home(
 
 
 @app.get("/import")
-def import_page(request: Request):
+def import_page(
+    request: Request,
+    current_user: User = Depends(get_current_user),
+):
     return templates.TemplateResponse(
         request=request,
         name="import.html",
-        context={"request": request, "title": "Import"},
+        context={
+            "request": request,
+            "title": "Import",
+            "current_user": current_user,
+        },
     )
 
 
 @app.post("/import/preview")
-async def import_preview(request: Request, file: UploadFile = File(...)):
+async def import_preview(
+    request: Request,
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user),
+):
     file_bytes = await file.read()
     result = parse_scanner_csv(file_bytes)
 
@@ -133,6 +144,7 @@ async def import_preview(request: Request, file: UploadFile = File(...)):
             "valid_rows": result["valid_rows"],
             "invalid_rows": result["invalid_rows"],
             "filename": file.filename,
+            "current_user": current_user,
         },
     )
 
@@ -188,6 +200,7 @@ async def manual_import_preview(
     collector_number: str = Form(""),
     finish: str = Form("normal"),
     quantity: int = Form(1),
+    current_user: User = Depends(get_current_user),
 ):
     card = None
     resolved_id = ""
@@ -212,6 +225,7 @@ async def manual_import_preview(
             "quantity": max(1, quantity),
             "set_code": set_code,
             "collector_number": collector_number,
+            "current_user": current_user,
         },
     )
 
@@ -1011,7 +1025,10 @@ async def decks_return(
 
 
 @app.get("/test-scryfall/{scryfall_id}")
-def test_scryfall(scryfall_id: str):
+def test_scryfall(
+    scryfall_id: str,
+    current_user: User = Depends(get_current_user),
+):
     card = fetch_card_by_scryfall_id(scryfall_id)
     return {"card": card}
 
