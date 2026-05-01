@@ -29,6 +29,13 @@
       </div>
     </div>
     <div class="drawer-pill-row">
+      {% for location, count in location_counts.items() %}
+        <span class="drawer-pill">
+          {{ location }} <strong>{{ count }}</strong>
+        </span>
+      {% endfor %}
+    </div>
+    {# <div class="drawer-pill-row">
       <span class="drawer-pill">Drawer 1 <strong>{{ drawer_counts['1'] }}</strong></span>
       <span class="drawer-pill">Drawer 2 <strong>{{ drawer_counts['2'] }}</strong></span>
       <span class="drawer-pill">Drawer 3 <strong>{{ drawer_counts['3'] }}</strong></span>
@@ -36,7 +43,7 @@
       <span class="drawer-pill">Drawer 5 <strong>{{ drawer_counts['5'] }}</strong></span>
       <span class="drawer-pill">Drawer 6 <strong>{{ drawer_counts['6'] }}</strong></span>
       <span class="drawer-pill">Unassigned <strong>{{ unassigned_count }}</strong></span>
-    </div>
+    </div> #}
   </section>
   <section class="panel controls-panel">
     <form method="get" action="/collection" class="filter-row">
@@ -50,10 +57,15 @@
         <option value="foil" {% if finish_filter == 'foil' %}selected{% endif %}>Foil</option>
         <option value="etched" {% if finish_filter == 'etched' %}selected{% endif %}>Etched</option>
       </select>
-      <input type="text"
-             name="drawer"
-             placeholder="Drawer"
-             value="{{ drawer_filter }}">
+      <select name="location_id">
+        <option value="0">All Locations</option>
+        {% for loc in locations %}
+          {% if loc.type != "root" %}
+            <option value="{{ loc.id }}"
+                    {% if location_id == loc.id %}selected{% endif %}>{{ loc.name }} ({{ loc.type }})</option>
+          {% endif %}
+        {% endfor %}
+      </select>
       <select name="sort">
         <option value="newest" {% if sort == 'newest' %}selected{% endif %}>Date Added</option>
         <option value="name" {% if sort == 'name' %}selected{% endif %}>Name</option>
@@ -201,13 +213,13 @@
                     flex-wrap: wrap;
                     align-items: center">
           {% if page > 1 %}
-            <a href="/collection?search={{ search }}&finish={{ finish_filter }}&drawer={{ drawer_filter }}&sort={{ sort }}&direction={{ direction }}&page={{ page - 1 }}">
+            <a href="/collection?search={{ search }}&finish={{ finish_filter }}&location_id={{ location_id }}&sort={{ sort }}&direction={{ direction }}&page={{ page - 1 }}">
               <button type="button">Previous</button>
             </a>
           {% endif %}
           {% for p in range(1, total_pages + 1) %}
             {% if p == 1 or p == total_pages or (p >= page - 2 and p <= page + 2) %}
-              <a href="/collection?search={{ search }}&finish={{ finish_filter }}&drawer={{ drawer_filter }}&sort={{ sort }}&direction={{ direction }}&page={{ p }}">
+              <a href="/collection?search={{ search }}&finish={{ finish_filter }}&location_id={{ location_id }}&sort={{ sort }}&direction={{ direction }}&page={{ p }}">
                 <button type="button"
                         {% if p == page %}style="font-weight: bold; opacity: 0.8;"{% endif %}>{{ p }}</button>
               </a>
@@ -218,7 +230,7 @@
             {% endif %}
           {% endfor %}
           {% if page < total_pages %}
-            <a href="/collection?search={{ search }}&finish={{ finish_filter }}&drawer={{ drawer_filter }}&sort={{ sort }}&direction={{ direction }}&page={{ page + 1 }}">
+            <a href="/collection?search={{ search }}&finish={{ finish_filter }}&location_id={{ location_id }}&sort={{ sort }}&direction={{ direction }}&page={{ page + 1 }}">
               <button type="button">Next</button>
             </a>
           {% endif %}
@@ -230,7 +242,7 @@
                      align-items: center">
           <input type="hidden" name="search" value="{{ search }}">
           <input type="hidden" name="finish" value="{{ finish_filter }}">
-          <input type="hidden" name="drawer" value="{{ drawer_filter }}">
+          <input type="hidden" name="location_id" value="{{ location_id }}">
           <input type="hidden" name="sort" value="{{ sort }}">
           <input type="hidden" name="direction" value="{{ direction }}">
           <input type="number"
@@ -245,7 +257,7 @@
     </section>
   {% else %}
     <section class="panel">
-      {% if search or finish_filter or drawer_filter %}
+      {% if search or finish_filter or location_id %}
         <p>No matching inventory rows for the current filters.</p>
       {% else %}
         <p>No inventory rows yet.</p>

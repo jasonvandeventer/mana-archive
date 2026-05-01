@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block content %}
+  <div class="panel">
+    <h2 class="panel-title">Storage Locations</h2>
+    <p class="muted">Manage where cards are physically stored.</p>
+  </div>
+  <div class="panel">
+    <h3 class="panel-title">Create Location</h3>
+    <form method="post" action="/locations" class="form-grid">
+      <input type="text" name="name" placeholder="Location Name" required>
+      <select name="type">
+        {% for t in location_types %}<option value="{{ t }}">{{ t.capitalize() }}</option>{% endfor %}
+      </select>
+      <select name="parent_id">
+        <option value="0">No Parent</option>
+        {% for loc in parent_locations %}<option value="{{ loc.id }}">{{ loc.name }} ({{ loc.type }})</option>{% endfor %}
+      </select>
+      <input type="number" name="sort_order" value="0">
+      <button type="submit">Create</button>
+    </form>
+  </div>
+  <div class="panel">
+    <h3 class="panel-title">Existing Locations</h3>
+    {% if locations %}
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Type</th>
+            <th>Parent</th>
+            <th>Rows</th>
+            <th>Qty</th>
+            <th>Total Value</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for summary in location_summaries %}
+            {% set loc = summary.location %}
+            <tr>
+              <td>{{ loc.name }}</td>
+              <td>{{ loc.type }}</td>
+              <td>{{ loc.parent.name if loc.parent else "-" }}</td>
+              <td>{{ summary.row_count }}</td>
+              <td>{{ summary.quantity }}</td>
+              <td>${{ '%.2f'|format(summary.total_value) }}</td>
+              <td>
+                <a href="/locations/{{ loc.id }}">
+                  <button type="button">Open</button>
+                </a>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <p>No locations yet.</p>
+    {% endif %}
+  </div>
+{% endblock %}

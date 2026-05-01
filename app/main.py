@@ -46,6 +46,13 @@ from app.inventory_service import (
     undo_last_import,
     update_inventory_location,
 )
+from app.location_service import (
+    create_location,
+    get_location,
+    get_location_summary,
+    list_locations,
+    list_rows_for_location,
+)
 from app.models import Card, ImportBatch, InventoryRow, User
 from app.presentation_service import build_pending_view_model
 from app.pricing import effective_price
@@ -337,7 +344,7 @@ def collection_page(
     request: Request,
     search: str = "",
     finish: str = "",
-    drawer: str = "",
+    location_id: int = 0,
     sort: str = "newest",
     direction: str = "desc",
     page: int = 1,
@@ -345,6 +352,19 @@ def collection_page(
     current_user: User = Depends(get_current_user),
 ):
     per_page = 50
+
+    drawer = ""
+
+    selected_location = None
+
+    if location_id:
+        selected_location = get_location(
+            session,
+            location_id=location_id,
+            user_id=current_user.id,
+        )
+    if selected_location and selected_location.type == "drawer":
+        drawer = selected_location.name.replace("Drawer", "").strip()
 
     inventory_rows, total_count = list_inventory_rows(
         session,
@@ -366,14 +386,24 @@ def collection_page(
         drawer=drawer,
     )
 
-    decks = list_decks(session, user_id=current_user.id)
+    location_counts = {}
+    for drawer_number, count in stats["drawer_counts"].items():
+        if count > 0:
+            location_counts[f"Drawer {drawer_number}"] = count
 
+    if stats["unassigned_count"] > 0:
+        location_counts["Unassigned"] = stats["unassigned_count"]
+
+    decks = list_decks(session, user_id=current_user.id)
+    locations = list_locations(session, user_id=current_user.id)
     items = []
+
     for row in inventory_rows:
         price = effective_price(row.card, row.finish)
         price_updated_at = getattr(row.card, "updated_at", None)
         is_stale = is_price_stale(price_updated_at)
         has_price = price is not None
+        location_label = row.storage_location.name if row.storage_location else "Unassigned"
 
         if has_price:
             display_price = price
@@ -399,6 +429,7 @@ def collection_page(
                 "price_updated_at": price_updated_at,
                 "total_value": total,
                 "drawer_label": get_location_label(row),
+                "location_label": location_label,
             }
         )
 
@@ -425,7 +456,10 @@ def collection_page(
             "unique_cards": stats["unique_cards"],
             "drawer_counts": stats["drawer_counts"],
             "unassigned_count": stats["unassigned_count"],
+            "location_counts": location_counts,
             "decks": decks,
+            "locations": locations,
+            "location_id": location_id,
         },
     )
 
@@ -544,6 +578,113 @@ def remove_pending_row(
     session.commit()
 
     return RedirectResponse(url="/pending", status_code=303)
+
+
+# -----------------------------------------------------------------------------
+# Storage Locations
+# -----------------------------------------------------------------------------
+
+
+@app.get("/locations")
+def locations_page(
+    request: Request,
+    session: Session = Depends(get_db_session),
+    current_user: User = Depends(get_current_user),
+):
+
+    location_summaries = get_location_summary(session, user_id=current_user.id)
+    locations = [summary["location"] for summary in location_summaries]
+
+    parent_locations = [loc for loc in locations if loc.type in {"root", "box", "binder", "other"}]
+
+    return templates.TemplateResponse(
+        request=request,
+        name="locations.html",
+        context={
+            "title": "Storage Locations",
+            "locations": locations,
+            "parent_locations": parent_locations,
+            "location_types": ["drawer", "binder", "box", "deck", "other"],
+            "location_summaries": location_summaries,
+        },
+    )
+
+
+@app.post("/locations")
+def create_location_route(
+    name: str = Form(...),
+    type: str = Form("other"),
+    parent_id: int | None = Form(None),
+    sort_order: int = Form(0),
+    session: Session = Depends(get_db_session),
+    current_user: User = Depends(get_current_user),
+):
+    if parent_id == 0:
+        parent_id = None
+
+    create_location(
+        session,
+        user_id=current_user.id,
+        name=name,
+        type=type,
+        parent_id=parent_id,
+        sort_order=sort_order,
+    )
+    return RedirectResponse("/locations", status_code=303)
+
+
+@app.get("/locations/{location_id}")
+def location_detail_page(
+    request: Request,
+    location_id: int,
+    session: Session = Depends(get_db_session),
+    current_user: User = Depends(get_current_user),
+):
+    location = get_location(session, location_id=location_id, user_id=current_user.id)
+    if location is None:
+        raise HTTPException(status_code=404, detail="Location not found")
+
+    rows = list_rows_for_location(
+        session,
+        user_id=current_user.id,
+        location_id=location_id,
+    )
+
+    items = []
+    total_value = 0.0
+    total_quantity = 0
+
+    for row in rows:
+        price = effective_price(row.card, row.finish) or 0.0
+        row_total = price * row.quantity
+        total_value += row_total
+        total_quantity += row.quantity
+
+        items.append(
+            {
+                "id": row.id,
+                "card": row.card,
+                "finish": row.finish,
+                "quantity": row.quantity,
+                "slot": row.slot,
+                "effective_price": price,
+                "total_value": row_total,
+                "is_pending": row.is_pending,
+            }
+        )
+
+    return templates.TemplateResponse(
+        request=request,
+        name="location_detail.html",
+        context={
+            "request": request,
+            "title": location.name,
+            "location": location,
+            "items": items,
+            "total_quantity": total_quantity,
+            "total_value": total_value,
+        },
+    )
 
 
 # -----------------------------------------------------------------------------
