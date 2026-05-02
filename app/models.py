@@ -107,11 +107,15 @@ class Deck(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False, index=True)
+    storage_location_id: Mapped[int | None] = mapped_column(
+        ForeignKey("storage_locations.id"), nullable=True, index=True
+    )
     name: Mapped[str] = mapped_column(String(255), index=True)
     format: Mapped[str | None] = mapped_column(String(64), nullable=True)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
+    storage_location: Mapped[StorageLocation | None] = relationship()
     user: Mapped[User] = relationship(back_populates="decks")
     items: Mapped[list[DeckItem]] = relationship(
         back_populates="deck", cascade="all, delete-orphan"

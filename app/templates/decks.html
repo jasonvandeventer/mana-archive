@@ -35,7 +35,7 @@
               <td>{{ deck.id }}</td>
               <td>{{ deck.name }}</td>
               <td>{{ deck.format or '-' }}</td>
-              <td>{{ deck.items|length }}</td>
+              <td>{{ deck.card_count or 0 }}</td>
               <td>
                 <form action="/decks/{{ deck.id }}" method="get" style="display:inline;">
                   <button type="submit">Open</button>
@@ -44,10 +44,6 @@
                       method="post"
                       class="inline-form"
                       style="display:inline">
-                  <button type="submit"
-                          onclick="return confirm('Delete this deck? Cards in this deck will NOT be returned automatically.');">
-                    Delete
-                  </button>
                 </form>
               </td>
             </tr>

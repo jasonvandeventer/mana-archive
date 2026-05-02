@@ -922,11 +922,20 @@ def deck_detail_page(
     if deck:
         normalized_search = search.strip().lower()
 
-        for item in deck.items:
+        deck_rows = (
+            session.query(InventoryRow)
+            .filter(
+                InventoryRow.user_id == current_user.id,
+                InventoryRow.storage_location_id == deck.storage_location_id,
+            )
+            .all()
+        )
+
+        for row in deck_rows:
             if normalized_search:
-                name = (item.card.name or "").lower()
-                type_line = (item.card.type_line or "").lower()
-                oracle = (item.card.oracle_text or "").lower()
+                name = (row.card.name or "").lower()
+                type_line = (row.card.type_line or "").lower()
+                oracle = (row.card.oracle_text or "").lower()
 
                 if (
                     normalized_search not in name
@@ -935,16 +944,16 @@ def deck_detail_page(
                 ):
                     continue
 
-            price = effective_price(item.card, item.finish) or 0.0
-            total_value = price * item.quantity
+            price = effective_price(row.card, row.finish) or 0.0
+            total_value = price * row.quantity
             deck_total_value += total_value
-            total_cards += item.quantity
+            total_cards += row.quantity
             items.append(
                 {
-                    "id": item.id,
-                    "card": item.card,
-                    "finish": item.finish,
-                    "quantity": item.quantity,
+                    "id": row.id,
+                    "card": row.card,
+                    "finish": row.finish,
+                    "quantity": row.quantity,
                     "effective_price": price,
                     "total_value": total_value,
                 }
@@ -1023,7 +1032,7 @@ async def decks_pull(
 @app.post("/decks/return")
 async def decks_return(
     deck_id: int = Form(...),
-    deck_item_id: int = Form(...),
+    deck_row_id: int = Form(...),
     drawer: str = Form(""),
     slot: str = Form(""),
     session: Session = Depends(get_db_session),
@@ -1032,7 +1041,7 @@ async def decks_return(
     return_card_from_deck(
         session,
         user_id=current_user.id,
-        deck_item_id=deck_item_id,
+        deck_row_id=deck_row_id,
         drawer=drawer,
         slot=slot,
     )
