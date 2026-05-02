@@ -260,9 +260,34 @@ def delete_deck(session: Session, deck_id: int, user_id: int) -> bool:
     if not deck:
         return False
 
-    for item in list(deck.items):
-        session.delete(item)
+    if deck.storage_location_id:
+        # Delete all inventory rows in this deck
+        deck_rows = (
+            session.query(InventoryRow)
+            .filter(
+                InventoryRow.user_id == user_id,
+                InventoryRow.storage_location_id == deck.storage_location_id,
+            )
+            .all()
+        )
 
+        for row in deck_rows:
+            session.delete(row)
+
+        # Delete the storage location itself
+        location = (
+            session.query(StorageLocation)
+            .filter(
+                StorageLocation.id == deck.storage_location_id,
+                StorageLocation.user_id == user_id,
+            )
+            .first()
+        )
+
+        if location:
+            session.delete(location)
+
+    # Delete the deck
     session.delete(deck)
     session.commit()
     return True

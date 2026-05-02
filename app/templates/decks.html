@@ -42,8 +42,12 @@
                 </form>
                 <form action="/decks/{{ deck.id }}/delete"
                       method="post"
-                      class="inline-form"
-                      style="display:inline">
+                      style="display:inline;
+                             margin-left: 0.5rem">
+                  <button type="submit"
+                          onclick="return confirm('Delete this deck? Cards in this deck will be removed.');">
+                    Delete
+                  </button>
                 </form>
               </td>
             </tr>
