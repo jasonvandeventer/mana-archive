@@ -52,7 +52,14 @@
     {% for group in grouped_drawers %}
       <section class="panel pending-group">
         <details open>
-          <summary>{% if use_drawer_sorter %}{{ group.label }}{% else %}Pending Cards{% endif %} ({{ group.count }} pending)</summary>
+          <summary>
+            {% if use_drawer_sorter %}
+              {{ group.label }}
+            {% else %}
+              Pending Cards
+            {% endif %}
+            ({{ group.count }} pending)
+          </summary>
           <div class="pending-list">
             {% for item in group.entries %}
               <article class="pending-item unified-card-row cross-drawer">
@@ -78,7 +85,11 @@
                   {% endif %}
                 </div>
                 <div class="pending-action">
-                  <form action="/pending/confirm" method="post" class="inline-form" style="flex-wrap: wrap; gap: 0.4rem;">
+                  <form action="/pending/confirm"
+                        method="post"
+                        class="inline-form"
+                        style="flex-wrap: wrap;
+                               gap: 0.4rem">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                     <input type="hidden" name="row_id" value="{{ item.id }}">
                     {% if not use_drawer_sorter %}
@@ -91,7 +102,9 @@
                         {% endfor %}
                       </select>
                     {% endif %}
-                    <button type="submit" class="danger-button" {% if not use_drawer_sorter and not locations %}disabled{% endif %}>Confirm</button>
+                    <button type="submit"
+                            class="danger-button"
+                            {% if not use_drawer_sorter and not locations %}disabled{% endif %}>Confirm</button>
                   </form>
                   <form action="/pending/{{ item.id }}/remove"
                         method="post"
