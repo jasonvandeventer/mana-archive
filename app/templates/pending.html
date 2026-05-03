@@ -2,28 +2,43 @@
 {% block content %}
   <section class="pending-hero">
     <h2>Pending Placement</h2>
-    <p class="muted">
-      Cards listed here have been imported into the database but not yet physically filed in their drawer. Confirm each card once it has been placed.
-    </p>
+    {% if use_drawer_sorter %}
+      <p class="muted">
+        Cards listed here have been imported into the database but not yet physically filed in their drawer. Confirm each card once it has been placed.
+      </p>
+    {% else %}
+      <p class="muted">
+        Cards listed here have been imported but not yet assigned to a storage location. Select a location for each card and confirm once it has been physically placed.
+      </p>
+      {% if not locations %}
+        <p class="muted">
+          You have no storage locations yet. <a href="/locations">Create one</a> before confirming placement.
+        </p>
+      {% endif %}
+    {% endif %}
     <div class="stat-grid">
       <div class="stat-card">
         <div class="stat-label">Pending Cards</div>
         <div class="stat-value">{{ pending_count }}</div>
       </div>
-      <div class="stat-card">
-        <div class="stat-label">Drawers Affected</div>
-        <div class="stat-value">{{ drawer_count }}</div>
-      </div>
+      {% if use_drawer_sorter %}
+        <div class="stat-card">
+          <div class="stat-label">Drawers Affected</div>
+          <div class="stat-value">{{ drawer_count }}</div>
+        </div>
+      {% endif %}
       <div class="stat-card">
         <div class="stat-label">Total Copies</div>
         <div class="stat-value">{{ total_copies }}</div>
       </div>
     </div>
     <div class="pending-actions">
-      <form action="/pending/confirm-all" method="post" class="inline-form">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-        <button type="submit" class="danger-button">Confirm ALL as Placed</button>
-      </form>
+      {% if use_drawer_sorter %}
+        <form action="/pending/confirm-all" method="post" class="inline-form">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <button type="submit" class="danger-button">Confirm ALL as Placed</button>
+        </form>
+      {% endif %}
       {% if latest_batch_id %}
         <form action="/imports/undo-batch" method="post" class="inline-form">
           <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
@@ -37,7 +52,7 @@
     {% for group in grouped_drawers %}
       <section class="panel pending-group">
         <details open>
-          <summary>{{ group.label }} ({{ group.count }} pending)</summary>
+          <summary>{% if use_drawer_sorter %}{{ group.label }}{% else %}Pending Cards{% endif %} ({{ group.count }} pending)</summary>
           <div class="pending-list">
             {% for item in group.entries %}
               <article class="pending-item unified-card-row cross-drawer">
@@ -55,16 +70,28 @@
                   <div class="pending-meta">
                     {{ item.card.set_name }} ({{ item.card.set_code|upper }}) · {{ item.finish|capitalize }} · Qty: {{ item.quantity }} · Price: ${{ '%.2f'|format(item.price) }}
                   </div>
-                  <div class="pending-location">
-                    <div class="pending-location-from">FROM: {{ item.current_location_label }}</div>
-                    <div class="pending-location-to">TO: {{ item.target_location_label }} · Slot {{ item.slot or '?' }}</div>
-                  </div>
+                  {% if use_drawer_sorter %}
+                    <div class="pending-location">
+                      <div class="pending-location-from">FROM: {{ item.current_location_label }}</div>
+                      <div class="pending-location-to">TO: {{ item.target_location_label }} · Slot {{ item.slot or '?' }}</div>
+                    </div>
+                  {% endif %}
                 </div>
                 <div class="pending-action">
-                  <form action="/pending/confirm" method="post" class="inline-form">
+                  <form action="/pending/confirm" method="post" class="inline-form" style="flex-wrap: wrap; gap: 0.4rem;">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                     <input type="hidden" name="row_id" value="{{ item.id }}">
-                    <button type="submit" class="danger-button">Confirm</button>
+                    {% if not use_drawer_sorter %}
+                      <select name="location_id" required {% if not locations %}disabled{% endif %}>
+                        <option value="">— pick location —</option>
+                        {% for loc in locations %}
+                          {% if loc.type != "root" and loc.type != "deck" %}
+                            <option value="{{ loc.id }}">{{ loc.name }} ({{ loc.type }})</option>
+                          {% endif %}
+                        {% endfor %}
+                      </select>
+                    {% endif %}
+                    <button type="submit" class="danger-button" {% if not use_drawer_sorter and not locations %}disabled{% endif %}>Confirm</button>
                   </form>
                   <form action="/pending/{{ item.id }}/remove"
                         method="post"

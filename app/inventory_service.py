@@ -536,7 +536,9 @@ def _get_or_create_drawer_location(session: Session, user_id: int, drawer: str) 
     return location
 
 
-def confirm_pending_row(session: Session, row_id: int, user_id: int) -> InventoryRow | None:
+def confirm_pending_row(
+    session: Session, row_id: int, user_id: int, location_id: int | None = None
+) -> InventoryRow | None:
     row = (
         session.query(InventoryRow)
         .filter(InventoryRow.id == row_id, InventoryRow.user_id == user_id)
@@ -546,17 +548,30 @@ def confirm_pending_row(session: Session, row_id: int, user_id: int) -> Inventor
     if not row:
         return None
 
-    if not row.drawer or not row.slot:
-        raise ValueError("Pending row has no assigned drawer/slot yet.")
-
     if not row.is_pending:
         return row
 
-    location = _get_or_create_drawer_location(session, user_id, row.drawer)
+    if location_id is not None:
+        location = (
+            session.query(StorageLocation)
+            .filter(StorageLocation.id == location_id, StorageLocation.user_id == user_id)
+            .one_or_none()
+        )
+        if location is None:
+            raise ValueError("Storage location not found.")
+    else:
+        if not row.drawer or not row.slot:
+            raise ValueError("Pending row has no assigned drawer/slot yet.")
+        location = _get_or_create_drawer_location(session, user_id, row.drawer)
 
     row.storage_location_id = location.id
     row.is_pending = False
     row.updated_at = datetime.utcnow()
+
+    if row.drawer:
+        dest = f"drawer={row.drawer} slot={row.slot or '-'}"
+    else:
+        dest = location.name
 
     log_transaction(
         session=session,
@@ -566,7 +581,7 @@ def confirm_pending_row(session: Session, row_id: int, user_id: int) -> Inventor
         finish=row.finish,
         quantity_delta=0,
         source_location="pending",
-        destination_location=f"drawer={row.drawer or '-'} slot={row.slot or '-'}",
+        destination_location=dest,
         inventory_row_id=row.id,
         note="Pending row confirmed as placed",
     )

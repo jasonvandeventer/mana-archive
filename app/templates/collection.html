@@ -28,10 +28,12 @@
         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
         <button type="submit">Refresh Stale Prices</button>
       </form>
-      <form action="/collection/resort" method="post" class="inline-form">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-        <button type="submit">Apply Drawer Sorter</button>
-      </form>
+      {% if use_drawer_sorter %}
+        <form action="/collection/resort" method="post" class="inline-form">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <button type="submit">Apply Drawer Sorter</button>
+        </form>
+      {% endif %}
     </div>
     <div class="stat-grid collection-stats-grid">
       <div class="stat-card compact">

@@ -68,6 +68,10 @@ from app.scryfall import (
 )
 from app.set_service import get_set_completion
 
+# Users who use the automatic 6-drawer card sorter. All other users manage
+# their own StorageLocations and pick placement manually on the pending page.
+DRAWER_SORTER_USERNAMES: frozenset[str] = frozenset({"jason.v", "test"})
+
 app = FastAPI(title="Mana Archive")
 
 app.add_middleware(
@@ -222,7 +226,7 @@ async def import_commit(
         user_id=current_user.id,
     )
 
-    if result.get("imported_row_ids"):
+    if result.get("imported_row_ids") and current_user.username in DRAWER_SORTER_USERNAMES:
         resort_collection(session, user_id=current_user.id)
 
     return RedirectResponse(url="/pending", status_code=303)
@@ -318,7 +322,7 @@ async def manual_import_commit(
     )
 
     resorted_count = 0
-    if result.get("imported_row_ids"):
+    if result.get("imported_row_ids") and current_user.username in DRAWER_SORTER_USERNAMES:
         resorted_count = resort_collection(session, user_id=current_user.id)
 
     return render(
@@ -330,7 +334,7 @@ async def manual_import_commit(
             "failed_rows": result["failed_rows"],
             "batch_id": result["batch_id"],
             "resorted_count": resorted_count,
-            "resort_skipped": False,
+            "resort_skipped": current_user.username not in DRAWER_SORTER_USERNAMES,
             "current_user": current_user,
         },
     )
@@ -553,6 +557,7 @@ def collection_page(
             "location_id": location_id,
             "current_user": current_user,
             "show_onboarding": show_onboarding,
+            "use_drawer_sorter": current_user.username in DRAWER_SORTER_USERNAMES,
         },
     )
 
@@ -594,7 +599,8 @@ async def collection_resort(
     current_user: User = Depends(get_current_user),
     _: None = CsrfRequired,
 ):
-    resort_collection(session, user_id=current_user.id)
+    if current_user.username in DRAWER_SORTER_USERNAMES:
+        resort_collection(session, user_id=current_user.id)
     return RedirectResponse(url="/collection", status_code=303)
 
 
@@ -618,6 +624,8 @@ def pending_page(
         .first()
     )
 
+    use_drawer_sorter = current_user.username in DRAWER_SORTER_USERNAMES
+    locations = [] if use_drawer_sorter else list_locations(session, current_user.id)
     view_model = build_pending_view_model(rows)
 
     return render(
@@ -628,6 +636,8 @@ def pending_page(
             **view_model,
             "latest_batch_id": latest_batch.id if latest_batch else None,
             "current_user": current_user,
+            "use_drawer_sorter": use_drawer_sorter,
+            "locations": locations,
         },
     )
 
@@ -635,11 +645,17 @@ def pending_page(
 @app.post("/pending/confirm")
 async def pending_confirm(
     row_id: int = Form(...),
+    location_id: int = Form(0),
     session: Session = Depends(get_db_session),
     current_user: User = Depends(get_current_user),
     _: None = CsrfRequired,
 ):
-    confirm_pending_row(session, row_id=row_id, user_id=current_user.id)
+    confirm_pending_row(
+        session,
+        row_id=row_id,
+        user_id=current_user.id,
+        location_id=location_id or None,
+    )
     return RedirectResponse(url="/pending", status_code=303)
 
 
@@ -649,7 +665,8 @@ async def pending_confirm_all(
     current_user: User = Depends(get_current_user),
     _: None = CsrfRequired,
 ):
-    confirm_all_pending(session, user_id=current_user.id)
+    if current_user.username in DRAWER_SORTER_USERNAMES:
+        confirm_all_pending(session, user_id=current_user.id)
     return RedirectResponse(url="/pending", status_code=303)
 
 
@@ -1114,7 +1131,8 @@ async def decks_return(
         slot=slot,
     )
 
-    resort_collection(session, user_id=current_user.id)
+    if current_user.username in DRAWER_SORTER_USERNAMES:
+        resort_collection(session, user_id=current_user.id)
 
     return RedirectResponse(url=f"/decks/{deck_id}", status_code=303)
 
