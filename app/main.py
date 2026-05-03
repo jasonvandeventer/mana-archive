@@ -21,6 +21,7 @@ from starlette.middleware.sessions import SessionMiddleware
 from app.audit_service import list_transaction_logs
 from app.auth import hash_password
 from app.db import init_db
+from scripts.run_migrations import run as run_migrations
 from app.deck_service import (
     create_deck,
     delete_deck,
@@ -118,6 +119,7 @@ def on_startup() -> None:
         and os.getenv("SESSION_SECRET_KEY", "dev-only-change-me") == "dev-only-change-me"
     ):
         raise RuntimeError("SESSION_SECRET_KEY must be set in production (DEV_MODE is not 'true')")
+    run_migrations()
     init_db()
 
 

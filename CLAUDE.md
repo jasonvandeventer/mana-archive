@@ -1,6 +1,6 @@
 # Mana Archive — Claude Context
 
-## Current version: v3.5.0
+## Current version: v3.5.1
 
 ## Stack: FastAPI + Jinja2 + SQLite + K3s/ArgoCD
 
@@ -55,7 +55,7 @@ All import paths (CSV and manual) present a **Destination** dropdown at commit t
 
 ### Migrations
 
-Idempotent migration scripts live in `scripts/`. `scripts/run_migrations.py` is the runner — add new migrations there in order. Each migration is tracked by name in the `schema_migrations` SQLite table.
+Idempotent migration scripts live in `scripts/`. `scripts/run_migrations.py` is the runner — add new migrations there in order. Each migration is tracked by name in the `schema_migrations` SQLite table. `run_migrations()` is called from `on_startup()` in `main.py`, so every deploy automatically applies pending migrations before the app serves traffic.
 
 ## Telemetry query
 
