@@ -2,9 +2,16 @@
 {% block content %}
   <section>
     <h2>Import Preview</h2>
-    <p>File: {{ filename }}</p>
-    <p>Valid rows: {{ valid_rows|length }}</p>
-    <p>Invalid rows: {{ invalid_rows|length }}</p>
+    <p class="muted small-text">
+      <strong>File:</strong> {{ filename }} &nbsp;·&nbsp;
+      <strong>Format:</strong> {{ format_name }} &nbsp;·&nbsp;
+      {{ valid_rows|length }} valid &nbsp;·&nbsp;
+      {% if invalid_rows|length > 0 %}
+        <span style="color: #b45309;">{{ invalid_rows|length }} invalid</span>
+      {% else %}
+        0 invalid
+      {% endif %}
+    </p>
     {% if valid_rows %}
       <form action="/import/commit" method="post">
         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">

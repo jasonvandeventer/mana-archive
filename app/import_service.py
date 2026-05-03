@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import csv
 import io
+import re
 from datetime import datetime
 from typing import Any
 
@@ -18,9 +19,18 @@ from sqlalchemy.orm import Session
 
 from app.audit_service import create_import_batch, log_transaction
 from app.models import Card, InventoryRow
-from app.scryfall import fetch_card_by_scryfall_id, fetch_card_by_set_and_number
+from app.scryfall import fetch_card_by_name, fetch_card_by_scryfall_id, fetch_card_by_set_and_number
+
+# Matches the trailing (SET) or [SET] and optional collector number on a list line.
+# SET must be 2–6 alphanumeric chars to distinguish from long parenthetical phrases.
+_SET_SUFFIX_RE = re.compile(
+    r"\s+[\(\[]([A-Za-z0-9]{2,6})[\)\]]"  # (SET) or [SET]
+    r"(?:\s+(\S+))?"  # optional collector number
+    r"\s*$"
+)
 
 HEADER_ALIASES = {
+    # Internal / scanner-app format
     "scryfallid": "scryfall_id",
     "scryfall_id": "scryfall_id",
     "setcode": "set_code",
@@ -36,7 +46,22 @@ HEADER_ALIASES = {
     "location": "location",
     "name": "name",
     "type": "type",
+    # Helvault: finish is in a column called "extras"
+    "extras": "finish",
+    # Moxfield: set code is in "Edition", foil status is in "Foil"
+    "edition": "set_code",
+    "foil": "finish",
 }
+
+
+def detect_csv_format(headers: list[str]) -> str:
+    """Return a human-readable format name based on raw CSV header names."""
+    lower = {(h or "").strip().lower() for h in headers}
+    if "extras" in lower:
+        return "Helvault"
+    if "edition" in lower:
+        return "Moxfield"
+    return "Scanner App"
 
 
 def normalize_finish(value: str | None) -> str:
@@ -84,11 +109,12 @@ def build_finish_warnings(card_data: dict | None, finish: str) -> list[str]:
     return warnings
 
 
-def parse_scanner_csv(file_bytes: bytes) -> dict[str, list[dict[str, Any]]]:
+def parse_scanner_csv(file_bytes: bytes) -> dict[str, Any]:
     text = file_bytes.decode("utf-8-sig", errors="replace")
     stream = io.StringIO(text)
     reader = csv.DictReader(stream)
 
+    format_name = detect_csv_format(reader.fieldnames or [])
     valid_rows: list[dict[str, Any]] = []
     invalid_rows: list[dict[str, Any]] = []
 
@@ -148,7 +174,7 @@ def parse_scanner_csv(file_bytes: bytes) -> dict[str, list[dict[str, Any]]]:
             cleaned["reason"] = "Missing Scryfall ID and set/collector fallback fields."
             invalid_rows.append(cleaned)
 
-    return {"valid_rows": valid_rows, "invalid_rows": invalid_rows}
+    return {"valid_rows": valid_rows, "invalid_rows": invalid_rows, "format_name": format_name}
 
 
 def persist_import_rows(
@@ -384,4 +410,123 @@ def persist_import_rows(
         "failed_rows": failed_rows,
         "batch_id": batch.id,
         "imported_row_ids": imported_row_ids,
+    }
+
+
+# ---------------------------------------------------------------------------
+# Text list import (Moxfield deck export, MTGA, MTGO)
+# ---------------------------------------------------------------------------
+
+_SECTION_HEADERS = frozenset(
+    {"deck", "sideboard", "commander", "companion", "maybeboard", "considering", "tokens"}
+)
+
+
+def _parse_list_line(line: str) -> dict[str, Any] | None:
+    """Parse one line of a pasted card list. Returns None for non-card lines."""
+    line = line.strip()
+    if not line or not line[0].isdigit():
+        return None
+
+    # Extract leading quantity (supports "4 " and "4x ")
+    m = re.match(r"^(\d+)x?\s+", line)
+    if not m:
+        return None
+
+    quantity = int(m.group(1))
+    rest = line[m.end() :]
+
+    # Detect MTGA foil marker (*F*)
+    finish = "normal"
+    if rest.upper().endswith("*F*"):
+        finish = "foil"
+        rest = rest[:-3].strip()
+
+    # Extract trailing (SET) and optional collector number
+    set_code = ""
+    collector_number = ""
+    set_match = _SET_SUFFIX_RE.search(rest)
+    if set_match:
+        set_code = set_match.group(1).lower()
+        collector_number = set_match.group(2) or ""
+        rest = rest[: set_match.start()].strip()
+
+    name = rest
+    if not name:
+        return None
+
+    return {
+        "name": name,
+        "set_code": set_code,
+        "collector_number": collector_number,
+        "quantity": quantity,
+        "finish": finish,
+    }
+
+
+def parse_text_list(text: str) -> dict[str, Any]:
+    """Parse a pasted card list in Moxfield / MTGA / MTGO format.
+
+    Resolves each line via Scryfall. Uses set+collector when available,
+    falls back to exact name (then fuzzy) when only a name is given.
+    """
+    valid_rows: list[dict[str, Any]] = []
+    invalid_rows: list[dict[str, Any]] = []
+
+    for line_number, raw_line in enumerate(text.splitlines(), start=1):
+        stripped = raw_line.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+        if stripped.lower() in _SECTION_HEADERS:
+            continue
+
+        parsed = _parse_list_line(stripped)
+        if not parsed:
+            continue
+
+        card_data: dict[str, Any] | None = None
+        try:
+            if parsed["set_code"] and parsed["collector_number"]:
+                card_data = fetch_card_by_set_and_number(
+                    parsed["set_code"], parsed["collector_number"]
+                )
+            if not card_data:
+                card_data = fetch_card_by_name(parsed["name"], set_code=parsed["set_code"])
+        except Exception:
+            card_data = None
+
+        if card_data:
+            valid_rows.append(
+                {
+                    "line_number": line_number,
+                    "scryfall_id": card_data["scryfall_id"],
+                    "set_code": card_data["set_code"],
+                    "collector_number": card_data["collector_number"],
+                    "name": card_data["name"],
+                    "finish": parsed["finish"],
+                    "quantity": parsed["quantity"],
+                    "location": "",
+                    "warnings": build_finish_warnings(card_data, parsed["finish"]),
+                }
+            )
+        else:
+            label = parsed["name"]
+            if parsed["set_code"]:
+                label += f" ({parsed['set_code'].upper()})"
+            invalid_rows.append(
+                {
+                    "line_number": line_number,
+                    "name": parsed["name"],
+                    "set_code": parsed["set_code"],
+                    "collector_number": parsed["collector_number"],
+                    "finish": parsed["finish"],
+                    "quantity": parsed["quantity"],
+                    "reason": f"Card not found on Scryfall: {label}",
+                }
+            )
+
+    return {
+        "valid_rows": valid_rows,
+        "invalid_rows": invalid_rows,
+        "format_name": "Text List",
     }

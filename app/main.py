@@ -37,7 +37,12 @@ from app.dependencies import (
     render,
 )
 from app.drawer_service import list_drawer_groups, list_rows_for_drawer
-from app.import_service import normalize_finish, parse_scanner_csv, persist_import_rows
+from app.import_service import (
+    normalize_finish,
+    parse_scanner_csv,
+    parse_text_list,
+    persist_import_rows,
+)
 from app.inventory_service import (
     adjust_inventory_row_quantity,
     confirm_all_pending,
@@ -199,7 +204,33 @@ async def import_preview(
             "title": "Import Preview",
             "valid_rows": result["valid_rows"],
             "invalid_rows": result["invalid_rows"],
+            "format_name": result["format_name"],
             "filename": file.filename,
+            "current_user": current_user,
+            "use_drawer_sorter": current_user.username in DRAWER_SORTER_USERNAMES,
+            "locations": list_locations(session, current_user.id),
+        },
+    )
+
+
+@app.post("/import/list/preview")
+async def import_list_preview(
+    request: Request,
+    card_list: str = Form(""),
+    session: Session = Depends(get_db_session),
+    current_user: User = Depends(get_current_user),
+    _: None = CsrfRequired,
+):
+    result = parse_text_list(card_list)
+    return render(
+        request,
+        "import_preview.html",
+        {
+            "title": "Import Preview",
+            "valid_rows": result["valid_rows"],
+            "invalid_rows": result["invalid_rows"],
+            "format_name": result["format_name"],
+            "filename": "pasted list",
             "current_user": current_user,
             "use_drawer_sorter": current_user.username in DRAWER_SORTER_USERNAMES,
             "locations": list_locations(session, current_user.id),

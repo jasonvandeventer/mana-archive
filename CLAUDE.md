@@ -1,6 +1,6 @@
 # Mana Archive — Claude Context
 
-## Current version: v3.5.1
+## Current version: v3.6.0-dev
 
 ## Stack: FastAPI + Jinja2 + SQLite + K3s/ArgoCD
 
@@ -74,7 +74,27 @@ ORDER BY inventory_rows DESC
 ''')).fetchall(); \
 print('\n'.join(str(r) for r in rows)); conn.close()"
 
+### Import format support (v3.6)
+
+Two import paths on `/import`:
+
+**CSV upload** — `parse_scanner_csv()` auto-detects format from column headers:
+
+- **Scanner App** (default): `scryfall_id / set_code / collector_number / finish / quantity`
+- **Helvault** (free & pro): detected by `extras` column (→ `finish`). Resolved via Scryfall ID.
+- **Moxfield** collection CSV: detected by `Edition` column. Maps `Edition → set_code`, `Foil → finish`, `Count → quantity`. Resolved via set+collector number.
+
+**Paste card list** — `parse_text_list()` parses `N CardName (SET) Collector#` format:
+
+- Accepts Moxfield deck exports, MTGA, MTGO, and any standard text list format.
+- Lookup priority: set+collector → exact name+set → fuzzy name.
+- `fetch_card_by_name()` in `scryfall.py` handles exact then fuzzy Scryfall `/cards/named` lookups.
+- Section headers (Deck, Sideboard, Commander, etc.) are silently skipped.
+- MTGA foil marker (`*F*`) is detected and mapped to finish=foil.
+
+Both paths normalize to the same row dict and feed into `persist_import_rows()` via the shared preview → commit flow. `format_name` is shown on the preview page.
+
 ## Roadmap
 
-- v3.6: Import framework (Helvault, Moxfield CSV)
+- v3.6: Import framework (Helvault, Moxfield CSV) — complete in dev, pending prod deploy
 - v4.0: PostgreSQL migration

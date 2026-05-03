@@ -9,10 +9,29 @@
     </section>
   {% endif %}
   <section>
-    <h2>Import Scanner CSV</h2>
+    <h2>Import Collection CSV</h2>
+    <p class="muted small-text">
+      Supported formats: <strong>Helvault</strong> (free &amp; pro), <strong>Moxfield</strong> collection export,
+      and the built-in <strong>Scanner App</strong> format. The format is detected automatically from the column headers.
+    </p>
     <form action="/import/preview" method="post" enctype="multipart/form-data">
       <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
       <input type="file" name="file" accept=".csv" required>
+      <button type="submit">Preview Import</button>
+    </form>
+  </section>
+  <section class="panel">
+    <h2>Paste Card List</h2>
+    <p class="muted small-text">
+      Paste a deck or collection list from <strong>Moxfield</strong>, <strong>MTGA</strong>, <strong>MTGO</strong>, or any tool
+      that exports in <code>N Card Name (SET) Collector#</code> format.
+      Set code and collector number are optional but improve accuracy.
+    </p>
+    <form action="/import/list/preview" method="post" class="stack-form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <textarea name="card_list"
+                rows="10"
+                placeholder="4 Lightning Bolt (M10) 146&#10;2 Force of Will&#10;1 The One Ring (LTR) 246"></textarea>
       <button type="submit">Preview Import</button>
     </form>
   </section>
