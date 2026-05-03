@@ -21,7 +21,6 @@ from starlette.middleware.sessions import SessionMiddleware
 from app.audit_service import list_transaction_logs
 from app.auth import hash_password
 from app.db import init_db
-from scripts.run_migrations import run as run_migrations
 from app.deck_service import (
     create_deck,
     delete_deck,
@@ -76,6 +75,7 @@ from app.scryfall import (
     search_cards_by_name,
 )
 from app.set_service import get_set_completion
+from scripts.run_migrations import run as run_migrations
 
 app = FastAPI(title="Mana Archive")
 
