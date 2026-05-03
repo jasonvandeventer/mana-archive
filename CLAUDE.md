@@ -1,6 +1,6 @@
 # Mana Archive — Claude Context
 
-## Current version: v3.4.5
+## Current version: v3.4.9
 
 ## Stack: FastAPI + Jinja2 + SQLite + K3s/ArgoCD
 
@@ -14,7 +14,36 @@
 
 ## Current phase
 
-Post-release validation. Optimize for usability, not features.
+Active user onboarding. Multi-user support now in place — hardening usability for non-admin users.
+
+## Architecture notes
+
+### Drawer sorter
+
+`DRAWER_SORTER_USERNAMES = frozenset({"jason.v", "test"})` in `app/dependencies.py` gates the automatic 6-drawer card sorter (`resort_collection`). Only these users get drawer/slot auto-assignment on import and access to the Drawers page, Audit page, and "Apply Drawer Sorter" button.
+
+All other users manage their own StorageLocations and pick placement manually.
+
+To add a user to the auto-sorter, update `DRAWER_SORTER_USERNAMES` in `app/dependencies.py` (one place — it's injected as a Jinja2 global and imported into `main.py`).
+
+### Import destination
+
+All import paths (CSV and manual) present a **Destination** dropdown at commit time. For drawer-sorter users the first option is "Auto-sort to drawers" (existing behaviour); any other selection places cards directly into that StorageLocation and skips pending entirely. For other users, a location must be chosen. `place_imported_rows()` in `inventory_service.py` handles the bulk placement.
+
+### Security (added v3.4.6)
+
+- CSRF protection: session token via `CsrfRequired` dependency on all POST routes; `{{ csrf_token }}` hidden field in every form
+- Open redirect prevention: `safe_redirect_url()` in `main.py` validates Referer before redirect
+- ValueError handler: returns clean 400 instead of 500 stack trace
+- Session secret: startup check refuses to boot in production without `SESSION_SECRET_KEY` env var
+
+### Shared rendering
+
+`render()`, `CsrfRequired`, `get_csrf_token()`, and `get_current_user()` all live in `app/dependencies.py`. Do not redefine them elsewhere.
+
+### StorageLocation auto-creation
+
+`_get_or_create_drawer_location()` in `inventory_service.py` bootstraps missing drawer StorageLocations on first confirm. Prevents 500s for users whose drawer rows don't exist yet.
 
 ## Telemetry query
 

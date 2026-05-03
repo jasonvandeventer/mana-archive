@@ -11,8 +11,13 @@ from sqlalchemy.orm import Session
 from app.db import SessionLocal
 from app.models import User
 
+# Users who get drawer-centric features (auto-sorter, Drawers page, Audit page).
+# Update here to add or remove users — no other changes needed.
+DRAWER_SORTER_USERNAMES: frozenset[str] = frozenset({"jason.v", "test"})
+
 templates = Jinja2Templates(directory="app/templates")
 templates.env.globals["app_version"] = os.getenv("APP_VERSION", "dev")
+templates.env.globals["drawer_sorter_usernames"] = DRAWER_SORTER_USERNAMES
 
 
 def get_csrf_token(request: Request) -> str:

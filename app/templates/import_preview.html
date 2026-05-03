@@ -21,7 +21,23 @@
           <input type="hidden" name="quantity" value="{{ row.quantity }}">
           <input type="hidden" name="location" value="{{ row.location }}">
         {% endfor %}
-        <button type="submit">Import Valid Rows</button>
+        {% set placeable = locations | selectattr("type", "ne", "root") | list %}
+        <div style="display: flex;
+                    gap: 0.75rem;
+                    align-items: center;
+                    flex-wrap: wrap;
+                    margin-bottom: 0.5rem">
+          <label style="font-weight: 600;">Destination</label>
+          <select name="target_location_id">
+            {% if use_drawer_sorter %}<option value="0">Auto-sort to drawers</option>{% endif %}
+            {% for loc in placeable %}<option value="{{ loc.id }}">{{ loc.name }} ({{ loc.type }})</option>{% endfor %}
+            {% if not use_drawer_sorter and not placeable %}
+              <option value="" disabled>No locations — create one first</option>
+            {% endif %}
+          </select>
+        </div>
+        <button type="submit"
+                {% if not use_drawer_sorter and not placeable %}disabled{% endif %}>Import Valid Rows</button>
       </form>
     {% endif %}
   </section>

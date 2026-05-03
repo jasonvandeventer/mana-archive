@@ -1,21 +1,49 @@
 {% extends "base.html" %}
 {% block content %}
-  <section>
-    <h2>Import Results</h2>
-    <p>Imported rows: {{ imported_count }}</p>
-    <p>Failed rows: {{ failed_rows|length }}</p>
-    <p>Batch ID: {{ batch_id }}</p>
-    <p>
-      <a href="/collection">Go to Collection</a>
-    </p>
-    <p>
-      <a href="/import">Import another file</a>
-    </p>
+  <section class="panel hero-panel compact-hero">
+    <div class="panel-topline">Import</div>
+    <h2 class="panel-title">Import Complete</h2>
+    <div class="stat-grid" style="margin-top: 1rem;">
+      <div class="stat-card compact">
+        <div class="stat-label">Cards imported</div>
+        <div class="stat-number">{{ imported_count }}</div>
+      </div>
+      <div class="stat-card compact">
+        <div class="stat-label">Failed rows</div>
+        <div class="stat-number">{{ failed_rows|length }}</div>
+      </div>
+    </div>
+    {% if placed_in %}
+      <p class="muted" style="margin-top: 0.75rem;">
+        All cards placed directly into <strong>{{ placed_in }}</strong>.
+      </p>
+    {% else %}
+      <p class="muted" style="margin-top: 0.75rem;">
+        Cards are queued in <a href="/pending">Pending Placement</a> for confirmation.
+      </p>
+    {% endif %}
+    <div style="display: flex;
+                gap: 0.75rem;
+                flex-wrap: wrap;
+                margin-top: 1rem">
+      {% if placed_in %}
+        <a href="/collection">
+          <button type="button">Go to Collection</button>
+        </a>
+      {% else %}
+        <a href="/pending">
+          <button type="button">Go to Pending</button>
+        </a>
+      {% endif %}
+      <a href="/import">
+        <button type="button">Import Another</button>
+      </a>
+    </div>
   </section>
-  <section>
-    <h3>Failures</h3>
-    {% if failed_rows %}
-      <table>
+  {% if failed_rows %}
+    <section class="panel">
+      <h3>Failed Rows</h3>
+      <table class="table">
         <thead>
           <tr>
             <th>Line</th>
@@ -31,8 +59,6 @@
           {% endfor %}
         </tbody>
       </table>
-    {% else %}
-      <p>No failed rows.</p>
-    {% endif %}
-  </section>
+    </section>
+  {% endif %}
 {% endblock %}

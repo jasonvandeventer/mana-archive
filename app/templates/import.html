@@ -1,5 +1,13 @@
 {% extends "base.html" %}
 {% block content %}
+  {% if not use_drawer_sorter and not locations %}
+    <section class="panel" style="border-left: 4px solid #b45309;">
+      <p style="font-weight: 600; margin: 0;">You need a storage location before importing.</p>
+      <p class="muted" style="margin: 0.25rem 0 0;">
+        <a href="/locations">Create a location</a> (binder, box, drawer, etc.) and then come back to import your cards.
+      </p>
+    </section>
+  {% endif %}
   <section>
     <h2>Import Scanner CSV</h2>
     <form action="/import/preview" method="post" enctype="multipart/form-data">

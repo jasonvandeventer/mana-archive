@@ -25,9 +25,9 @@
           <a href="/collection">Collection</a>
           <a href="/pending">Pending</a>
           <a href="/locations">Locations</a>
-          <a href="/drawers">Drawers</a>
+          {% if current_user and current_user.username in drawer_sorter_usernames %}<a href="/drawers">Drawers</a>{% endif %}
           <a href="/decks">Decks</a>
-          <a href="/audit">Audit</a>
+          {% if current_user and current_user.username in drawer_sorter_usernames %}<a href="/audit">Audit</a>{% endif %}
           <a href="/sets">Sets</a>
           {% if current_user %}
             <span class="nav-user">Logged in as {{ current_user.username }}</span>

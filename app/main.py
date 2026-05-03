@@ -29,7 +29,13 @@ from app.deck_service import (
     pull_card_to_deck,
     return_card_from_deck,
 )
-from app.dependencies import CsrfRequired, get_current_user, get_db_session, render
+from app.dependencies import (
+    DRAWER_SORTER_USERNAMES,
+    CsrfRequired,
+    get_current_user,
+    get_db_session,
+    render,
+)
 from app.drawer_service import list_drawer_groups, list_rows_for_drawer
 from app.import_service import normalize_finish, parse_scanner_csv, persist_import_rows
 from app.inventory_service import (
@@ -44,6 +50,8 @@ from app.inventory_service import (
     list_inventory_rows,
     list_owned_sets,
     list_pending_rows,
+    move_inventory_row_to_location,
+    place_imported_rows,
     resort_collection,
     undo_last_batch,
     undo_last_import,
@@ -67,10 +75,6 @@ from app.scryfall import (
     search_cards_by_name,
 )
 from app.set_service import get_set_completion
-
-# Users who use the automatic 6-drawer card sorter. All other users manage
-# their own StorageLocations and pick placement manually on the pending page.
-DRAWER_SORTER_USERNAMES: frozenset[str] = frozenset({"jason.v", "test"})
 
 app = FastAPI(title="Mana Archive")
 
@@ -160,15 +164,26 @@ def register_page(request: Request):
 @app.get("/import")
 def import_page(
     request: Request,
+    session: Session = Depends(get_db_session),
     current_user: User = Depends(get_current_user),
 ):
-    return render(request, "import.html", {"title": "Import", "current_user": current_user})
+    return render(
+        request,
+        "import.html",
+        {
+            "title": "Import",
+            "current_user": current_user,
+            "use_drawer_sorter": current_user.username in DRAWER_SORTER_USERNAMES,
+            "locations": list_locations(session, current_user.id),
+        },
+    )
 
 
 @app.post("/import/preview")
 async def import_preview(
     request: Request,
     file: UploadFile = File(...),
+    session: Session = Depends(get_db_session),
     current_user: User = Depends(get_current_user),
     _: None = CsrfRequired,
 ):
@@ -184,6 +199,8 @@ async def import_preview(
             "invalid_rows": result["invalid_rows"],
             "filename": file.filename,
             "current_user": current_user,
+            "use_drawer_sorter": current_user.username in DRAWER_SORTER_USERNAMES,
+            "locations": list_locations(session, current_user.id),
         },
     )
 
@@ -200,6 +217,7 @@ async def import_commit(
     finish: list[str] = Form([]),
     quantity: list[str] = Form([]),
     location: list[str] = Form([]),
+    target_location_id: int = Form(0),
     session: Session = Depends(get_db_session),
     current_user: User = Depends(get_current_user),
     _: None = CsrfRequired,
@@ -219,17 +237,33 @@ async def import_commit(
             }
         )
 
-    result = persist_import_rows(
-        session,
-        rows,
-        filename=filename,
-        user_id=current_user.id,
-    )
+    result = persist_import_rows(session, rows, filename=filename, user_id=current_user.id)
+    row_ids = result.get("imported_row_ids", [])
+    placed_in = None
 
-    if result.get("imported_row_ids") and current_user.username in DRAWER_SORTER_USERNAMES:
+    if row_ids and target_location_id:
+        place_imported_rows(
+            session, row_ids, user_id=current_user.id, location_id=target_location_id
+        )
+        loc = get_location(session, location_id=target_location_id, user_id=current_user.id)
+        placed_in = loc.name if loc else None
+
+    elif row_ids and current_user.username in DRAWER_SORTER_USERNAMES:
         resort_collection(session, user_id=current_user.id)
+        return RedirectResponse(url="/pending", status_code=303)
 
-    return RedirectResponse(url="/pending", status_code=303)
+    return render(
+        request,
+        "import_result.html",
+        {
+            "title": "Import Results",
+            "imported_count": result["imported_count"],
+            "failed_rows": result["failed_rows"],
+            "batch_id": result["batch_id"],
+            "placed_in": placed_in,
+            "current_user": current_user,
+        },
+    )
 
 
 @app.post("/import/manual/preview")
@@ -240,6 +274,7 @@ async def manual_import_preview(
     collector_number: str = Form(""),
     finish: str = Form("normal"),
     quantity: int = Form(1),
+    session: Session = Depends(get_db_session),
     current_user: User = Depends(get_current_user),
     _: None = CsrfRequired,
 ):
@@ -266,6 +301,8 @@ async def manual_import_preview(
             "set_code": set_code,
             "collector_number": collector_number,
             "current_user": current_user,
+            "use_drawer_sorter": current_user.username in DRAWER_SORTER_USERNAMES,
+            "locations": list_locations(session, current_user.id),
         },
     )
 
@@ -299,6 +336,7 @@ async def manual_import_commit(
     collector_number: str = Form(""),
     finish: str = Form("normal"),
     quantity: int = Form(1),
+    target_location_id: int = Form(0),
     session: Session = Depends(get_db_session),
     current_user: User = Depends(get_current_user),
     _: None = CsrfRequired,
@@ -321,9 +359,17 @@ async def manual_import_commit(
         user_id=current_user.id,
     )
 
-    resorted_count = 0
-    if result.get("imported_row_ids") and current_user.username in DRAWER_SORTER_USERNAMES:
-        resorted_count = resort_collection(session, user_id=current_user.id)
+    row_ids = result.get("imported_row_ids", [])
+    placed_in = None
+
+    if row_ids and target_location_id:
+        place_imported_rows(
+            session, row_ids, user_id=current_user.id, location_id=target_location_id
+        )
+        loc = get_location(session, location_id=target_location_id, user_id=current_user.id)
+        placed_in = loc.name if loc else None
+    elif row_ids and current_user.username in DRAWER_SORTER_USERNAMES:
+        resort_collection(session, user_id=current_user.id)
 
     return render(
         request,
@@ -333,8 +379,7 @@ async def manual_import_commit(
             "imported_count": result["imported_count"],
             "failed_rows": result["failed_rows"],
             "batch_id": result["batch_id"],
-            "resorted_count": resorted_count,
-            "resort_skipped": current_user.username not in DRAWER_SORTER_USERNAMES,
+            "placed_in": placed_in,
             "current_user": current_user,
         },
     )
@@ -525,6 +570,7 @@ def collection_page(
                 "total_value": total,
                 "drawer_label": get_location_label(row),
                 "location_label": location_label,
+                "storage_location_id": row.storage_location_id,
             }
         )
 
@@ -580,6 +626,21 @@ async def collection_update_location(
     )
 
     return RedirectResponse(url="/collection", status_code=303)
+
+
+@app.post("/inventory/rows/{row_id}/move")
+async def inventory_row_move(
+    request: Request,
+    row_id: int,
+    location_id: int = Form(...),
+    session: Session = Depends(get_db_session),
+    current_user: User = Depends(get_current_user),
+    _: None = CsrfRequired,
+):
+    move_inventory_row_to_location(
+        session, row_id=row_id, user_id=current_user.id, location_id=location_id
+    )
+    return RedirectResponse(url=safe_redirect_url(request), status_code=303)
 
 
 @app.post("/collection/delete")
@@ -816,6 +877,8 @@ def drawers_page(
     session: Session = Depends(get_db_session),
     current_user: User = Depends(get_current_user),
 ):
+    if current_user.username not in DRAWER_SORTER_USERNAMES:
+        raise HTTPException(status_code=403, detail="Not available for your account")
     grouped = list_drawer_groups(session, user_id=current_user.id)
 
     drawer_summaries = []
@@ -847,6 +910,8 @@ def drawer_detail_page(
     session: Session = Depends(get_db_session),
     current_user: User = Depends(get_current_user),
 ):
+    if current_user.username not in DRAWER_SORTER_USERNAMES:
+        raise HTTPException(status_code=403, detail="Not available for your account")
     rows = list_rows_for_drawer(session, drawer, user_id=current_user.id)
 
     items = []
@@ -899,6 +964,8 @@ def audit_page(
     session: Session = Depends(get_db_session),
     current_user: User = Depends(get_current_user),
 ):
+    if current_user.username not in DRAWER_SORTER_USERNAMES:
+        raise HTTPException(status_code=403, detail="Not available for your account")
     logs = list_transaction_logs(session, user_id=current_user.id)
     batches = (
         session.query(ImportBatch)

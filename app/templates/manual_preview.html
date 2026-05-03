@@ -17,7 +17,23 @@
         <input type="hidden" name="collector_number" value="{{ collector_number }}">
         <input type="hidden" name="finish" value="{{ finish }}">
         <input type="hidden" name="quantity" value="{{ quantity }}">
-        <button type="submit">Commit Manual Import</button>
+        {% set placeable = locations | selectattr("type", "ne", "root") | list %}
+        <div style="display: flex;
+                    gap: 0.75rem;
+                    align-items: center;
+                    flex-wrap: wrap;
+                    margin: 0.75rem 0">
+          <label style="font-weight: 600;">Destination</label>
+          <select name="target_location_id">
+            {% if use_drawer_sorter %}<option value="0">Auto-sort to drawers</option>{% endif %}
+            {% for loc in placeable %}<option value="{{ loc.id }}">{{ loc.name }} ({{ loc.type }})</option>{% endfor %}
+            {% if not use_drawer_sorter and not placeable %}
+              <option value="" disabled>No locations — create one first</option>
+            {% endif %}
+          </select>
+        </div>
+        <button type="submit"
+                {% if not use_drawer_sorter and not placeable %}disabled{% endif %}>Commit Manual Import</button>
       </form>
     {% else %}
       <p>Could not resolve that card exactly. Use a valid Scryfall ID or exact set code and collector number.</p>

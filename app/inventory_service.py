@@ -502,6 +502,73 @@ def update_inventory_location(
     return row
 
 
+def move_inventory_row_to_location(
+    session: Session, row_id: int, user_id: int, location_id: int
+) -> InventoryRow:
+    row = (
+        session.query(InventoryRow)
+        .filter(InventoryRow.id == row_id, InventoryRow.user_id == user_id)
+        .first()
+    )
+    if not row:
+        raise ValueError("Inventory row not found.")
+
+    new_location = (
+        session.query(StorageLocation)
+        .filter(StorageLocation.id == location_id, StorageLocation.user_id == user_id)
+        .one_or_none()
+    )
+    if new_location is None:
+        raise ValueError("Storage location not found.")
+
+    old_location = row.storage_location.name if row.storage_location else "unassigned"
+
+    row.storage_location_id = new_location.id
+    row.is_pending = False
+    row.updated_at = datetime.now(UTC)
+
+    log_transaction(
+        session=session,
+        user_id=user_id,
+        event_type="location_updated",
+        card_id=row.card_id,
+        finish=row.finish,
+        quantity_delta=0,
+        source_location=old_location,
+        destination_location=new_location.name,
+        inventory_row_id=row.id,
+        note="Card moved to new storage location",
+    )
+    session.commit()
+    return row
+
+
+def place_imported_rows(
+    session: Session, row_ids: list[int], user_id: int, location_id: int
+) -> int:
+    location = (
+        session.query(StorageLocation)
+        .filter(StorageLocation.id == location_id, StorageLocation.user_id == user_id)
+        .one_or_none()
+    )
+    if location is None:
+        raise ValueError("Storage location not found.")
+
+    rows = (
+        session.query(InventoryRow)
+        .filter(InventoryRow.id.in_(row_ids), InventoryRow.user_id == user_id)
+        .all()
+    )
+    now = datetime.now(UTC)
+    for row in rows:
+        row.storage_location_id = location.id
+        row.is_pending = False
+        row.updated_at = now
+
+    session.commit()
+    return len(rows)
+
+
 def list_pending_rows(session: Session, user_id: int) -> list[InventoryRow]:
     rows = (
         session.query(InventoryRow)
