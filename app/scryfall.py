@@ -192,3 +192,34 @@ def fetch_set_cards(set_code: str) -> list[dict[str, Any]]:
             url = None
 
     return results
+
+def search_cards_by_name(name: str, limit: int = 20) -> list[dict[str, Any]]:
+    query = name.strip()
+    if not query:
+        return []
+
+    url = (
+        "https://api.scryfall.com/cards/search"
+        f"?q=!\"{query}\" or {query}&unique=prints&order=released&dir=desc"
+    )
+
+    data = _get_json(url)
+    if not data:
+        return []
+
+    cards = data.get("data", [])
+
+    return [
+        {
+            "id": card.get("id"),
+            "name": card.get("name"),
+            "set": card.get("set"),
+            "set_name": card.get("set_name"),
+            "collector_number": card.get("collector_number"),
+            "rarity": card.get("rarity"),
+            "image_uris": card.get("image_uris"),
+            "card_faces": card.get("card_faces"),
+            "prices": card.get("prices"),
+        }
+        for card in cards[:limit]
+    ]

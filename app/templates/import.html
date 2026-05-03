@@ -7,6 +7,13 @@
       <button type="submit">Preview Import</button>
     </form>
   </section>
+  <section class="panel">
+  <h2>Add Card by Name</h2>
+  <form action="/import/manual/search" method="post" class="filter-row">
+    <input type="text" name="name" placeholder="Search Scryfall by card name" required>
+    <button type="submit">Search</button>
+  </form>
+</section>
   <section>
     <h2>Manual Import</h2>
     <form action="/import/manual/preview" method="post" class="stack-form">

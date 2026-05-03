@@ -63,6 +63,7 @@ from app.scryfall import (
     fetch_card_by_scryfall_id,
     fetch_card_by_set_and_number,
     refresh_card_from_scryfall,
+    search_cards_by_name,
 )
 from app.set_service import get_set_completion
 
@@ -260,6 +261,25 @@ async def manual_import_preview(
         },
     )
 
+@app.post("/import/manual/search")
+async def manual_import_search(
+    request: Request,
+    name: str = Form(...),
+    current_user: User = Depends(get_current_user),
+):
+    results = search_cards_by_name(name)
+
+    return templates.TemplateResponse(
+        request=request,
+        name="manual_search_results.html",
+        context={
+            "request": request,
+            "title": "Choose Printing",
+            "query": name,
+            "results": results,
+            "current_user": current_user,
+        },
+    )
 
 @app.post("/import/manual/commit")
 async def manual_import_commit(

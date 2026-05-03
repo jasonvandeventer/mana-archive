@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% block content %}
+  <section class="panel">
+    <h2>Choose Printing</h2>
+    <p class="muted">Search: {{ query }}</p>
+
+    <form action="/import/manual/search" method="post" class="filter-row">
+      <input type="text" name="name" value="{{ query }}" placeholder="Card name">
+      <button type="submit">Search Again</button>
+    </form>
+  </section>
+
+  {% if results %}
+    <section class="card-grid-section">
+      <div class="inventory-grid">
+        {% for card in results %}
+          <article class="inventory-card inventory-card-compact">
+            <div class="inventory-card-media">
+              {% if card.image_uris and card.image_uris.normal %}
+                <img class="inventory-thumb"
+                     src="{{ card.image_uris.normal }}"
+                     alt="{{ card.name }}"
+                     loading="lazy">
+              {% elif card.card_faces and card.card_faces[0].image_uris %}
+                <img class="inventory-thumb"
+                     src="{{ card.card_faces[0].image_uris.normal }}"
+                     alt="{{ card.name }}"
+                     loading="lazy">
+              {% else %}
+                <div class="inventory-thumb placeholder"></div>
+              {% endif %}
+            </div>
+
+            <div class="inventory-card-body">
+              <h3 class="inventory-card-title">{{ card.name }}</h3>
+              <div class="inventory-subtitle">
+                {{ card.set_name }} · {{ card.set|upper }} #{{ card.collector_number }}
+              </div>
+              <div class="inventory-meta">
+                {{ card.rarity|capitalize }}
+                {% if card.prices %}
+                  · ${{ card.prices.usd or card.prices.usd_foil or card.prices.usd_etched or "—" }}
+                {% endif %}
+              </div>
+
+              <form action="/import/manual/preview"
+                    method="post"
+                    class="inline-form"
+                    style="margin-top: 0.75rem; gap: 0.4rem; flex-wrap: wrap;">
+                <input type="hidden" name="scryfall_id" value="{{ card.id }}">
+                <select name="finish">
+                  <option value="normal">Normal</option>
+                  <option value="foil">Foil</option>
+                  <option value="etched">Etched</option>
+                </select>
+                <input type="number" name="quantity" value="1" min="1" style="width: 72px;">
+                <button type="submit">Choose This Printing</button>
+              </form>
+            </div>
+          </article>
+        {% endfor %}
+      </div>
+    </section>
+  {% else %}
+    <section class="panel">
+      <p>No matching cards found.</p>
+    </section>
+  {% endif %}
+{% endblock %}
