@@ -11,6 +11,7 @@
           <form action="/decks/{{ deck.id }}/delete"
                 method="post"
                 style="margin-top: 0.75rem">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
             <button type="submit"
                     onclick="return confirm('Delete this deck? This will remove all cards in this deck.');">
               Delete Deck
@@ -89,6 +90,7 @@
                              gap: 0.4rem;
                              align-items: center;
                              flex-wrap: wrap">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                   <input type="hidden" name="deck_id" value="{{ deck.id }}">
                   <input type="hidden" name="inventory_row_id" value="{{ result.id }}">
                   <input type="number"
@@ -155,6 +157,7 @@
                 <form action="/decks/return"
                       method="post"
                       class="return-form compact-form-grid">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                   <input type="hidden" name="deck_id" value="{{ deck.id }}">
                   <input type="hidden" name="deck_row_id" value="{{ item.id }}">
                   <div class="deck-item-actions">

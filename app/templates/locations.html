@@ -7,6 +7,7 @@
   <div class="panel">
     <h3 class="panel-title">Create Location</h3>
     <form method="post" action="/locations" class="form-grid">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
       <input type="text" name="name" placeholder="Location Name" required>
       <select name="type">
         {% for t in location_types %}<option value="{{ t }}">{{ t.capitalize() }}</option>{% endfor %}

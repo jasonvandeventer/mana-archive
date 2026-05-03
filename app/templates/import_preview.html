@@ -7,6 +7,7 @@
     <p>Invalid rows: {{ invalid_rows|length }}</p>
     {% if valid_rows %}
       <form action="/import/commit" method="post">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
         <input type="hidden" name="filename" value="{{ filename }}">
         {% for row in valid_rows %}
           <input type="hidden" name="line_number" value="{{ row.line_number }}">

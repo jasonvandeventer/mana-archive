@@ -7,15 +7,16 @@ service layer.
 
 from __future__ import annotations
 
+import html
 import math
 import os
 
 from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, UploadFile
-from fastapi.responses import RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
-from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session, joinedload
 from starlette.middleware.sessions import SessionMiddleware
+from urllib.parse import urlparse
 
 from app.audit_service import list_transaction_logs
 from app.auth import hash_password
@@ -28,7 +29,7 @@ from app.deck_service import (
     pull_card_to_deck,
     return_card_from_deck,
 )
-from app.dependencies import get_current_user, get_db_session
+from app.dependencies import CsrfRequired, get_current_user, get_db_session, render
 from app.drawer_service import list_drawer_groups, list_rows_for_drawer
 from app.import_service import normalize_finish, parse_scanner_csv, persist_import_rows
 from app.inventory_service import (
@@ -78,16 +79,36 @@ app.add_middleware(
 
 app.include_router(auth.router)
 
-APP_VERSION = os.getenv("APP_VERSION", "dev")
 
-templates = Jinja2Templates(directory="app/templates")
-templates.env.globals["app_version"] = APP_VERSION
+@app.exception_handler(ValueError)
+async def value_error_handler(request: Request, exc: ValueError) -> HTMLResponse:
+    return HTMLResponse(
+        f"<h2>Error</h2><p>{html.escape(str(exc))}</p><a href='/collection'>Back to collection</a>",
+        status_code=400,
+    )
 
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
 
+def safe_redirect_url(request: Request, default: str = "/collection") -> str:
+    # Validate before using Referer as redirect target — an attacker can set it to an external URL.
+    referer = request.headers.get("referer", "")
+    if not referer:
+        return default
+    parsed = urlparse(referer)
+    if parsed.netloc and parsed.netloc != request.url.netloc:
+        return default
+    return referer
+
+
 @app.on_event("startup")
 def on_startup() -> None:
+    # Prevent accidental deploys with the default dev secret — sessions would be forgeable.
+    if (
+        os.getenv("DEV_MODE", "false").lower() != "true"
+        and os.getenv("SESSION_SECRET_KEY", "dev-only-change-me") == "dev-only-change-me"
+    ):
+        raise RuntimeError("SESSION_SECRET_KEY must be set in production (DEV_MODE is not 'true')")
     init_db()
 
 
@@ -96,15 +117,7 @@ def home(
     request: Request,
     current_user: User = Depends(get_current_user),
 ):
-    return templates.TemplateResponse(
-        request=request,
-        name="home.html",
-        context={
-            "request": request,
-            "title": "Mana Archive",
-            "current_user": current_user,
-        },
-    )
+    return render(request, "home.html", {"title": "Mana Archive", "current_user": current_user})
 
 
 @app.post("/register")
@@ -112,6 +125,7 @@ def register(
     username: str = Form(...),
     password: str = Form(...),
     session: Session = Depends(get_db_session),
+    _: None = CsrfRequired,
 ):
     existing = session.query(User).filter(User.username == username).first()
     if existing:
@@ -130,11 +144,7 @@ def register(
 
 @app.get("/register")
 def register_page(request: Request):
-    return templates.TemplateResponse(
-        request=request,
-        name="register.html",
-        context={"request": request, "title": "Register"},
-    )
+    return render(request, "register.html", {"title": "Register"})
 
 
 # -----------------------------------------------------------------------------
@@ -147,15 +157,7 @@ def import_page(
     request: Request,
     current_user: User = Depends(get_current_user),
 ):
-    return templates.TemplateResponse(
-        request=request,
-        name="import.html",
-        context={
-            "request": request,
-            "title": "Import",
-            "current_user": current_user,
-        },
-    )
+    return render(request, "import.html", {"title": "Import", "current_user": current_user})
 
 
 @app.post("/import/preview")
@@ -163,22 +165,18 @@ async def import_preview(
     request: Request,
     file: UploadFile = File(...),
     current_user: User = Depends(get_current_user),
+    _: None = CsrfRequired,
 ):
     file_bytes = await file.read()
     result = parse_scanner_csv(file_bytes)
 
-    return templates.TemplateResponse(
-        request=request,
-        name="import_preview.html",
-        context={
-            "request": request,
-            "title": "Import Preview",
-            "valid_rows": result["valid_rows"],
-            "invalid_rows": result["invalid_rows"],
-            "filename": file.filename,
-            "current_user": current_user,
-        },
-    )
+    return render(request, "import_preview.html", {
+        "title": "Import Preview",
+        "valid_rows": result["valid_rows"],
+        "invalid_rows": result["invalid_rows"],
+        "filename": file.filename,
+        "current_user": current_user,
+    })
 
 
 @app.post("/import/commit")
@@ -195,6 +193,7 @@ async def import_commit(
     location: list[str] = Form([]),
     session: Session = Depends(get_db_session),
     current_user: User = Depends(get_current_user),
+    _: None = CsrfRequired,
 ):
     rows = []
     for i in range(len(line_number)):
@@ -233,6 +232,7 @@ async def manual_import_preview(
     finish: str = Form("normal"),
     quantity: int = Form(1),
     current_user: User = Depends(get_current_user),
+    _: None = CsrfRequired,
 ):
     card = None
     resolved_id = ""
@@ -245,21 +245,16 @@ async def manual_import_preview(
         if card:
             resolved_id = card["scryfall_id"]
 
-    return templates.TemplateResponse(
-        request=request,
-        name="manual_preview.html",
-        context={
-            "request": request,
-            "title": "Manual Import Preview",
-            "card": card,
-            "resolved_scryfall_id": resolved_id,
-            "finish": normalize_finish(finish),
-            "quantity": max(1, quantity),
-            "set_code": set_code,
-            "collector_number": collector_number,
-            "current_user": current_user,
-        },
-    )
+    return render(request, "manual_preview.html", {
+        "title": "Manual Import Preview",
+        "card": card,
+        "resolved_scryfall_id": resolved_id,
+        "finish": normalize_finish(finish),
+        "quantity": max(1, quantity),
+        "set_code": set_code,
+        "collector_number": collector_number,
+        "current_user": current_user,
+    })
 
 
 @app.post("/import/manual/search")
@@ -267,20 +262,16 @@ async def manual_import_search(
     request: Request,
     name: str = Form(...),
     current_user: User = Depends(get_current_user),
+    _: None = CsrfRequired,
 ):
     results = search_cards_by_name(name)
 
-    return templates.TemplateResponse(
-        request=request,
-        name="manual_search_results.html",
-        context={
-            "request": request,
-            "title": "Choose Printing",
-            "query": name,
-            "results": results,
-            "current_user": current_user,
-        },
-    )
+    return render(request, "manual_search_results.html", {
+        "title": "Choose Printing",
+        "query": name,
+        "results": results,
+        "current_user": current_user,
+    })
 
 
 @app.post("/import/manual/commit")
@@ -293,6 +284,7 @@ async def manual_import_commit(
     quantity: int = Form(1),
     session: Session = Depends(get_db_session),
     current_user: User = Depends(get_current_user),
+    _: None = CsrfRequired,
 ):
     result = persist_import_rows(
         session,
@@ -316,20 +308,15 @@ async def manual_import_commit(
     if result.get("imported_row_ids"):
         resorted_count = resort_collection(session, user_id=current_user.id)
 
-    return templates.TemplateResponse(
-        request=request,
-        name="import_result.html",
-        context={
-            "request": request,
-            "title": "Import Results",
-            "imported_count": result["imported_count"],
-            "failed_rows": result["failed_rows"],
-            "batch_id": result["batch_id"],
-            "resorted_count": resorted_count,
-            "resort_skipped": False,
-            "current_user": current_user,
-        },
-    )
+    return render(request, "import_result.html", {
+        "title": "Import Results",
+        "imported_count": result["imported_count"],
+        "failed_rows": result["failed_rows"],
+        "batch_id": result["batch_id"],
+        "resorted_count": resorted_count,
+        "resort_skipped": False,
+        "current_user": current_user,
+    })
 
 
 # -----------------------------------------------------------------------------
@@ -345,6 +332,7 @@ def remove_inventory_row_action(
     note: str = Form(""),
     session: Session = Depends(get_db_session),
     current_user: User = Depends(get_current_user),
+    _: None = CsrfRequired,
 ):
     adjust_inventory_row_quantity(
         session=session,
@@ -355,7 +343,7 @@ def remove_inventory_row_action(
         note=note or None,
     )
 
-    return RedirectResponse(url=request.headers.get("referer") or "/collection", status_code=303)
+    return RedirectResponse(url=safe_redirect_url(request), status_code=303)
 
 
 @app.post("/inventory/rows/{row_id}/sell")
@@ -366,6 +354,7 @@ def sell_inventory_row_action(
     note: str = Form(""),
     session: Session = Depends(get_db_session),
     current_user: User = Depends(get_current_user),
+    _: None = CsrfRequired,
 ):
     adjust_inventory_row_quantity(
         session=session,
@@ -376,7 +365,7 @@ def sell_inventory_row_action(
         note=note or None,
     )
 
-    return RedirectResponse(url=request.headers.get("referer") or "/collection", status_code=303)
+    return RedirectResponse(url=safe_redirect_url(request), status_code=303)
 
 
 @app.post("/inventory/rows/{row_id}/trade")
@@ -387,6 +376,7 @@ def trade_inventory_row_action(
     note: str = Form(""),
     session: Session = Depends(get_db_session),
     current_user: User = Depends(get_current_user),
+    _: None = CsrfRequired,
 ):
     adjust_inventory_row_quantity(
         session=session,
@@ -397,7 +387,7 @@ def trade_inventory_row_action(
         note=note or None,
     )
 
-    return RedirectResponse(url=request.headers.get("referer") or "/collection", status_code=303)
+    return RedirectResponse(url=safe_redirect_url(request), status_code=303)
 
 
 @app.post("/inventory/rows/{row_id}/delete")
@@ -407,6 +397,7 @@ def delete_inventory_row_action(
     note: str = Form(""),
     session: Session = Depends(get_db_session),
     current_user: User = Depends(get_current_user),
+    _: None = CsrfRequired,
 ):
     delete_inventory_row(
         session=session,
@@ -414,10 +405,7 @@ def delete_inventory_row_action(
         user_id=current_user.id,
     )
 
-    return RedirectResponse(
-        url=request.headers.get("referer") or "/collection",
-        status_code=303,
-    )
+    return RedirectResponse(url=safe_redirect_url(request), status_code=303)
 
 
 # -----------------------------------------------------------------------------
@@ -522,35 +510,30 @@ def collection_page(
     total_pages = max(1, math.ceil(total_count / per_page))
     show_onboarding = total_count == 0
 
-    return templates.TemplateResponse(
-        request=request,
-        name="collection.html",
-        context={
-            "request": request,
-            "title": "Collection",
-            "items": items,
-            "search": search,
-            "finish_filter": finish,
-            "drawer_filter": drawer,
-            "sort": sort,
-            "direction": direction,
-            "page": page,
-            "per_page": per_page,
-            "total_count": total_count,
-            "total_pages": total_pages,
-            "total_value": stats["total_value"],
-            "total_cards": stats["total_cards"],
-            "unique_cards": stats["unique_cards"],
-            "drawer_counts": stats["drawer_counts"],
-            "unassigned_count": stats["unassigned_count"],
-            "location_counts": location_counts,
-            "decks": decks,
-            "locations": locations,
-            "location_id": location_id,
-            "current_user": current_user,
-            "show_onboarding": show_onboarding,
-        },
-    )
+    return render(request, "collection.html", {
+        "title": "Collection",
+        "items": items,
+        "search": search,
+        "finish_filter": finish,
+        "drawer_filter": drawer,
+        "sort": sort,
+        "direction": direction,
+        "page": page,
+        "per_page": per_page,
+        "total_count": total_count,
+        "total_pages": total_pages,
+        "total_value": stats["total_value"],
+        "total_cards": stats["total_cards"],
+        "unique_cards": stats["unique_cards"],
+        "drawer_counts": stats["drawer_counts"],
+        "unassigned_count": stats["unassigned_count"],
+        "location_counts": location_counts,
+        "decks": decks,
+        "locations": locations,
+        "location_id": location_id,
+        "current_user": current_user,
+        "show_onboarding": show_onboarding,
+    })
 
 
 @app.post("/collection/update-location")
@@ -560,6 +543,7 @@ async def collection_update_location(
     slot: str = Form(""),
     session: Session = Depends(get_db_session),
     current_user: User = Depends(get_current_user),
+    _: None = CsrfRequired,
 ):
     update_inventory_location(
         session,
@@ -577,6 +561,7 @@ async def collection_delete(
     row_id: int = Form(...),
     session: Session = Depends(get_db_session),
     current_user: User = Depends(get_current_user),
+    _: None = CsrfRequired,
 ):
     delete_inventory_row(session, row_id=row_id, user_id=current_user.id)
     return RedirectResponse(url="/collection", status_code=303)
@@ -586,6 +571,7 @@ async def collection_delete(
 async def collection_resort(
     session: Session = Depends(get_db_session),
     current_user: User = Depends(get_current_user),
+    _: None = CsrfRequired,
 ):
     resort_collection(session, user_id=current_user.id)
     return RedirectResponse(url="/collection", status_code=303)
@@ -613,17 +599,12 @@ def pending_page(
 
     view_model = build_pending_view_model(rows)
 
-    return templates.TemplateResponse(
-        request=request,
-        name="pending.html",
-        context={
-            "request": request,
-            "title": "Pending Placement",
-            **view_model,
-            "latest_batch_id": latest_batch.id if latest_batch else None,
-            "current_user": current_user,
-        },
-    )
+    return render(request, "pending.html", {
+        "title": "Pending Placement",
+        **view_model,
+        "latest_batch_id": latest_batch.id if latest_batch else None,
+        "current_user": current_user,
+    })
 
 
 @app.post("/pending/confirm")
@@ -631,6 +612,7 @@ async def pending_confirm(
     row_id: int = Form(...),
     session: Session = Depends(get_db_session),
     current_user: User = Depends(get_current_user),
+    _: None = CsrfRequired,
 ):
     confirm_pending_row(session, row_id=row_id, user_id=current_user.id)
     return RedirectResponse(url="/pending", status_code=303)
@@ -640,6 +622,7 @@ async def pending_confirm(
 async def pending_confirm_all(
     session: Session = Depends(get_db_session),
     current_user: User = Depends(get_current_user),
+    _: None = CsrfRequired,
 ):
     confirm_all_pending(session, user_id=current_user.id)
     return RedirectResponse(url="/pending", status_code=303)
@@ -650,6 +633,7 @@ def remove_pending_row(
     row_id: int,
     session: Session = Depends(get_db_session),
     current_user: User = Depends(get_current_user),
+    _: None = CsrfRequired,
 ):
     row = (
         session.query(InventoryRow)
@@ -687,18 +671,14 @@ def locations_page(
 
     parent_locations = [loc for loc in locations if loc.type in {"root", "box", "binder", "other"}]
 
-    return templates.TemplateResponse(
-        request=request,
-        name="locations.html",
-        context={
-            "title": "Storage Locations",
-            "locations": locations,
-            "parent_locations": parent_locations,
-            "location_types": ["drawer", "binder", "box", "deck", "other"],
-            "location_summaries": location_summaries,
-            "current_user": current_user,
-        },
-    )
+    return render(request, "locations.html", {
+        "title": "Storage Locations",
+        "locations": locations,
+        "parent_locations": parent_locations,
+        "location_types": ["drawer", "binder", "box", "deck", "other"],
+        "location_summaries": location_summaries,
+        "current_user": current_user,
+    })
 
 
 @app.post("/locations")
@@ -709,6 +689,7 @@ def create_location_route(
     sort_order: int = Form(0),
     session: Session = Depends(get_db_session),
     current_user: User = Depends(get_current_user),
+    _: None = CsrfRequired,
 ):
     if parent_id == 0:
         parent_id = None
@@ -764,19 +745,14 @@ def location_detail_page(
             }
         )
 
-    return templates.TemplateResponse(
-        request=request,
-        name="location_detail.html",
-        context={
-            "request": request,
-            "title": location.name,
-            "location": location,
-            "items": items,
-            "total_quantity": total_quantity,
-            "total_value": total_value,
-            "current_user": current_user,
-        },
-    )
+    return render(request, "location_detail.html", {
+        "title": location.name,
+        "location": location,
+        "items": items,
+        "total_quantity": total_quantity,
+        "total_value": total_value,
+        "current_user": current_user,
+    })
 
 
 # -----------------------------------------------------------------------------
@@ -803,16 +779,11 @@ def drawers_page(
 
     drawer_summaries.sort(key=lambda d: d["drawer"])
 
-    return templates.TemplateResponse(
-        request=request,
-        name="drawers.html",
-        context={
-            "request": request,
-            "title": "Drawers",
-            "drawer_summaries": drawer_summaries,
-            "current_user": current_user,
-        },
-    )
+    return render(request, "drawers.html", {
+        "title": "Drawers",
+        "drawer_summaries": drawer_summaries,
+        "current_user": current_user,
+    })
 
 
 @app.get("/drawers/{drawer}")
@@ -847,21 +818,16 @@ def drawer_detail_page(
         total_copies += row.quantity
         total_value += total
 
-    return templates.TemplateResponse(
-        request=request,
-        name="drawer_detail.html",
-        context={
-            "request": request,
-            "title": f"Drawer {drawer}",
-            "drawer": drawer,
-            "drawer_label": get_drawer_label(drawer),
-            "items": items,
-            "entry_count": len(items),
-            "total_copies": total_copies,
-            "total_value": total_value,
-            "current_user": current_user,
-        },
-    )
+    return render(request, "drawer_detail.html", {
+        "title": f"Drawer {drawer}",
+        "drawer": drawer,
+        "drawer_label": get_drawer_label(drawer),
+        "items": items,
+        "entry_count": len(items),
+        "total_copies": total_copies,
+        "total_value": total_value,
+        "current_user": current_user,
+    })
 
 
 # -----------------------------------------------------------------------------
@@ -883,23 +849,19 @@ def audit_page(
         .all()
     )
 
-    return templates.TemplateResponse(
-        request=request,
-        name="audit.html",
-        context={
-            "request": request,
-            "title": "Audit Log",
-            "logs": logs,
-            "batches": batches,
-            "current_user": current_user,
-        },
-    )
+    return render(request, "audit.html", {
+        "title": "Audit Log",
+        "logs": logs,
+        "batches": batches,
+        "current_user": current_user,
+    })
 
 
 @app.post("/imports/undo-last")
 async def imports_undo_last(
     session: Session = Depends(get_db_session),
     current_user: User = Depends(get_current_user),
+    _: None = CsrfRequired,
 ):
     undo_last_import(session, user_id=current_user.id)
     return RedirectResponse(url="/audit", status_code=303)
@@ -910,6 +872,7 @@ async def imports_undo_batch(
     batch_id: int = Form(...),
     session: Session = Depends(get_db_session),
     current_user: User = Depends(get_current_user),
+    _: None = CsrfRequired,
 ):
     undo_last_batch(session, batch_id=batch_id, user_id=current_user.id)
     return RedirectResponse(url="/pending", status_code=303)
@@ -929,17 +892,12 @@ def decks_page(
     decks = list_decks(session, user_id=current_user.id)
     show_onboarding = len(decks) == 0
 
-    return templates.TemplateResponse(
-        request=request,
-        name="decks.html",
-        context={
-            "request": request,
-            "title": "Decks",
-            "decks": decks,
-            "current_user": current_user,
-            "show_onboarding": show_onboarding,
-        },
-    )
+    return render(request, "decks.html", {
+        "title": "Decks",
+        "decks": decks,
+        "current_user": current_user,
+        "show_onboarding": show_onboarding,
+    })
 
 
 @app.post("/decks/create")
@@ -949,6 +907,7 @@ async def decks_create(
     notes: str = Form(""),
     session: Session = Depends(get_db_session),
     current_user: User = Depends(get_current_user),
+    _: None = CsrfRequired,
 ):
     create_deck(
         session,
@@ -981,6 +940,7 @@ def deck_detail_page(
 
         deck_rows = (
             session.query(InventoryRow)
+            .options(joinedload(InventoryRow.card))
             .filter(
                 InventoryRow.user_id == current_user.id,
                 InventoryRow.storage_location_id == deck.storage_location_id,
@@ -1039,22 +999,17 @@ def deck_detail_page(
                 }
             )
 
-    return templates.TemplateResponse(
-        request=request,
-        name="deck_detail.html",
-        context={
-            "request": request,
-            "title": deck.name if deck else "Deck",
-            "deck": deck,
-            "items": items if deck else [],
-            "deck_total_value": deck_total_value if deck else 0.0,
-            "deck_total_cards": total_cards if deck else 0,
-            "search": search,
-            "collection_search": collection_search,
-            "collection_results": collection_results if deck else [],
-            "current_user": current_user,
-        },
-    )
+    return render(request, "deck_detail.html", {
+        "title": deck.name if deck else "Deck",
+        "deck": deck,
+        "items": items if deck else [],
+        "deck_total_value": deck_total_value if deck else 0.0,
+        "deck_total_cards": total_cards if deck else 0,
+        "search": search,
+        "collection_search": collection_search,
+        "collection_results": collection_results if deck else [],
+        "current_user": current_user,
+    })
 
 
 @app.post("/decks/{deck_id}/delete")
@@ -1062,6 +1017,7 @@ async def decks_delete(
     deck_id: int,
     session: Session = Depends(get_db_session),
     current_user: User = Depends(get_current_user),
+    _: None = CsrfRequired,
 ):
     delete_deck(session, deck_id=deck_id, user_id=current_user.id)
     return RedirectResponse(url="/decks", status_code=303)
@@ -1074,6 +1030,7 @@ async def decks_pull(
     quantity: int = Form(...),
     session: Session = Depends(get_db_session),
     current_user: User = Depends(get_current_user),
+    _: None = CsrfRequired,
 ):
     pull_card_to_deck(
         session,
@@ -1094,6 +1051,7 @@ async def decks_return(
     slot: str = Form(""),
     session: Session = Depends(get_db_session),
     current_user: User = Depends(get_current_user),
+    _: None = CsrfRequired,
 ):
     return_card_from_deck(
         session,
@@ -1169,19 +1127,14 @@ def card_detail_page(
         total_copies += row.quantity
         total_value += total
 
-    return templates.TemplateResponse(
-        request=request,
-        name="card_detail.html",
-        context={
-            "request": request,
-            "title": target_card.name,
-            "card": target_card,
-            "rows": card_rows,
-            "total_copies": total_copies,
-            "total_value": total_value,
-            "current_user": current_user,
-        },
-    )
+    return render(request, "card_detail.html", {
+        "title": target_card.name,
+        "card": target_card,
+        "rows": card_rows,
+        "total_copies": total_copies,
+        "total_value": total_value,
+        "current_user": current_user,
+    })
 
 
 @app.post("/cards/refresh")
@@ -1190,6 +1143,7 @@ async def card_refresh(
     card_id: int = Form(...),
     session: Session = Depends(get_db_session),
     current_user: User = Depends(get_current_user),
+    _: None = CsrfRequired,
 ):
     owned_row = (
         session.query(InventoryRow)
@@ -1205,10 +1159,7 @@ async def card_refresh(
 
     refresh_card_from_scryfall(session, card_id)
 
-    return RedirectResponse(
-        url=request.headers.get("referer") or "/collection",
-        status_code=303,
-    )
+    return RedirectResponse(url=safe_redirect_url(request), status_code=303)
 
 
 @app.post("/cards/refresh-stale")
@@ -1216,6 +1167,7 @@ async def refresh_stale_cards(
     request: Request,
     session: Session = Depends(get_db_session),
     current_user: User = Depends(get_current_user),
+    _: None = CsrfRequired,
 ):
     stale_cards = (
         session.query(Card)
@@ -1229,10 +1181,7 @@ async def refresh_stale_cards(
         if is_price_stale(card.updated_at):
             refresh_card_from_scryfall(session, card.id)
 
-    return RedirectResponse(
-        url=request.headers.get("referer") or "/collection",
-        status_code=303,
-    )
+    return RedirectResponse(url=safe_redirect_url(request), status_code=303)
 
 
 # -----------------------------------------------------------------------------
@@ -1248,16 +1197,11 @@ def sets_page(
 ):
     sets = list_owned_sets(session, user_id=current_user.id)
 
-    return templates.TemplateResponse(
-        request=request,
-        name="sets.html",
-        context={
-            "request": request,
-            "title": "Sets",
-            "sets": sets,
-            "current_user": current_user,
-        },
-    )
+    return render(request, "sets.html", {
+        "title": "Sets",
+        "sets": sets,
+        "current_user": current_user,
+    })
 
 
 @app.get("/sets/{set_code}")
@@ -1270,13 +1214,8 @@ def set_detail_page(
 ):
     data = get_set_completion(session, set_code, view=view, user_id=current_user.id)
 
-    return templates.TemplateResponse(
-        request=request,
-        name="set_detail.html",
-        context={
-            "request": request,
-            "title": data["set_name"],
-            "data": data,
-            "current_user": current_user,
-        },
-    )
+    return render(request, "set_detail.html", {
+        "title": data["set_name"],
+        "data": data,
+        "current_user": current_user,
+    })

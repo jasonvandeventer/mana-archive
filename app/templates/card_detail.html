@@ -65,6 +65,7 @@
                         <form action="/inventory/rows/{{ row.id }}/remove"
                               method="post"
                               class="inline-form">
+                          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                           <input type="number"
                                  name="quantity"
                                  min="1"
@@ -75,18 +76,21 @@
                         <form action="/inventory/rows/{{ row.id }}/sell"
                               method="post"
                               class="inline-form">
+                          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                           <input type="hidden" name="quantity" value="1" />
                           <button type="submit">Sell 1</button>
                         </form>
                         <form action="/inventory/rows/{{ row.id }}/trade"
                               method="post"
                               class="inline-form">
+                          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                           <input type="hidden" name="quantity" value="1" />
                           <button type="submit">Trade 1</button>
                         </form>
                         <form action="/inventory/rows/{{ row.id }}/delete"
                               method="post"
                               class="inline-form">
+                          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                           <button type="submit"
                                   class="danger-button"
                                   onclick="return confirm('Delete this row?');">Delete Row</button>

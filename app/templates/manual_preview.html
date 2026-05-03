@@ -11,6 +11,7 @@
         Normal: ${{ card.price_usd or "0" }} | Foil: ${{ card.price_usd_foil or "0" }} | Etched: ${{ card.price_usd_etched or "0" }}
       </p>
       <form action="/import/manual/commit" method="post">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
         <input type="hidden" name="scryfall_id" value="{{ resolved_scryfall_id }}">
         <input type="hidden" name="set_code" value="{{ set_code }}">
         <input type="hidden" name="collector_number" value="{{ collector_number }}">

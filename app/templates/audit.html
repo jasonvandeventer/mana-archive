@@ -3,6 +3,7 @@
   <section>
     <h2>Audit Log</h2>
     <form action="/imports/undo-last" method="post" class="inline-form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
       <button type="submit">Undo Last Import</button>
     </form>
   </section>
@@ -28,6 +29,7 @@
               <td>{{ batch.row_count }}</td>
               <td>
                 <form action="/imports/undo-batch" method="post" class="inline-form">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                   <input type="hidden" name="batch_id" value="{{ batch.id }}">
                   <button type="submit">Undo Batch</button>
                 </form>

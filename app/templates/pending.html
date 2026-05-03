@@ -21,10 +21,12 @@
     </div>
     <div class="pending-actions">
       <form action="/pending/confirm-all" method="post" class="inline-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
         <button type="submit" class="danger-button">Confirm ALL as Placed</button>
       </form>
       {% if latest_batch_id %}
         <form action="/imports/undo-batch" method="post" class="inline-form">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
           <input type="hidden" name="batch_id" value="{{ latest_batch_id }}">
           <button type="submit" class="ghost-button">↩ Undo Last Batch Import</button>
         </form>
@@ -60,12 +62,14 @@
                 </div>
                 <div class="pending-action">
                   <form action="/pending/confirm" method="post" class="inline-form">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                     <input type="hidden" name="row_id" value="{{ item.id }}">
                     <button type="submit" class="danger-button">Confirm</button>
                   </form>
                   <form action="/pending/{{ item.id }}/remove"
                         method="post"
                         class="inline-form">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                     <button type="submit"
                             class="ghost-button"
                             onclick="return confirm('Remove this pending card from your collection?');">Remove</button>

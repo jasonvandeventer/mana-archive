@@ -1,12 +1,44 @@
 from __future__ import annotations
 
+import os
+import secrets
 from collections.abc import Generator
 
-from fastapi import Depends, HTTPException, Request, status
+from fastapi import Depends, Form, HTTPException, Request, status
+from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
 from app.db import SessionLocal
 from app.models import User
+
+templates = Jinja2Templates(directory="app/templates")
+templates.env.globals["app_version"] = os.getenv("APP_VERSION", "dev")
+
+
+def get_csrf_token(request: Request) -> str:
+    if "csrf_token" not in request.session:
+        request.session["csrf_token"] = secrets.token_hex(32)
+    return request.session["csrf_token"]
+
+
+def require_csrf_token(
+    request: Request,
+    # Form("") so missing field returns 403, not a 422 validation error
+    csrf_token: str = Form(""),
+) -> None:
+    expected = request.session.get("csrf_token", "")
+    if not expected or csrf_token != expected:
+        raise HTTPException(status_code=403, detail="Invalid CSRF token")
+
+
+CsrfRequired = Depends(require_csrf_token)
+
+
+def render(request: Request, template: str, ctx: dict | None = None):
+    context = {"csrf_token": get_csrf_token(request)}
+    if ctx:
+        context.update(ctx)
+    return templates.TemplateResponse(request=request, name=template, context=context)
 
 
 def get_db_session() -> Generator[Session, None, None]:
