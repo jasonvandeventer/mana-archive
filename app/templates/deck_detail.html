@@ -19,7 +19,7 @@
           </form>
         </div>
         <div class="hero-stats-inline">
-          <span>{{ items|length }} entries</span>
+          <span>{{ (commanders|length) + (items|length) }} entries</span>
           <span>{{ deck_total_cards }} copies</span>
           <span>${{ '%.2f'|format(deck_total_value) }}</span>
         </div>
@@ -78,10 +78,7 @@
                     · ${{ '%.2f'|format(result.effective_price) }} each
                   {% endif %}
                 </div>
-                <div class="inventory-location">
-                  Drawer {{ result.drawer or '-' }}
-                  {% if result.slot %}· Slot {{ result.slot }}{% endif %}
-                </div>
+                <div class="inventory-location">{{ result.location_label }}</div>
                 <form action="/decks/pull"
                       method="post"
                       class="deck-add-form"
@@ -109,6 +106,66 @@
         <p class="muted" style="margin-top: 1rem;">No owned cards matched that search.</p>
       {% endif %}
     </section>
+    {% if commanders %}
+      <section class="panel controls-panel">
+        <h3>Commander{{ 's' if commanders|length > 1 }}</h3>
+      </section>
+      <section class="card-grid-section">
+        <div class="inventory-grid">
+          {% for item in commanders %}
+            <article class="inventory-card inventory-card-compact deck-card">
+              <div class="inventory-card-media">
+                {% if item.card.image_url %}
+                  <a href="/cards/{{ item.card.id }}">
+                    <img class="inventory-thumb"
+                         src="{{ item.card.image_url }}"
+                         alt="{{ item.card.name }}">
+                  </a>
+                {% else %}
+                  <a href="/cards/{{ item.card.id }}" class="inventory-thumb placeholder"></a>
+                {% endif %}
+              </div>
+              <div class="inventory-card-body">
+                <h3 class="inventory-card-title">
+                  <a href="https://scryfall.com/card/{{ item.card.set_code }}/{{ item.card.collector_number }}"
+                     target="_blank"
+                     rel="noreferrer">{{ item.card.name }}</a>
+                </h3>
+                <div class="inventory-subtitle">
+                  {{ item.card.set_name }} · {{ item.card.set_code|upper }} #{{ item.card.collector_number }}
+                </div>
+                <div class="inventory-meta">
+                  {{ item.finish|capitalize }} · Qty {{ item.quantity }} · ${{ '%.2f'|format(item.effective_price) }} each
+                </div>
+                <div class="inventory-total">Total value: ${{ '%.2f'|format(item.total_value) }}</div>
+                <div style="display: flex;
+                            gap: 0.4rem;
+                            flex-wrap: wrap;
+                            margin-top: 0.5rem">
+                  <form action="/decks/rows/{{ item.id }}/toggle-commander"
+                        method="post"
+                        class="inline-form">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                    <input type="hidden" name="deck_id" value="{{ deck.id }}">
+                    <button type="submit">Remove Commander</button>
+                  </form>
+                  <form action="/decks/return" method="post" class="inline-form">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                    <input type="hidden" name="deck_id" value="{{ deck.id }}">
+                    <input type="hidden" name="deck_row_id" value="{{ item.id }}">
+                    {% if use_drawer_sorter %}
+                      <input type="hidden" name="drawer" value="">
+                      <input type="hidden" name="slot" value="">
+                    {% endif %}
+                    <button type="submit">Remove from Deck</button>
+                  </form>
+                </div>
+              </div>
+            </article>
+          {% endfor %}
+        </div>
+      </section>
+    {% endif %}
     <section class="panel controls-panel">
       <h3>Deck Cards</h3>
       <form method="get" action="/decks/{{ deck.id }}" class="filter-row">
@@ -154,34 +211,50 @@
                   {{ item.finish|capitalize }} · Qty {{ item.quantity }} · ${{ '%.2f'|format(item.effective_price) }} each
                 </div>
                 <div class="inventory-total">Total value: ${{ '%.2f'|format(item.total_value) }}</div>
-                <form action="/decks/return"
-                      method="post"
-                      class="return-form compact-form-grid">
-                  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-                  <input type="hidden" name="deck_id" value="{{ deck.id }}">
-                  <input type="hidden" name="deck_row_id" value="{{ item.id }}">
-                  <div class="deck-item-actions">
-                    <input type="text" name="drawer" placeholder="Drawer override">
-                    <input type="text" name="slot" placeholder="Slot override">
-                    <button type="submit">Remove from Deck</button>
-                  </div>
-                </form>
-                <p class="muted small-text">
-                  Leave drawer and slot blank to remove this card from the deck and send it to Pending for placement.
-                </p>
+                <div style="display: flex;
+                            gap: 0.4rem;
+                            flex-wrap: wrap;
+                            margin-top: 0.5rem">
+                  <form action="/decks/rows/{{ item.id }}/toggle-commander"
+                        method="post"
+                        class="inline-form">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                    <input type="hidden" name="deck_id" value="{{ deck.id }}">
+                    <button type="submit">Mark as Commander</button>
+                  </form>
+                  <form action="/decks/return"
+                        method="post"
+                        class="return-form compact-form-grid">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                    <input type="hidden" name="deck_id" value="{{ deck.id }}">
+                    <input type="hidden" name="deck_row_id" value="{{ item.id }}">
+                    {% if use_drawer_sorter %}
+                      <div class="deck-item-actions">
+                        <input type="text" name="drawer" placeholder="Drawer override">
+                        <input type="text" name="slot" placeholder="Slot override">
+                        <button type="submit">Remove from Deck</button>
+                      </div>
+                      <p class="muted small-text">Leave drawer and slot blank to send to Pending for placement.</p>
+                    {% else %}
+                      <button type="submit">Remove from Deck</button>
+                    {% endif %}
+                  </form>
+                </div>
               </div>
             </article>
           {% endfor %}
         </div>
       </section>
     {% else %}
-      <section class="panel">
-        <p>No cards in this deck yet.</p>
-        <p class="muted small-text">Use Search Collection above to find owned cards and add them to this deck.</p>
-        <a href="/collection">
-          <button type="button">Go to Collection</button>
-        </a>
-      </section>
+      {% if not commanders %}
+        <section class="panel">
+          <p>No cards in this deck yet.</p>
+          <p class="muted small-text">Use Search Collection above to find owned cards and add them to this deck.</p>
+          <a href="/collection">
+            <button type="button">Go to Collection</button>
+          </a>
+        </section>
+      {% endif %}
     {% endif %}
   {% endif %}
 {% endblock %}

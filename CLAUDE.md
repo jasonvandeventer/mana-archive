@@ -1,6 +1,6 @@
 # Mana Archive — Claude Context
 
-## Current version: v3.4.9
+## Current version: v3.5.0
 
 ## Stack: FastAPI + Jinja2 + SQLite + K3s/ArgoCD
 
@@ -45,6 +45,18 @@ All import paths (CSV and manual) present a **Destination** dropdown at commit t
 
 `_get_or_create_drawer_location()` in `inventory_service.py` bootstraps missing drawer StorageLocations on first confirm. Prevents 500s for users whose drawer rows don't exist yet.
 
+### DeckItem removed (v3.5)
+
+`DeckItem` model and `deck_items` table are gone. Deck cards have always been `InventoryRow` records with `storage_location_id` pointing to the deck's StorageLocation — DeckItem was dead code after the v3.4 migration. The drop is in `scripts/migrate_v3_5_drop_deck_items.py`.
+
+### Commander role (v3.5)
+
+`InventoryRow.role` (nullable String(32)) marks a card's role within a deck. Currently only value used is `"commander"`. Set via `POST /decks/rows/{row_id}/toggle-commander`. In `deck_detail.html`, cards with `role=="commander"` appear in a separate **Commander(s)** panel above the main deck grid. Added via `scripts/migrate_v3_5_inventory_role.py`.
+
+### Migrations
+
+Idempotent migration scripts live in `scripts/`. `scripts/run_migrations.py` is the runner — add new migrations there in order. Each migration is tracked by name in the `schema_migrations` SQLite table.
+
 ## Telemetry query
 
 kubectl exec -n mana-archive deploy/mana-archive -- \
@@ -64,6 +76,5 @@ print('\n'.join(str(r) for r in rows)); conn.close()"
 
 ## Roadmap
 
-- v3.5: Remove DeckItem, simplify model
-- v3.6: Import framework
+- v3.6: Import framework (Helvault, Moxfield CSV)
 - v4.0: PostgreSQL migration

@@ -1106,6 +1106,7 @@ def deck_detail_page(
                     "quantity": row.quantity,
                     "effective_price": price,
                     "total_value": total_value,
+                    "role": row.role,
                 }
             )
 
@@ -1126,11 +1127,14 @@ def deck_detail_page(
                     "card": row.card,
                     "finish": row.finish,
                     "quantity": row.quantity,
-                    "drawer": row.drawer,
-                    "slot": row.slot,
+                    "location_label": get_location_label(row),
                     "effective_price": price,
                 }
             )
+
+    use_drawer_sorter = current_user.username in DRAWER_SORTER_USERNAMES
+    commanders = [i for i in items if i["role"] == "commander"]
+    deck_cards = [i for i in items if i["role"] != "commander"]
 
     return render(
         request,
@@ -1138,13 +1142,15 @@ def deck_detail_page(
         {
             "title": deck.name if deck else "Deck",
             "deck": deck,
-            "items": items if deck else [],
+            "commanders": commanders if deck else [],
+            "items": deck_cards if deck else [],
             "deck_total_value": deck_total_value if deck else 0.0,
             "deck_total_cards": total_cards if deck else 0,
             "search": search,
             "collection_search": collection_search,
             "collection_results": collection_results if deck else [],
             "current_user": current_user,
+            "use_drawer_sorter": use_drawer_sorter,
         },
     )
 
@@ -1201,6 +1207,26 @@ async def decks_return(
     if current_user.username in DRAWER_SORTER_USERNAMES:
         resort_collection(session, user_id=current_user.id)
 
+    return RedirectResponse(url=f"/decks/{deck_id}", status_code=303)
+
+
+@app.post("/decks/rows/{row_id}/toggle-commander")
+async def toggle_commander(
+    request: Request,
+    row_id: int,
+    deck_id: int = Form(...),
+    session: Session = Depends(get_db_session),
+    current_user: User = Depends(get_current_user),
+    _: None = CsrfRequired,
+):
+    row = (
+        session.query(InventoryRow)
+        .filter(InventoryRow.id == row_id, InventoryRow.user_id == current_user.id)
+        .first()
+    )
+    if row:
+        row.role = None if row.role == "commander" else "commander"
+        session.commit()
     return RedirectResponse(url=f"/decks/{deck_id}", status_code=303)
 
 

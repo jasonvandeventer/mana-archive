@@ -52,7 +52,6 @@ class Card(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
     inventory_rows: Mapped[list[InventoryRow]] = relationship(back_populates="card")
-    deck_items: Mapped[list[DeckItem]] = relationship(back_populates="card")
     transaction_logs: Mapped[list[TransactionLog]] = relationship(back_populates="card")
 
 
@@ -92,6 +91,7 @@ class InventoryRow(Base):
     drawer: Mapped[str | None] = mapped_column(String(32), nullable=True, index=True)
     slot: Mapped[str | None] = mapped_column(String(32), nullable=True)
     is_pending: Mapped[bool] = mapped_column(Boolean, default=True, index=True)
+    role: Mapped[str | None] = mapped_column(String(32), nullable=True)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
@@ -117,23 +117,6 @@ class Deck(Base):
 
     storage_location: Mapped[StorageLocation | None] = relationship()
     user: Mapped[User] = relationship(back_populates="decks")
-    items: Mapped[list[DeckItem]] = relationship(
-        back_populates="deck", cascade="all, delete-orphan"
-    )
-
-
-class DeckItem(Base):
-    __tablename__ = "deck_items"
-
-    id: Mapped[int] = mapped_column(primary_key=True)
-    deck_id: Mapped[int] = mapped_column(ForeignKey("decks.id"), index=True)
-    card_id: Mapped[int] = mapped_column(ForeignKey("cards.id"), index=True)
-    finish: Mapped[str] = mapped_column(String(32), default="normal", index=True)
-    quantity: Mapped[int] = mapped_column(Integer, default=1)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
-
-    deck: Mapped[Deck] = relationship(back_populates="items")
-    card: Mapped[Card] = relationship(back_populates="deck_items")
 
 
 class ImportBatch(Base):
