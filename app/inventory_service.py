@@ -513,6 +513,29 @@ def list_pending_rows(session: Session, user_id: int) -> list[InventoryRow]:
     return rows
 
 
+def _get_or_create_drawer_location(session: Session, user_id: int, drawer: str) -> StorageLocation:
+    location = (
+        session.query(StorageLocation)
+        .filter(
+            StorageLocation.user_id == user_id,
+            StorageLocation.name == f"Drawer {drawer}",
+            StorageLocation.type == "drawer",
+        )
+        .one_or_none()
+    )
+    if location is None:
+        location = StorageLocation(
+            user_id=user_id,
+            name=f"Drawer {drawer}",
+            type="drawer",
+            parent_id=None,
+            sort_order=int(drawer) if drawer.isdigit() else 0,
+        )
+        session.add(location)
+        session.flush()
+    return location
+
+
 def confirm_pending_row(session: Session, row_id: int, user_id: int) -> InventoryRow | None:
     row = (
         session.query(InventoryRow)
@@ -529,18 +552,7 @@ def confirm_pending_row(session: Session, row_id: int, user_id: int) -> Inventor
     if not row.is_pending:
         return row
 
-    location = (
-        session.query(StorageLocation)
-        .filter(
-            StorageLocation.user_id == user_id,
-            StorageLocation.name == f"Drawer {row.drawer}",
-            StorageLocation.type == "drawer",
-        )
-        .one_or_none()
-    )
-
-    if location is None:
-        raise ValueError(f"No storage location found for Drawer {row.drawer}")
+    location = _get_or_create_drawer_location(session, user_id, row.drawer)
 
     row.storage_location_id = location.id
     row.is_pending = False
@@ -575,17 +587,7 @@ def confirm_all_pending(session: Session, user_id: int) -> int:
         if not row.drawer or not row.slot:
             continue
 
-        location = (
-            session.query(StorageLocation)
-            .filter(
-                StorageLocation.user_id == user_id,
-                StorageLocation.name == f"Drawer {row.drawer}",
-                StorageLocation.type == "drawer",
-            )
-            .one_or_none()
-        )
-        if location is None:
-            continue
+        location = _get_or_create_drawer_location(session, user_id, row.drawer)
 
         row.storage_location_id = location.id
         row.is_pending = False
