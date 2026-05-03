@@ -3,13 +3,11 @@
   <section class="panel">
     <h2>Choose Printing</h2>
     <p class="muted">Search: {{ query }}</p>
-
     <form action="/import/manual/search" method="post" class="filter-row">
       <input type="text" name="name" value="{{ query }}" placeholder="Card name">
       <button type="submit">Search Again</button>
     </form>
   </section>
-
   {% if results %}
     <section class="card-grid-section">
       <div class="inventory-grid">
@@ -30,23 +28,19 @@
                 <div class="inventory-thumb placeholder"></div>
               {% endif %}
             </div>
-
             <div class="inventory-card-body">
               <h3 class="inventory-card-title">{{ card.name }}</h3>
-              <div class="inventory-subtitle">
-                {{ card.set_name }} · {{ card.set|upper }} #{{ card.collector_number }}
-              </div>
+              <div class="inventory-subtitle">{{ card.set_name }} · {{ card.set|upper }} #{{ card.collector_number }}</div>
               <div class="inventory-meta">
                 {{ card.rarity|capitalize }}
-                {% if card.prices %}
-                  · ${{ card.prices.usd or card.prices.usd_foil or card.prices.usd_etched or "—" }}
-                {% endif %}
+                {% if card.prices %}· ${{ card.prices.usd or card.prices.usd_foil or card.prices.usd_etched or "—" }}{% endif %}
               </div>
-
               <form action="/import/manual/preview"
                     method="post"
                     class="inline-form"
-                    style="margin-top: 0.75rem; gap: 0.4rem; flex-wrap: wrap;">
+                    style="margin-top: 0.75rem;
+                           gap: 0.4rem;
+                           flex-wrap: wrap">
                 <input type="hidden" name="scryfall_id" value="{{ card.id }}">
                 <select name="finish">
                   <option value="normal">Normal</option>

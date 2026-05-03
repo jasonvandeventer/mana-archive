@@ -193,6 +193,7 @@ def fetch_set_cards(set_code: str) -> list[dict[str, Any]]:
 
     return results
 
+
 def search_cards_by_name(name: str, limit: int = 20) -> list[dict[str, Any]]:
     query = name.strip()
     if not query:
@@ -200,7 +201,7 @@ def search_cards_by_name(name: str, limit: int = 20) -> list[dict[str, Any]]:
 
     url = (
         "https://api.scryfall.com/cards/search"
-        f"?q=!\"{query}\" or {query}&unique=prints&order=released&dir=desc"
+        f'?q=!"{query}" or {query}&unique=prints&order=released&dir=desc'
     )
 
     data = _get_json(url)
