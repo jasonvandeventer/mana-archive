@@ -1,5 +1,22 @@
 {% extends "base.html" %}
 {% block content %}
+  {% if show_onboarding %}
+    <section class="panel">
+      <h3>Welcome to Mana Archive</h3>
+      <p class="muted small-text">Most users start by importing their collection, then build decks.</p>
+      <div style="display:flex; gap:1rem; flex-wrap:wrap;">
+        <a href="/import">
+          <button type="button">Import Collection</button>
+        </a>
+        <a href="/collection/add">
+          <button type="button">Add Cards</button>
+        </a>
+        <a href="/decks">
+          <button type="button">Go to Decks</button>
+        </a>
+      </div>
+    </section>
+  {% endif %}
   <section class="panel hero-panel compact-hero">
     <div class="panel-topline">Collection</div>
     <div class="hero-row">

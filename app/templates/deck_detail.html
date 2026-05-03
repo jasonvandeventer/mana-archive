@@ -8,6 +8,14 @@
           <h2 class="panel-title">{{ deck.name }}</h2>
           <p class="muted">{{ deck.format or 'Unspecified format' }}</p>
           {% if deck.notes %}<p class="muted">{{ deck.notes }}</p>{% endif %}
+          <form action="/decks/{{ deck.id }}/delete"
+                method="post"
+                style="margin-top: 0.75rem">
+            <button type="submit"
+                    onclick="return confirm('Delete this deck? This will remove all cards in this deck.');">
+              Delete Deck
+            </button>
+          </form>
         </div>
         <div class="hero-stats-inline">
           <span>{{ items|length }} entries</span>

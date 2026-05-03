@@ -18,6 +18,7 @@ from sqlalchemy.orm import Session, joinedload
 from starlette.middleware.sessions import SessionMiddleware
 
 from app.audit_service import list_transaction_logs
+from app.auth import hash_password
 from app.db import init_db
 from app.deck_service import (
     create_deck,
@@ -102,6 +103,36 @@ def home(
             "title": "Mana Archive",
             "current_user": current_user,
         },
+    )
+
+
+@app.post("/register")
+def register(
+    username: str = Form(...),
+    password: str = Form(...),
+    session: Session = Depends(get_db_session),
+):
+    existing = session.query(User).filter(User.username == username).first()
+    if existing:
+        return RedirectResponse("/login?error=exists", status_code=303)
+
+    user = User(
+        username=username,
+        password_hash=hash_password(password),
+        is_active=True,
+    )
+    session.add(user)
+    session.commit()
+
+    return RedirectResponse("/login", status_code=303)
+
+
+@app.get("/register")
+def register_page(request: Request):
+    return templates.TemplateResponse(
+        request=request,
+        name="register.html",
+        context={"request": request, "title": "Register"},
     )
 
 
@@ -467,6 +498,7 @@ def collection_page(
         )
 
     total_pages = max(1, math.ceil(total_count / per_page))
+    show_onboarding = total_count == 0
 
     return templates.TemplateResponse(
         request=request,
@@ -494,6 +526,7 @@ def collection_page(
             "locations": locations,
             "location_id": location_id,
             "current_user": current_user,
+            "show_onboarding": show_onboarding,
         },
     )
 
@@ -872,6 +905,7 @@ def decks_page(
     current_user: User = Depends(get_current_user),
 ):
     decks = list_decks(session, user_id=current_user.id)
+    show_onboarding = len(decks) == 0
 
     return templates.TemplateResponse(
         request=request,
@@ -881,6 +915,7 @@ def decks_page(
             "title": "Decks",
             "decks": decks,
             "current_user": current_user,
+            "show_onboarding": show_onboarding,
         },
     )
 
