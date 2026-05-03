@@ -10,13 +10,13 @@ from __future__ import annotations
 import html
 import math
 import os
+from urllib.parse import urlparse
 
 from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session, joinedload
 from starlette.middleware.sessions import SessionMiddleware
-from urllib.parse import urlparse
 
 from app.audit_service import list_transaction_logs
 from app.auth import hash_password
@@ -86,6 +86,7 @@ async def value_error_handler(request: Request, exc: ValueError) -> HTMLResponse
         f"<h2>Error</h2><p>{html.escape(str(exc))}</p><a href='/collection'>Back to collection</a>",
         status_code=400,
     )
+
 
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
@@ -170,13 +171,17 @@ async def import_preview(
     file_bytes = await file.read()
     result = parse_scanner_csv(file_bytes)
 
-    return render(request, "import_preview.html", {
-        "title": "Import Preview",
-        "valid_rows": result["valid_rows"],
-        "invalid_rows": result["invalid_rows"],
-        "filename": file.filename,
-        "current_user": current_user,
-    })
+    return render(
+        request,
+        "import_preview.html",
+        {
+            "title": "Import Preview",
+            "valid_rows": result["valid_rows"],
+            "invalid_rows": result["invalid_rows"],
+            "filename": file.filename,
+            "current_user": current_user,
+        },
+    )
 
 
 @app.post("/import/commit")
@@ -245,16 +250,20 @@ async def manual_import_preview(
         if card:
             resolved_id = card["scryfall_id"]
 
-    return render(request, "manual_preview.html", {
-        "title": "Manual Import Preview",
-        "card": card,
-        "resolved_scryfall_id": resolved_id,
-        "finish": normalize_finish(finish),
-        "quantity": max(1, quantity),
-        "set_code": set_code,
-        "collector_number": collector_number,
-        "current_user": current_user,
-    })
+    return render(
+        request,
+        "manual_preview.html",
+        {
+            "title": "Manual Import Preview",
+            "card": card,
+            "resolved_scryfall_id": resolved_id,
+            "finish": normalize_finish(finish),
+            "quantity": max(1, quantity),
+            "set_code": set_code,
+            "collector_number": collector_number,
+            "current_user": current_user,
+        },
+    )
 
 
 @app.post("/import/manual/search")
@@ -266,12 +275,16 @@ async def manual_import_search(
 ):
     results = search_cards_by_name(name)
 
-    return render(request, "manual_search_results.html", {
-        "title": "Choose Printing",
-        "query": name,
-        "results": results,
-        "current_user": current_user,
-    })
+    return render(
+        request,
+        "manual_search_results.html",
+        {
+            "title": "Choose Printing",
+            "query": name,
+            "results": results,
+            "current_user": current_user,
+        },
+    )
 
 
 @app.post("/import/manual/commit")
@@ -308,15 +321,19 @@ async def manual_import_commit(
     if result.get("imported_row_ids"):
         resorted_count = resort_collection(session, user_id=current_user.id)
 
-    return render(request, "import_result.html", {
-        "title": "Import Results",
-        "imported_count": result["imported_count"],
-        "failed_rows": result["failed_rows"],
-        "batch_id": result["batch_id"],
-        "resorted_count": resorted_count,
-        "resort_skipped": False,
-        "current_user": current_user,
-    })
+    return render(
+        request,
+        "import_result.html",
+        {
+            "title": "Import Results",
+            "imported_count": result["imported_count"],
+            "failed_rows": result["failed_rows"],
+            "batch_id": result["batch_id"],
+            "resorted_count": resorted_count,
+            "resort_skipped": False,
+            "current_user": current_user,
+        },
+    )
 
 
 # -----------------------------------------------------------------------------
@@ -510,30 +527,34 @@ def collection_page(
     total_pages = max(1, math.ceil(total_count / per_page))
     show_onboarding = total_count == 0
 
-    return render(request, "collection.html", {
-        "title": "Collection",
-        "items": items,
-        "search": search,
-        "finish_filter": finish,
-        "drawer_filter": drawer,
-        "sort": sort,
-        "direction": direction,
-        "page": page,
-        "per_page": per_page,
-        "total_count": total_count,
-        "total_pages": total_pages,
-        "total_value": stats["total_value"],
-        "total_cards": stats["total_cards"],
-        "unique_cards": stats["unique_cards"],
-        "drawer_counts": stats["drawer_counts"],
-        "unassigned_count": stats["unassigned_count"],
-        "location_counts": location_counts,
-        "decks": decks,
-        "locations": locations,
-        "location_id": location_id,
-        "current_user": current_user,
-        "show_onboarding": show_onboarding,
-    })
+    return render(
+        request,
+        "collection.html",
+        {
+            "title": "Collection",
+            "items": items,
+            "search": search,
+            "finish_filter": finish,
+            "drawer_filter": drawer,
+            "sort": sort,
+            "direction": direction,
+            "page": page,
+            "per_page": per_page,
+            "total_count": total_count,
+            "total_pages": total_pages,
+            "total_value": stats["total_value"],
+            "total_cards": stats["total_cards"],
+            "unique_cards": stats["unique_cards"],
+            "drawer_counts": stats["drawer_counts"],
+            "unassigned_count": stats["unassigned_count"],
+            "location_counts": location_counts,
+            "decks": decks,
+            "locations": locations,
+            "location_id": location_id,
+            "current_user": current_user,
+            "show_onboarding": show_onboarding,
+        },
+    )
 
 
 @app.post("/collection/update-location")
@@ -599,12 +620,16 @@ def pending_page(
 
     view_model = build_pending_view_model(rows)
 
-    return render(request, "pending.html", {
-        "title": "Pending Placement",
-        **view_model,
-        "latest_batch_id": latest_batch.id if latest_batch else None,
-        "current_user": current_user,
-    })
+    return render(
+        request,
+        "pending.html",
+        {
+            "title": "Pending Placement",
+            **view_model,
+            "latest_batch_id": latest_batch.id if latest_batch else None,
+            "current_user": current_user,
+        },
+    )
 
 
 @app.post("/pending/confirm")
@@ -671,14 +696,18 @@ def locations_page(
 
     parent_locations = [loc for loc in locations if loc.type in {"root", "box", "binder", "other"}]
 
-    return render(request, "locations.html", {
-        "title": "Storage Locations",
-        "locations": locations,
-        "parent_locations": parent_locations,
-        "location_types": ["drawer", "binder", "box", "deck", "other"],
-        "location_summaries": location_summaries,
-        "current_user": current_user,
-    })
+    return render(
+        request,
+        "locations.html",
+        {
+            "title": "Storage Locations",
+            "locations": locations,
+            "parent_locations": parent_locations,
+            "location_types": ["drawer", "binder", "box", "deck", "other"],
+            "location_summaries": location_summaries,
+            "current_user": current_user,
+        },
+    )
 
 
 @app.post("/locations")
@@ -745,14 +774,18 @@ def location_detail_page(
             }
         )
 
-    return render(request, "location_detail.html", {
-        "title": location.name,
-        "location": location,
-        "items": items,
-        "total_quantity": total_quantity,
-        "total_value": total_value,
-        "current_user": current_user,
-    })
+    return render(
+        request,
+        "location_detail.html",
+        {
+            "title": location.name,
+            "location": location,
+            "items": items,
+            "total_quantity": total_quantity,
+            "total_value": total_value,
+            "current_user": current_user,
+        },
+    )
 
 
 # -----------------------------------------------------------------------------
@@ -779,11 +812,15 @@ def drawers_page(
 
     drawer_summaries.sort(key=lambda d: d["drawer"])
 
-    return render(request, "drawers.html", {
-        "title": "Drawers",
-        "drawer_summaries": drawer_summaries,
-        "current_user": current_user,
-    })
+    return render(
+        request,
+        "drawers.html",
+        {
+            "title": "Drawers",
+            "drawer_summaries": drawer_summaries,
+            "current_user": current_user,
+        },
+    )
 
 
 @app.get("/drawers/{drawer}")
@@ -818,16 +855,20 @@ def drawer_detail_page(
         total_copies += row.quantity
         total_value += total
 
-    return render(request, "drawer_detail.html", {
-        "title": f"Drawer {drawer}",
-        "drawer": drawer,
-        "drawer_label": get_drawer_label(drawer),
-        "items": items,
-        "entry_count": len(items),
-        "total_copies": total_copies,
-        "total_value": total_value,
-        "current_user": current_user,
-    })
+    return render(
+        request,
+        "drawer_detail.html",
+        {
+            "title": f"Drawer {drawer}",
+            "drawer": drawer,
+            "drawer_label": get_drawer_label(drawer),
+            "items": items,
+            "entry_count": len(items),
+            "total_copies": total_copies,
+            "total_value": total_value,
+            "current_user": current_user,
+        },
+    )
 
 
 # -----------------------------------------------------------------------------
@@ -849,12 +890,16 @@ def audit_page(
         .all()
     )
 
-    return render(request, "audit.html", {
-        "title": "Audit Log",
-        "logs": logs,
-        "batches": batches,
-        "current_user": current_user,
-    })
+    return render(
+        request,
+        "audit.html",
+        {
+            "title": "Audit Log",
+            "logs": logs,
+            "batches": batches,
+            "current_user": current_user,
+        },
+    )
 
 
 @app.post("/imports/undo-last")
@@ -892,12 +937,16 @@ def decks_page(
     decks = list_decks(session, user_id=current_user.id)
     show_onboarding = len(decks) == 0
 
-    return render(request, "decks.html", {
-        "title": "Decks",
-        "decks": decks,
-        "current_user": current_user,
-        "show_onboarding": show_onboarding,
-    })
+    return render(
+        request,
+        "decks.html",
+        {
+            "title": "Decks",
+            "decks": decks,
+            "current_user": current_user,
+            "show_onboarding": show_onboarding,
+        },
+    )
 
 
 @app.post("/decks/create")
@@ -999,17 +1048,21 @@ def deck_detail_page(
                 }
             )
 
-    return render(request, "deck_detail.html", {
-        "title": deck.name if deck else "Deck",
-        "deck": deck,
-        "items": items if deck else [],
-        "deck_total_value": deck_total_value if deck else 0.0,
-        "deck_total_cards": total_cards if deck else 0,
-        "search": search,
-        "collection_search": collection_search,
-        "collection_results": collection_results if deck else [],
-        "current_user": current_user,
-    })
+    return render(
+        request,
+        "deck_detail.html",
+        {
+            "title": deck.name if deck else "Deck",
+            "deck": deck,
+            "items": items if deck else [],
+            "deck_total_value": deck_total_value if deck else 0.0,
+            "deck_total_cards": total_cards if deck else 0,
+            "search": search,
+            "collection_search": collection_search,
+            "collection_results": collection_results if deck else [],
+            "current_user": current_user,
+        },
+    )
 
 
 @app.post("/decks/{deck_id}/delete")
@@ -1127,14 +1180,18 @@ def card_detail_page(
         total_copies += row.quantity
         total_value += total
 
-    return render(request, "card_detail.html", {
-        "title": target_card.name,
-        "card": target_card,
-        "rows": card_rows,
-        "total_copies": total_copies,
-        "total_value": total_value,
-        "current_user": current_user,
-    })
+    return render(
+        request,
+        "card_detail.html",
+        {
+            "title": target_card.name,
+            "card": target_card,
+            "rows": card_rows,
+            "total_copies": total_copies,
+            "total_value": total_value,
+            "current_user": current_user,
+        },
+    )
 
 
 @app.post("/cards/refresh")
@@ -1197,11 +1254,15 @@ def sets_page(
 ):
     sets = list_owned_sets(session, user_id=current_user.id)
 
-    return render(request, "sets.html", {
-        "title": "Sets",
-        "sets": sets,
-        "current_user": current_user,
-    })
+    return render(
+        request,
+        "sets.html",
+        {
+            "title": "Sets",
+            "sets": sets,
+            "current_user": current_user,
+        },
+    )
 
 
 @app.get("/sets/{set_code}")
@@ -1214,8 +1275,12 @@ def set_detail_page(
 ):
     data = get_set_completion(session, set_code, view=view, user_id=current_user.id)
 
-    return render(request, "set_detail.html", {
-        "title": data["set_name"],
-        "data": data,
-        "current_user": current_user,
-    })
+    return render(
+        request,
+        "set_detail.html",
+        {
+            "title": data["set_name"],
+            "data": data,
+            "current_user": current_user,
+        },
+    )

@@ -1,7 +1,6 @@
-from fastapi import APIRouter, Form, Request
+from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
-from fastapi import Depends
 
 from app.auth import authenticate_user
 from app.dependencies import CsrfRequired, get_db_session, render
