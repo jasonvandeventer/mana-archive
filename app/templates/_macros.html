@@ -1,11 +1,11 @@
 {% macro inventory_card(item, csrf_token,
-    show_collection_actions=false,
-    show_location_label=false,
-    show_deck_actions=false,
-    deck=none,
-    decks=none,
-    locations=none,
-    use_drawer_sorter=false) %}
+  show_collection_actions=false,
+  show_location_label=false,
+  show_deck_actions=false,
+  deck=none,
+  decks=none,
+  locations=none,
+  use_drawer_sorter=false) %}
   <article class="inventory-card inventory-card-compact">
     <div class="inventory-card-media">
       {% if item.card.image_url %}
@@ -30,7 +30,7 @@
       </div>
       <div class="inventory-meta">
         <span class="finish-badge">{{ item.finish|capitalize }}</span>
-        {% if item.card.mana_cost %} · {{ item.card.mana_cost }}{% endif %}
+        {% if item.card.mana_cost %}· {{ item.card.mana_cost }}{% endif %}
         · Qty {{ item.quantity }} ·
         {% if item.price_status is defined and item.price_status %}
           {% if item.price_status == "current" %}
@@ -70,80 +70,109 @@
         {% endif %}
       </div>
       {% if show_collection_actions %}
-        <form action="/inventory/rows/{{ item.id }}/remove"
-              method="post"
-              class="inline-form"
-              style="margin-top: 0.5rem; gap: 0.4rem; flex-wrap: wrap">
-          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-          <input type="number" name="quantity" min="1" max="{{ item.quantity }}" value="1" style="width: 64px">
-          <button type="submit">Remove</button>
-        </form>
-        {% if decks %}
-          <form action="/decks/pull"
-                method="post"
-                class="deck-add-form"
-                style="margin-top: 0.75rem; display: flex; gap: 0.4rem; align-items: center; flex-wrap: wrap">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-            <input type="hidden" name="inventory_row_id" value="{{ item.id }}">
-            <select name="deck_id" required>
-              {% for d in decks %}<option value="{{ d.id }}">{{ d.name }}</option>{% endfor %}
-            </select>
-            <input type="number" name="quantity" value="1" min="1" max="{{ item.quantity }}" style="width: 64px">
-            <button type="submit">Add to Deck</button>
-          </form>
-        {% endif %}
-        {% if locations %}
-          {% set movable = locations | selectattr("type", "ne", "root") | selectattr("type", "ne", "deck") | list %}
-          {% if movable %}
-            <form action="/inventory/rows/{{ item.id }}/move"
+        <details class="card-actions-drawer">
+          <summary>Actions</summary>
+          <div class="card-actions-body">
+            <form action="/inventory/rows/{{ item.id }}/remove"
                   method="post"
-                  class="inline-form"
-                  style="margin-top: 0.5rem; flex-wrap: wrap; gap: 0.4rem">
+                  class="inline-form">
               <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-              <select name="location_id" required>
-                {% for loc in movable %}
-                  <option value="{{ loc.id }}"
-                          {% if item.storage_location_id == loc.id %}selected{% endif %}>
-                    {{ loc.name }} ({{ loc.type }})
-                  </option>
-                {% endfor %}
-              </select>
-              <button type="submit">Move</button>
+              <input type="number"
+                     name="quantity"
+                     min="1"
+                     max="{{ item.quantity }}"
+                     value="1"
+                     style="width: 64px">
+              <button type="submit">Remove</button>
             </form>
-          {% endif %}
-        {% endif %}
-        <div class="inventory-actions" style="display: flex; gap: 0.4rem; margin-top: 0.5rem; flex-wrap: wrap">
-          <form action="/inventory/rows/{{ item.id }}/sell" method="post" class="inline-form">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-            <input type="hidden" name="quantity" value="1">
-            <button type="submit">Sell 1</button>
-          </form>
-          <form action="/inventory/rows/{{ item.id }}/trade" method="post" class="inline-form">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-            <input type="hidden" name="quantity" value="1">
-            <button type="submit">Trade 1</button>
-          </form>
-          <form action="/inventory/rows/{{ item.id }}/delete" method="post" class="inline-form">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-            <button type="submit" onclick="return confirm('Delete this row?')">Delete Row</button>
-          </form>
-          <form action="/cards/refresh" method="post" class="inline-form">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-            <input type="hidden" name="card_id" value="{{ item.card.id }}">
-            <button type="submit">Refresh Price</button>
-          </form>
-        </div>
+            {% if decks %}
+              <form action="/decks/pull"
+                    method="post"
+                    class="inline-form"
+                    style="flex-wrap: wrap">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                <input type="hidden" name="inventory_row_id" value="{{ item.id }}">
+                <select name="deck_id" required>
+                  {% for d in decks %}<option value="{{ d.id }}">{{ d.name }}</option>{% endfor %}
+                </select>
+                <input type="number"
+                       name="quantity"
+                       value="1"
+                       min="1"
+                       max="{{ item.quantity }}"
+                       style="width: 64px">
+                <button type="submit">Add to Deck</button>
+              </form>
+            {% endif %}
+            {% if locations %}
+              {% set movable = locations | selectattr("type", "ne", "root") | selectattr("type", "ne", "deck") | list %}
+              {% if movable %}
+                <form action="/inventory/rows/{{ item.id }}/move"
+                      method="post"
+                      class="inline-form"
+                      style="flex-wrap: wrap">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                  <select name="location_id" required>
+                    {% for loc in movable %}
+                      <option value="{{ loc.id }}"
+                              {% if item.storage_location_id == loc.id %}selected{% endif %}>
+                        {{ loc.name }} ({{ loc.type }})
+                      </option>
+                    {% endfor %}
+                  </select>
+                  <button type="submit">Move</button>
+                </form>
+              {% endif %}
+            {% endif %}
+            <div class="card-actions-row">
+              <form action="/inventory/rows/{{ item.id }}/sell"
+                    method="post"
+                    class="inline-form">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                <input type="hidden" name="quantity" value="1">
+                <button type="submit">Sell 1</button>
+              </form>
+              <form action="/inventory/rows/{{ item.id }}/trade"
+                    method="post"
+                    class="inline-form">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                <input type="hidden" name="quantity" value="1">
+                <button type="submit">Trade 1</button>
+              </form>
+              <form action="/inventory/rows/{{ item.id }}/delete"
+                    method="post"
+                    class="inline-form">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                <button type="submit" onclick="return confirm('Delete this row?')">Delete Row</button>
+              </form>
+              <form action="/cards/refresh" method="post" class="inline-form">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                <input type="hidden" name="card_id" value="{{ item.card.id }}">
+                <button type="submit">Refresh Price</button>
+              </form>
+            </div>
+          </div>
+        </details>
       {% endif %}
       {% if show_deck_actions and deck %}
-        <div style="display: flex; gap: 0.4rem; flex-wrap: wrap; margin-top: 0.5rem">
-          <form action="/decks/rows/{{ item.id }}/toggle-commander" method="post" class="inline-form">
+        <div style="display: flex;
+                    flex-direction: column;
+                    gap: 0.4rem;
+                    margin-top: 0.5rem">
+          <form action="/decks/rows/{{ item.id }}/toggle-commander"
+                method="post"
+                class="inline-form">
             <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
             <input type="hidden" name="deck_id" value="{{ deck.id }}">
             <button type="submit">
-              {% if item.role == 'commander' %}Remove Commander{% else %}Mark as Commander{% endif %}
+              {% if item.role == 'commander' %}
+                Remove Commander
+              {% else %}
+                Mark as Commander
+              {% endif %}
             </button>
           </form>
-          <form action="/decks/return" method="post" class="return-form compact-form-grid">
+          <form action="/decks/return" method="post" class="return-form">
             <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
             <input type="hidden" name="deck_id" value="{{ deck.id }}">
             <input type="hidden" name="deck_row_id" value="{{ item.id }}">
@@ -153,7 +182,7 @@
                 <input type="text" name="slot" placeholder="Slot override">
                 <button type="submit">Remove from Deck</button>
               </div>
-              <p class="muted small-text">Leave blank to send to Pending.</p>
+              <p class="muted small-text" style="margin: 0.2rem 0 0">Leave blank to send to Pending.</p>
             {% else %}
               <button type="submit">Remove from Deck</button>
             {% endif %}

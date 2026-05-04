@@ -109,6 +109,33 @@ def get_location_summary(session: Session, user_id: int) -> list[dict]:
     return summaries
 
 
+def delete_location(session: Session, location_id: int, user_id: int) -> None:
+    location = get_location(session, location_id=location_id, user_id=user_id)
+    if location is None:
+        raise ValueError("Location not found.")
+    if location.type in ("root", "deck"):
+        raise ValueError("This location cannot be deleted directly.")
+    has_rows = (
+        session.query(InventoryRow)
+        .filter(
+            InventoryRow.user_id == user_id,
+            InventoryRow.storage_location_id == location_id,
+        )
+        .first()
+    )
+    if has_rows:
+        raise ValueError(
+            "Cannot delete a location that still contains cards. Move or remove them first."
+        )
+    has_children = (
+        session.query(StorageLocation).filter(StorageLocation.parent_id == location_id).first()
+    )
+    if has_children:
+        raise ValueError("Cannot delete a location that has child locations.")
+    session.delete(location)
+    session.commit()
+
+
 def list_rows_for_location(
     session: Session,
     user_id: int,

@@ -13,7 +13,7 @@
         &nbsp;·&nbsp; Foil: ${{ card.price_usd_foil or "0.00" }}
         &nbsp;·&nbsp; Etched: ${{ card.price_usd_etched or "0.00" }}
       </p>
-      {% set placeable = locations | selectattr("type", "ne", "root") | list %}
+      {% set placeable = locations | selectattr("type", "ne", "root") | selectattr("type", "ne", "deck") | list %}
       <form action="/import/manual/commit"
             method="post"
             class="filter-row"

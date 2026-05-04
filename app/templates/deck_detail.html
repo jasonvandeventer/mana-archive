@@ -114,9 +114,9 @@
         <div class="inventory-grid">
           {% for item in commanders %}
             {{ inventory_card(item, csrf_token,
-                show_deck_actions=true,
-                deck=deck,
-                use_drawer_sorter=use_drawer_sorter) }}
+                        show_deck_actions=true,
+                        deck=deck,
+                        use_drawer_sorter=use_drawer_sorter) }}
           {% endfor %}
         </div>
       </section>
@@ -131,7 +131,17 @@
                name="search"
                placeholder="name, t:type, c:WU, cmc:&gt;3, o:oracle"
                value="{{ search }}">
-        <button type="submit">Search Deck</button>
+        <select name="sort">
+          <option value="name" {% if sort == 'name' %}selected{% endif %}>Name</option>
+          <option value="type" {% if sort == 'type' %}selected{% endif %}>Type</option>
+          <option value="cmc" {% if sort == 'cmc' %}selected{% endif %}>Mana Cost</option>
+          <option value="value" {% if sort == 'value' %}selected{% endif %}>Price</option>
+        </select>
+        <select name="direction">
+          <option value="asc" {% if direction == 'asc' %}selected{% endif %}>Ascending</option>
+          <option value="desc" {% if direction == 'desc' %}selected{% endif %}>Descending</option>
+        </select>
+        <button type="submit">Apply</button>
         <a href="/decks/{{ deck.id }}?collection_search={{ collection_search }}">
           <button type="button">Clear</button>
         </a>
@@ -142,9 +152,9 @@
         <div class="inventory-grid">
           {% for item in items %}
             {{ inventory_card(item, csrf_token,
-                show_deck_actions=true,
-                deck=deck,
-                use_drawer_sorter=use_drawer_sorter) }}
+                        show_deck_actions=true,
+                        deck=deck,
+                        use_drawer_sorter=use_drawer_sorter) }}
           {% endfor %}
         </div>
       </section>

@@ -15,7 +15,7 @@
       {% endif %}
     </p>
     {% if valid_rows %}
-      {% set placeable = locations | selectattr("type", "ne", "root") | list %}
+      {% set placeable = locations | selectattr("type", "ne", "root") | selectattr("type", "ne", "deck") | list %}
       <form action="/import/commit"
             method="post"
             class="filter-row"

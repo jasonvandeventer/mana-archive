@@ -69,11 +69,12 @@ from app.inventory_service import (
 )
 from app.location_service import (
     create_location,
+    delete_location,
     get_location,
     get_location_summary,
     list_locations,
 )
-from app.models import Card, ImportBatch, InventoryRow, User
+from app.models import Card, Deck, ImportBatch, InventoryRow, User
 from app.presentation_service import build_pending_view_model
 from app.pricing import effective_price
 from app.routes import account, admin, auth
@@ -896,7 +897,7 @@ def locations_page(
             "title": "Storage Locations",
             "locations": locations,
             "parent_locations": parent_locations,
-            "location_types": ["drawer", "binder", "box", "deck", "other"],
+            "location_types": ["binder", "box", "drawer", "other"],
             "location_summaries": location_summaries,
             "current_user": current_user,
         },
@@ -927,6 +928,17 @@ def create_location_route(
     return RedirectResponse("/locations", status_code=303)
 
 
+@app.post("/locations/{location_id}/delete")
+def delete_location_route(
+    location_id: int,
+    session: Session = Depends(get_db_session),
+    current_user: User = Depends(get_current_user),
+    _: None = CsrfRequired,
+):
+    delete_location(session, location_id=location_id, user_id=current_user.id)
+    return RedirectResponse("/locations", status_code=303)
+
+
 @app.get("/locations/{location_id}")
 def location_detail_page(
     request: Request,
@@ -940,6 +952,11 @@ def location_detail_page(
     location = get_location(session, location_id=location_id, user_id=current_user.id)
     if location is None:
         raise HTTPException(status_code=404, detail="Location not found")
+
+    if location.type == "deck":
+        deck = session.query(Deck).filter(Deck.storage_location_id == location_id).first()
+        if deck:
+            return RedirectResponse(f"/decks/{deck.id}", status_code=302)
 
     loc_query = (
         session.query(InventoryRow)
@@ -1201,6 +1218,8 @@ def deck_detail_page(
     request: Request,
     deck_id: int,
     search: str = "",
+    sort: str = "name",
+    direction: str = "asc",
     collection_search: str = "",
     session: Session = Depends(get_db_session),
     current_user: User = Depends(get_current_user),
@@ -1223,7 +1242,24 @@ def deck_detail_page(
         )
         if search.strip():
             deck_query = apply_collection_search_filters(deck_query, search)
-        deck_rows = deck_query.all()
+
+        reverse = direction == "desc"
+        if sort == "type":
+            deck_query = deck_query.order_by(
+                Card.type_line.desc() if reverse else Card.type_line.asc()
+            )
+        elif sort == "cmc":
+            deck_query = deck_query.order_by(Card.cmc.desc() if reverse else Card.cmc.asc())
+        elif sort == "value":
+            deck_rows = deck_query.all()
+        else:
+            deck_query = deck_query.order_by(Card.name.desc() if reverse else Card.name.asc())
+
+        if sort != "value":
+            deck_rows = deck_query.all()
+
+        if sort == "value":
+            deck_rows.sort(key=lambda r: effective_price(r.card, r.finish) or 0.0, reverse=reverse)
 
         for row in deck_rows:
             price = effective_price(row.card, row.finish) or 0.0
@@ -1279,6 +1315,8 @@ def deck_detail_page(
             "deck_total_value": deck_total_value if deck else 0.0,
             "deck_total_cards": total_cards if deck else 0,
             "search": search,
+            "sort": sort,
+            "direction": direction,
             "collection_search": collection_search,
             "collection_results": collection_results if deck else [],
             "current_user": current_user,

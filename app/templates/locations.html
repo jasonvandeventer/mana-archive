@@ -52,10 +52,21 @@
               <td>{{ summary.row_count }}</td>
               <td>{{ summary.quantity }}</td>
               <td>${{ '%.2f'|format(summary.total_value) }}</td>
-              <td style="text-align: right;">
+              <td style="text-align: right; white-space: nowrap;">
                 <a href="/locations/{{ loc.id }}">
                   <button type="button">Open</button>
                 </a>
+                {% if summary.row_count == 0 and loc.type not in ('root', 'deck') %}
+                  <form action="/locations/{{ loc.id }}/delete"
+                        method="post"
+                        style="display: inline-block;
+                               margin-left: 0.4rem">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                    <button type="submit"
+                            class="btn-danger-small"
+                            onclick="return confirm('Delete location \'{{ loc.name }}\'?');">Delete</button>
+                  </form>
+                {% endif %}
               </td>
             </tr>
           {% endfor %}

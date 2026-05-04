@@ -11,16 +11,22 @@
     </div>
   </section>
   <section class="panel controls-panel">
-    <div style="display: flex; gap: 1rem; flex-wrap: wrap; align-items: center; justify-content: space-between;">
+    <div style="display: flex;
+                gap: 1rem;
+                flex-wrap: wrap;
+                align-items: center;
+                justify-content: space-between">
       <div class="filter-tabs" style="margin: 0;">
         <a href="/sets/{{ data.set_code }}?view=all{% if data.show_tokens %}&show_tokens=true{% endif %}">All</a>
         <a href="/sets/{{ data.set_code }}?view=owned{% if data.show_tokens %}&show_tokens=true{% endif %}">Owned</a>
         <a href="/sets/{{ data.set_code }}?view=missing{% if data.show_tokens %}&show_tokens=true{% endif %}">Missing</a>
       </div>
       {% if data.show_tokens %}
-        <a href="/sets/{{ data.set_code }}?view={{ data.view }}" class="muted small-text">Hide Tokens</a>
+        <a href="/sets/{{ data.set_code }}?view={{ data.view }}"
+           class="muted small-text">Hide Tokens</a>
       {% else %}
-        <a href="/sets/{{ data.set_code }}?view={{ data.view }}&show_tokens=true" class="muted small-text">Show Tokens</a>
+        <a href="/sets/{{ data.set_code }}?view={{ data.view }}&show_tokens=true"
+           class="muted small-text">Show Tokens</a>
       {% endif %}
     </div>
   </section>

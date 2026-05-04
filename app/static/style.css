@@ -304,20 +304,6 @@ textarea {
   gap: 1rem;
   min-height: 230px;
 }
-.inventory-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  margin-top: 0.7rem;
-}
-
-.inventory-actions .inline-form {
-  margin: 0;
-}
-
-.inventory-actions input[type="number"] {
-  width: 4rem;
-}
 
 .inventory-card-compact {
   min-height: 200px;
@@ -712,6 +698,37 @@ td {
   min-width: 0;
   overflow: hidden;
 }
+.card-actions-drawer {
+  margin-top: 0.6rem;
+}
+.card-actions-drawer > summary {
+  cursor: pointer;
+  list-style: none;
+  color: var(--muted);
+  font-size: 0.88rem;
+  user-select: none;
+}
+.card-actions-drawer > summary::-webkit-details-marker {
+  display: none;
+}
+.card-actions-drawer > summary::after {
+  content: " ▾";
+}
+.card-actions-drawer[open] > summary::after {
+  content: " ▴";
+}
+.card-actions-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  margin-top: 0.5rem;
+}
+.card-actions-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
 .nav-user {
   margin-left: auto;
   color: var(--muted);

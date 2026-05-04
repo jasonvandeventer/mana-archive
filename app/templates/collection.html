@@ -123,10 +123,10 @@
       <div class="inventory-grid">
         {% for item in items %}
           {{ inventory_card(item, csrf_token,
-              show_collection_actions=true,
-              show_location_label=true,
-              decks=decks,
-              locations=locations) }}
+                    show_collection_actions=true,
+                    show_location_label=true,
+                    decks=decks,
+                    locations=locations) }}
         {% endfor %}
       </div>
     </section>
