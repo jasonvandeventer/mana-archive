@@ -77,6 +77,9 @@ def _normalize_card_payload(raw: dict[str, Any]) -> dict[str, Any]:
     raw_colors = raw.get("colors") or []
     colors_str = " ".join(raw_colors) if raw_colors else None
 
+    raw_identity = raw.get("color_identity") or []
+    color_identity_str = " ".join(raw_identity)  # "" = colorless, never None after a fetch
+
     return {
         "scryfall_id": raw.get("id"),
         "name": raw.get("name"),
@@ -91,6 +94,7 @@ def _normalize_card_payload(raw: dict[str, Any]) -> dict[str, Any]:
         "price_usd_foil": prices.get("usd_foil"),
         "price_usd_etched": prices.get("usd_etched"),
         "colors": colors_str,
+        "color_identity": color_identity_str,
         "mana_cost": mana_cost,
         "cmc": raw.get("cmc"),
     }
@@ -220,6 +224,7 @@ def refresh_card_from_scryfall(session: Session, card_id: int) -> bool:
     card.price_usd_foil = fresh["price_usd_foil"]
     card.price_usd_etched = fresh["price_usd_etched"]
     card.colors = fresh["colors"]
+    card.color_identity = fresh["color_identity"]
     card.mana_cost = fresh["mana_cost"]
     card.cmc = fresh["cmc"]
     card.updated_at = datetime.utcnow()

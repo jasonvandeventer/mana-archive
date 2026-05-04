@@ -146,9 +146,18 @@ def get_or_create_card(
             existing.price_usd = payload["price_usd"]
             existing.price_usd_foil = payload["price_usd_foil"]
             existing.price_usd_etched = payload["price_usd_etched"]
+            existing.colors = payload.get("colors")
+            existing.color_identity = payload.get("color_identity")
+            existing.mana_cost = payload.get("mana_cost")
+            existing.cmc = payload.get("cmc")
             existing.updated_at = datetime.utcnow()
             session.flush()
-        elif not existing.image_url or not existing.type_line or not existing.oracle_text:
+        elif (
+            not existing.image_url
+            or not existing.type_line
+            or not existing.oracle_text
+            or existing.color_identity is None
+        ):
             payload = fetch_card_by_scryfall_id(scryfall_id)
             if payload:
                 existing.name = payload["name"]
@@ -162,6 +171,10 @@ def get_or_create_card(
                 existing.price_usd = payload["price_usd"]
                 existing.price_usd_foil = payload["price_usd_foil"]
                 existing.price_usd_etched = payload["price_usd_etched"]
+                existing.colors = payload.get("colors")
+                existing.color_identity = payload.get("color_identity")
+                existing.mana_cost = payload.get("mana_cost")
+                existing.cmc = payload.get("cmc")
                 existing.updated_at = datetime.utcnow()
                 session.flush()
         return existing
@@ -369,12 +382,13 @@ def _term_to_clause(key: str | None, value: str):
             return None
         return and_(*color_clauses) if len(color_clauses) > 1 else color_clauses[0]
     if key == "id":
-        # Color identity "within" filter: exclude cards containing any color NOT in the given set.
-        # Approximation using Card.colors — color_identity is not stored separately.
+        # Color identity "within" filter: card's identity must be a subset of the given colors.
+        # Uses Card.color_identity (space-sep WUBRG, "" = colorless, NULL = not yet fetched).
+        # NULL cards are excluded — we can't confirm they fit the identity.
         excluded = [lt for lt in "WUBRG" if lt not in value.upper()]
         if not excluded:
             return None  # id:wubrg matches everything
-        clauses = [not_(Card.colors.contains(lt)) for lt in excluded]
+        clauses = [not_(Card.color_identity.contains(lt)) for lt in excluded]
         return and_(*clauses) if len(clauses) > 1 else clauses[0]
     if key in ("n", "name"):
         return Card.name.ilike(f"%{value}%")

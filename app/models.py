@@ -50,6 +50,7 @@ class Card(Base):
     price_usd_foil: Mapped[str | None] = mapped_column(String(32), nullable=True)
     price_usd_etched: Mapped[str | None] = mapped_column(String(32), nullable=True)
     colors: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    color_identity: Mapped[str | None] = mapped_column(String(64), nullable=True)
     mana_cost: Mapped[str | None] = mapped_column(String(128), nullable=True)
     cmc: Mapped[float | None] = mapped_column(Float, nullable=True)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)

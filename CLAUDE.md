@@ -1,6 +1,6 @@
 # Mana Archive — Claude Context
 
-## Current version: v3.8.7
+## Current version: v3.8.8
 
 ## Stack: FastAPI + Jinja2 + SQLite + K3s/ArgoCD
 
@@ -121,7 +121,7 @@ Templates updated in v3.7: `decks.html`, `import.html`, `import_preview.html`, `
 
 ### Card attributes (v3.8)
 
-- `Card` model gains `colors` (space-sep WUBRG, e.g. `"W U"`), `mana_cost` (e.g. `"{2}{W}"`), `cmc` (float). Migration `v3_8_card_attrs` adds columns; background price-refresh loop backfills existing cards as they age past 7 days.
+- `Card` model gains `colors` (space-sep WUBRG, e.g. `"W U"`), `color_identity` (space-sep WUBRG, `""` = colorless — distinct from `colors` for cards with colored abilities/land types), `mana_cost` (e.g. `"{2}{W}"`), `cmc` (float). Migration `v3_8_card_attrs` adds colors/mana_cost/cmc; migration `v3_8_8_color_identity` adds color_identity. Refresh loop backfills cards with NULL `color_identity`.
 - Extended search syntax everywhere: `c:WU`, `cmc:>3`, `mana:{W}`, on top of existing `t:`, `o:`, `s:`, `r:`, `finish:`.
 - New sort options on collection and location detail: Type, Color (WUBRG order), Mana Cost.
 - Location detail now has search + sort controls (previously unsorted, no search).
@@ -196,5 +196,6 @@ Templates updated in v3.7: `decks.html`, `import.html`, `import_preview.html`, `
 - v3.8.5: Boolean search logic (OR, AND, NOT/-, parentheses, quoted multi-word values) — **shipped**
 - v3.8.6: Search polish — case-insensitive OR/AND, not: keyword, is:/qty:/price:/name: keywords, updated placeholders — **shipped**
 - v3.8.7: id: color identity filter bug fixes — NULL colors excluded by SQLite NOT LIKE; refresh loop now also picks up cards with NULL colors; one-time backfill via individual + set/collector Scryfall fallback fixed ~1,400 stale scryfall_ids — **shipped**
+- v3.8.8: `color_identity` column on `Card` — proper Scryfall `color_identity` field (space-sep WUBRG, `""` = colorless, `NULL` = not yet fetched); `id:` filter now uses this instead of approximating from `colors`; migration `v3_8_8_color_identity` adds column; refresh loop and all card-write paths updated — **shipped**
 - v3.9: Legality sort/filter (needs schema design), game tracker (life totals, 2–8 players, deck selection per seat, results tied to deck records)
 - v4.0: PostgreSQL migration

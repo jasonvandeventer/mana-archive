@@ -4,6 +4,7 @@ from scripts.migrate_v3_4_decks_as_locations import main as migrate_v3_4
 from scripts.migrate_v3_5_drop_deck_items import main as migrate_v3_5_deck_items
 from scripts.migrate_v3_5_inventory_role import main as migrate_v3_5_role
 from scripts.migrate_v3_7_admin_user import main as migrate_v3_7_admin
+from scripts.migrate_v3_8_8_color_identity import main as migrate_v3_8_8_color_identity
 from scripts.migrate_v3_8_card_attrs import main as migrate_v3_8_card_attrs
 
 
@@ -56,6 +57,13 @@ def run():
         _mark_applied("v3_8_card_attrs")
     else:
         print("v3.8 card_attrs already applied, skipping")
+
+    if not _is_applied("v3_8_8_color_identity"):
+        print("Running v3.8.8 color_identity migration...")
+        migrate_v3_8_8_color_identity()
+        _mark_applied("v3_8_8_color_identity")
+    else:
+        print("v3.8.8 color_identity already applied, skipping")
 
     print("Migration runner complete")
 

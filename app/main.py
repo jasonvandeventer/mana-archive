@@ -137,7 +137,7 @@ def _run_price_refresh_batch() -> None:
         stale = (
             session.query(Card)
             .join(InventoryRow, InventoryRow.card_id == Card.id)
-            .filter((Card.updated_at < cutoff) | (Card.colors == None))  # noqa: E711
+            .filter((Card.updated_at < cutoff) | (Card.color_identity == None))  # noqa: E711
             .order_by(Card.updated_at.asc())
             .limit(_PRICE_REFRESH_BATCH)
             .distinct()
@@ -156,6 +156,7 @@ def _run_price_refresh_batch() -> None:
                 card.price_usd_foil = fresh["price_usd_foil"]
                 card.price_usd_etched = fresh["price_usd_etched"]
                 card.colors = fresh.get("colors")
+                card.color_identity = fresh.get("color_identity")
                 card.mana_cost = fresh.get("mana_cost")
                 card.cmc = fresh.get("cmc")
                 card.updated_at = now
