@@ -93,6 +93,42 @@ def _get_json(url: str) -> dict[str, Any] | None:
         return None
 
 
+def _post_json(url: str, payload: dict[str, Any]) -> dict[str, Any] | None:
+    try:
+        _throttle()
+        response = _session.post(url, json=payload, headers=HEADERS, timeout=30)
+        response.raise_for_status()
+        return response.json()
+    except requests.RequestException:
+        return None
+
+
+_COLLECTION_BATCH_SIZE = 75
+
+
+def bulk_refresh_prices(scryfall_ids: list[str]) -> dict[str, dict[str, Any]]:
+    """Fetch fresh price data for many cards using the /cards/collection batch endpoint.
+
+    Returns a dict keyed by scryfall_id with normalized card payloads.
+    Makes ceil(N/75) requests instead of N individual requests.
+    """
+    results: dict[str, dict[str, Any]] = {}
+    ids = [sid for sid in scryfall_ids if sid]
+
+    for i in range(0, len(ids), _COLLECTION_BATCH_SIZE):
+        batch = ids[i : i + _COLLECTION_BATCH_SIZE]
+        payload = {"identifiers": [{"id": sid} for sid in batch]}
+        data = _post_json(f"{SCRYFALL_CARD_URL}/collection", payload)
+        if not data:
+            continue
+        for card in data.get("data", []):
+            normalized = _normalize_card_payload(card)
+            if normalized.get("scryfall_id"):
+                results[normalized["scryfall_id"]] = normalized
+
+    return results
+
+
 @lru_cache(maxsize=8192)
 def _fetch_by_id_cached(scryfall_id: str) -> dict[str, Any] | None:
     scryfall_id = (scryfall_id or "").strip()
@@ -148,13 +184,16 @@ def fetch_card_by_name(name: str, set_code: str = "") -> dict[str, Any] | None:
 
 
 def refresh_card_from_scryfall(session: Session, card_id: int) -> bool:
+    """Refresh a single card from Scryfall. Caller is responsible for commit."""
     card = session.query(Card).filter(Card.id == card_id).first()
     if not card:
         return False
 
-    fresh = fetch_card_by_scryfall_id(card.scryfall_id)
-    if not fresh:
+    # Bypass lru_cache so we get truly fresh data
+    raw = _get_json(f"{SCRYFALL_CARD_URL}/{card.scryfall_id}")
+    if not raw:
         return False
+    fresh = _normalize_card_payload(raw)
 
     card.name = fresh["name"]
     card.set_code = fresh["set_code"]
@@ -168,7 +207,6 @@ def refresh_card_from_scryfall(session: Session, card_id: int) -> bool:
     card.price_usd_foil = fresh["price_usd_foil"]
     card.price_usd_etched = fresh["price_usd_etched"]
     card.updated_at = datetime.utcnow()
-    session.commit()
     return True
 
 

@@ -10,6 +10,9 @@ from __future__ import annotations
 import html
 import math
 import os
+import threading
+import time
+from datetime import datetime, timedelta
 from urllib.parse import urlparse
 
 from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, UploadFile
@@ -20,7 +23,7 @@ from starlette.middleware.sessions import SessionMiddleware
 
 from app.audit_service import list_transaction_logs
 from app.auth import hash_password
-from app.db import init_db
+from app.db import SessionLocal, init_db
 from app.deck_service import (
     create_deck,
     delete_deck,
@@ -51,6 +54,7 @@ from app.inventory_service import (
     get_drawer_label,
     get_inventory_row_stats,
     get_location_label,
+    PRICE_STALE_DAYS,
     is_price_stale,
     list_inventory_rows,
     list_owned_sets,
@@ -74,6 +78,7 @@ from app.presentation_service import build_pending_view_model
 from app.pricing import effective_price
 from app.routes import account, admin, auth
 from app.scryfall import (
+    bulk_refresh_prices,
     fetch_card_by_scryfall_id,
     fetch_card_by_set_and_number,
     refresh_card_from_scryfall,
@@ -118,6 +123,54 @@ def safe_redirect_url(request: Request, default: str = "/collection") -> str:
     return referer
 
 
+_PRICE_REFRESH_INTERVAL_SECONDS = 600  # 10 minutes
+_PRICE_REFRESH_BATCH = 75
+
+
+def _run_price_refresh_batch() -> None:
+    """Refresh up to 75 of the oldest-priced cards that are owned by any user."""
+    session = SessionLocal()
+    try:
+        cutoff = datetime.utcnow() - timedelta(days=PRICE_STALE_DAYS)
+        stale = (
+            session.query(Card)
+            .join(InventoryRow, InventoryRow.card_id == Card.id)
+            .filter(Card.updated_at < cutoff)
+            .order_by(Card.updated_at.asc())
+            .limit(_PRICE_REFRESH_BATCH)
+            .distinct()
+            .all()
+        )
+        if not stale:
+            return
+
+        fresh_by_id = bulk_refresh_prices([c.scryfall_id for c in stale])
+        now = datetime.utcnow()
+        updated = 0
+        for card in stale:
+            fresh = fresh_by_id.get(card.scryfall_id)
+            if fresh:
+                card.price_usd = fresh["price_usd"]
+                card.price_usd_foil = fresh["price_usd_foil"]
+                card.price_usd_etched = fresh["price_usd_etched"]
+                card.updated_at = now
+                updated += 1
+        session.commit()
+        print(f"[price-refresh] updated {updated}/{len(stale)} cards")
+    except Exception as exc:
+        session.rollback()
+        print(f"[price-refresh] error: {exc}")
+    finally:
+        session.close()
+
+
+def _price_refresh_loop() -> None:
+    time.sleep(60)  # let the app finish starting before first run
+    while True:
+        _run_price_refresh_batch()
+        time.sleep(_PRICE_REFRESH_INTERVAL_SECONDS)
+
+
 @app.on_event("startup")
 def on_startup() -> None:
     # Prevent accidental deploys with the default dev secret — sessions would be forgeable.
@@ -128,6 +181,7 @@ def on_startup() -> None:
         raise RuntimeError("SESSION_SECRET_KEY must be set in production (DEV_MODE is not 'true')")
     run_migrations()
     init_db()
+    threading.Thread(target=_price_refresh_loop, daemon=True, name="price-refresh").start()
 
 
 @app.get("/")
@@ -1371,29 +1425,8 @@ async def card_refresh(
     if owned_row is None:
         raise HTTPException(status_code=404, detail="Card not found in current user's collection")
 
-    refresh_card_from_scryfall(session, card_id)
-
-    return RedirectResponse(url=safe_redirect_url(request), status_code=303)
-
-
-@app.post("/cards/refresh-stale")
-async def refresh_stale_cards(
-    request: Request,
-    session: Session = Depends(get_db_session),
-    current_user: User = Depends(get_current_user),
-    _: None = CsrfRequired,
-):
-    stale_cards = (
-        session.query(Card)
-        .join(InventoryRow, InventoryRow.card_id == Card.id)
-        .filter(InventoryRow.user_id == current_user.id)
-        .distinct()
-        .all()
-    )
-
-    for card in stale_cards:
-        if is_price_stale(card.updated_at):
-            refresh_card_from_scryfall(session, card.id)
+    if refresh_card_from_scryfall(session, card_id):
+        session.commit()
 
     return RedirectResponse(url=safe_redirect_url(request), status_code=303)
 

@@ -38,10 +38,6 @@
         <h2 class="panel-title">Collection Overview</h2>
         <p class="muted">Your exact-printing inventory with storage location assignments.</p>
       </div>
-      <form action="/cards/refresh-stale" method="post" class="inline-form">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-        <button type="submit">Refresh Stale Prices</button>
-      </form>
       {% if use_drawer_sorter %}
         <form action="/collection/resort" method="post" class="inline-form">
           <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
