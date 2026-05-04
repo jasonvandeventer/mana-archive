@@ -1264,6 +1264,28 @@ def deck_detail_page(
     total_cards = 0
 
     if deck:
+        # Auto-tag untagged rows from oracle text patterns (non-destructive).
+        # Runs before the main query so items see fresh tags on the same request.
+        _untagged = (
+            session.query(InventoryRow)
+            .options(joinedload(InventoryRow.card))
+            .join(Card)
+            .filter(
+                InventoryRow.user_id == current_user.id,
+                InventoryRow.storage_location_id == deck.storage_location_id,
+                InventoryRow.tags == None,  # noqa: E711
+            )
+            .all()
+        )
+        _auto_tagged = False
+        for _row in _untagged:
+            _suggested = suggest_card_roles(_row.card)
+            if _suggested:
+                set_row_tags(_row, _suggested)
+                _auto_tagged = True
+        if _auto_tagged:
+            session.commit()
+
         deck_query = (
             session.query(InventoryRow)
             .options(joinedload(InventoryRow.card))
