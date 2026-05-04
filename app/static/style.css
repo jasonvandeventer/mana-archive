@@ -43,16 +43,26 @@ body {
 }
 
 .header-shell {
-  padding-top: 1rem;
-  padding-bottom: 0.9rem;
+  padding-top: 0.75rem;
+  padding-bottom: 0.75rem;
+  display: flex;
+  align-items: stretch;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.header-left {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  justify-content: space-between;
 }
 
 .header-right {
   display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 0.75rem;
-  flex-wrap: wrap;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: space-between;
 }
 
 .version-pill {
@@ -75,15 +85,28 @@ body {
   gap: 1rem;
 }
 
-.brand-row {
+.brand-logo-link {
   display: flex;
-  gap: 1rem;
-  align-items: baseline;
-  flex-wrap: wrap;
-  justify-content: space-between;
-}
-.brand-row.compact {
   align-items: center;
+  text-decoration: none;
+}
+.brand-wordmark {
+  height: 70px;
+  width: auto;
+  display: block;
+}
+.mana-pip {
+  width: 20px;
+  height: 20px;
+  vertical-align: middle;
+  margin-left: 2px;
+}
+.mana-pip-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: 0.4rem;
+  vertical-align: middle;
 }
 .eyebrow {
   text-transform: uppercase;
@@ -495,9 +518,14 @@ td {
     font-size: 1.05rem;
   }
 
+  .header-shell {
+    flex-wrap: wrap;
+  }
   .header-right {
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-end;
     width: 100%;
-    justify-content: flex-start;
   }
 
   .header-tagline {

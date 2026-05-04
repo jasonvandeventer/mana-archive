@@ -2,10 +2,11 @@ from __future__ import annotations
 
 from datetime import datetime
 
+from sqlalchemy import func
 from sqlalchemy.orm import Session, joinedload
 
 from app.audit_service import log_transaction
-from app.models import Deck, InventoryRow, StorageLocation
+from app.models import Card, Deck, InventoryRow, StorageLocation
 
 
 def create_deck(
@@ -55,12 +56,27 @@ def list_decks(session: Session, user_id: int) -> list[Deck]:
             continue
 
         deck.card_count = (
-            session.query(InventoryRow)
+            session.query(func.sum(InventoryRow.quantity))
             .filter(
                 InventoryRow.user_id == user_id,
                 InventoryRow.storage_location_id == deck.storage_location_id,
             )
-            .count()
+            .scalar()
+            or 0
+        )
+
+        commander_row = (
+            session.query(InventoryRow)
+            .join(Card)
+            .filter(
+                InventoryRow.user_id == user_id,
+                InventoryRow.storage_location_id == deck.storage_location_id,
+                InventoryRow.role == "commander",
+            )
+            .first()
+        )
+        deck.color_identity = (
+            commander_row.card.colors if commander_row and commander_row.card.colors else ""
         )
 
     return decks

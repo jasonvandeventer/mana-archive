@@ -1,3 +1,20 @@
+{% macro mana_pips(colors) %}
+  {% if colors %}
+    {% for letter in ['W', 'U', 'B', 'R', 'G'] %}
+      {% if letter in colors.split() %}
+        <img src="https://svgs.scryfall.io/card-symbols/{{ letter }}.svg"
+             alt="{{ letter }}"
+             class="mana-pip"
+             loading="lazy">
+      {% endif %}
+    {% endfor %}
+  {% else %}
+    <img src="https://svgs.scryfall.io/card-symbols/C.svg"
+         alt="C"
+         class="mana-pip"
+         loading="lazy">
+  {% endif %}
+{% endmacro %}
 {% macro inventory_card(item, csrf_token,
   show_collection_actions=false,
   show_location_label=false,

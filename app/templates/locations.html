@@ -27,7 +27,10 @@
   </section>
   <section class="panel controls-panel">
     <h3 class="panel-title">Add Deck</h3>
-    <form method="post" action="/locations/create-deck" class="filter-row" style="margin-top: 0.5rem">
+    <form method="post"
+          action="/locations/create-deck"
+          class="filter-row"
+          style="margin-top: 0.5rem">
       <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
       <input type="text" name="name" placeholder="Deck name" required>
       <select name="format_name">

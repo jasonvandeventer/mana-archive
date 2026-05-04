@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1800 600" role="img" aria-labelledby="title desc">
+  <title id="title">Mana Archive Horizontal Logo</title>
+  <desc id="desc">Mana Archive horizontal logo with MA monogram and wordmark.</desc>
+  <defs>
+    <linearGradient id="manaGradient" x1="100" y1="80" x2="520" y2="520" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="22%" stop-color="#48c5ff"/>
+      <stop offset="47%" stop-color="#ff4d63"/>
+      <stop offset="70%" stop-color="#ffce3a"/>
+      <stop offset="100%" stop-color="#7ee05f"/>
+    </linearGradient>
+  </defs>
+  <rect width="1800" height="600" fill="#05070d"/>
+  <circle cx="300" cy="300" r="210" fill="#05070d" stroke="url(#manaGradient)" stroke-width="24"/>
+  <g fill="url(#manaGradient)">
+    <path d="M140 440 V160 H198 L300 360 L402 160 H460 V440 H398 V285 L322 440 H278 L202 285 V440 Z"/>
+    <path d="M380 440 H470 L392 160 H330 Z" opacity="0.98"/>
+    <path d="M381 344 H437 L410 246 Z" fill="#05070d"/>
+  </g>
+  <path d="M300 360 L330 285 L330 440 H270 V285 Z" fill="#05070d" opacity="0.75"/>
+  <g fill="#ffffff" font-family="Inter, Montserrat, Arial, sans-serif" font-weight="700" letter-spacing="42">
+    <text x="620" y="255" font-size="86">MANA</text>
+    <text x="620" y="390" font-size="86">ARCHIVE</text>
+  </g>
+</svg>

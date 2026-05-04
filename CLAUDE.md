@@ -1,6 +1,6 @@
 # Mana Archive — Claude Context
 
-## Current version: v3.8.2
+## Current version: v3.8.3
 
 ## Stack: FastAPI + Jinja2 + SQLite + K3s/ArgoCD
 
@@ -131,6 +131,15 @@ Templates updated in v3.7: `decks.html`, `import.html`, `import_preview.html`, `
 - Pre-commit hook at `.githooks/pre-commit` mirrors CI lint checks. New developers run `git config core.hooksPath .githooks`.
 - Token tracking on set detail: "Show Tokens" toggle fetches `t{set_code}` token set; tokens tracked ownership-only (no USD price).
 
+### Brand assets and header layout (v3.8.3)
+
+- `app/static/icons/` — actual brand PNGs at 15 sizes (16–1024px) using card-frame app icon design; wordmark PNGs at 256/512/1024px; `favicon.ico` built from 16/32/48px icons.
+- `base.html` favicon chain: `favicon.ico` (legacy) → `icon-32x32.png` (PNG fallback) → `icon-180x180.png` (Apple touch icon).
+- Header restructured to two-column flex layout: left column = wordmark + nav stacked; right column = version pill + logout stacked. This aligns logout with the nav row at the far right.
+- Brand area uses `wordmark-1024.png` displayed at 44px height (`class="brand-wordmark"`) — no separate icon + text elements.
+- CSS classes: `.header-left` (flex-column, space-between), `.brand-wordmark` (height 44px, auto width). Removed `.brand-row`, `.brand-icon`, `.brand-text`.
+- `list_decks()` in `deck_service.py` now sums `InventoryRow.quantity` (total copies) for `card_count` instead of counting distinct rows.
+
 ### Location page deck management (v3.8.2)
 
 - `POST /locations/create-deck` — creates a proper `Deck` record + linked `StorageLocation` from the Locations page; redirects back to `/locations`. Form has name + format dropdown (same options as Decks page).
@@ -153,5 +162,6 @@ Templates updated in v3.7: `decks.html`, `import.html`, `import_preview.html`, `
 - v3.8: Card attrs (colors/cmc/mana_cost), async resort, extended search, unified card macro, token tracking, pre-commit hook — **shipped**
 - v3.8.1: Deck/location UX fixes, collection action drawer — **shipped**
 - v3.8.2: Location page deck creation, orphaned deck location cleanup — **shipped**
+- v3.8.3: Brand assets (real PNG icon pack + wordmark), header two-column layout, deck total-copy count — **shipped**
 - v3.9: Legality sort/filter (needs schema design), advanced deck analytics
 - v4.0: PostgreSQL migration

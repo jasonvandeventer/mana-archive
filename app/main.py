@@ -1316,12 +1316,21 @@ def deck_detail_page(
     commanders = [i for i in items if i["role"] == "commander"]
     deck_cards = [i for i in items if i["role"] != "commander"]
 
+    # Derive color identity from commanders; fall back to colorless if none assigned yet
+    _identity_letters: list[str] = []
+    for c in commanders:
+        for letter in (c["card"].colors or "").split():
+            if letter not in _identity_letters:
+                _identity_letters.append(letter)
+    color_identity = " ".join(pip for pip in ["W", "U", "B", "R", "G"] if pip in _identity_letters)
+
     return render(
         request,
         "deck_detail.html",
         {
             "title": deck.name if deck else "Deck",
             "deck": deck,
+            "color_identity": color_identity,
             "commanders": commanders if deck else [],
             "items": deck_cards if deck else [],
             "deck_total_value": deck_total_value if deck else 0.0,

@@ -4,40 +4,48 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ title or "Mana Archive" }}</title>
+    <link rel="icon" href="/static/icons/favicon.ico" sizes="any">
+    <link rel="icon"
+          href="/static/icons/icon-32x32.png"
+          type="image/png"
+          sizes="32x32">
+    <link rel="apple-touch-icon" href="/static/icons/icon-180x180.png">
     <link rel="stylesheet" href="/static/style.css?v={{ app_version }}">
   </head>
   <body>
     <header class="site-header">
       <div class="header-shell">
-        <div class="brand-row compact">
-          <div>
-            <div class="eyebrow">Mana Archive</div>
-            <h1 class="site-title">Card Inventory Platform</h1>
-          </div>
-          <div class="header-right">
-            <span class="muted header-tagline">Import, place, value, and track your exact printings.</span>
-            <span class="version-pill">{{ app_version }}</span>
-          </div>
+        <div class="header-left">
+          <a href="/" class="brand-logo-link">
+            <img src="/static/icons/wordmark-1024.png"
+                 alt="Mana Archive"
+                 class="brand-wordmark">
+          </a>
+          <nav>
+            <a href="/">Home</a>
+            <a href="/import">Import</a>
+            <a href="/collection">Collection</a>
+            <a href="/pending">Pending</a>
+            <a href="/locations">Locations</a>
+            {% if current_user and current_user.username in drawer_sorter_usernames %}<a href="/drawers">Drawers</a>{% endif %}
+            <a href="/decks">Decks</a>
+            {% if current_user and current_user.username in drawer_sorter_usernames %}<a href="/audit">Audit</a>{% endif %}
+            <a href="/sets">Sets</a>
+            {% if current_user %}
+              {% if current_user.is_admin %}<a href="/admin">Admin</a>{% endif %}
+              <a href="/account">Account</a>
+            {% endif %}
+          </nav>
         </div>
-        <nav>
-          <a href="/">Home</a>
-          <a href="/import">Import</a>
-          <a href="/collection">Collection</a>
-          <a href="/pending">Pending</a>
-          <a href="/locations">Locations</a>
-          {% if current_user and current_user.username in drawer_sorter_usernames %}<a href="/drawers">Drawers</a>{% endif %}
-          <a href="/decks">Decks</a>
-          {% if current_user and current_user.username in drawer_sorter_usernames %}<a href="/audit">Audit</a>{% endif %}
-          <a href="/sets">Sets</a>
+        <div class="header-right">
+          <span class="version-pill">{{ app_version }}</span>
           {% if current_user %}
-            {% if current_user.is_admin %}<a href="/admin">Admin</a>{% endif %}
-            <a href="/account">Account</a>
             <form method="post" action="/logout" class="nav-logout-form">
               <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
               <button type="submit" class="nav-logout-button">Logout ({{ current_user.username }})</button>
             </form>
           {% endif %}
-        </nav>
+        </div>
       </div>
     </header>
     <main class="page-shell">

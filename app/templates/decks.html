@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_macros.html" import mana_pips %}
 {% block content %}
   <section class="panel page-hero">
     <div>
@@ -52,6 +53,7 @@
             <tr>
               <td>
                 <a href="/decks/{{ deck.id }}">{{ deck.name }}</a>
+                <span class="mana-pip-row">{{ mana_pips(deck.color_identity) }}</span>
               </td>
               <td>{{ deck.format or '—' }}</td>
               <td>{{ deck.card_count or 0 }}</td>

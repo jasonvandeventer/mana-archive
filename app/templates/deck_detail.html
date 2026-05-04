@@ -1,12 +1,15 @@
 {% extends "base.html" %}
-{% from "_macros.html" import inventory_card %}
+{% from "_macros.html" import inventory_card, mana_pips %}
 {% block content %}
   <section class="panel hero-panel compact-hero">
     {% if deck %}
       <div class="hero-row">
         <div>
           <div class="panel-topline">Deck</div>
-          <h2 class="panel-title">{{ deck.name }}</h2>
+          <h2 class="panel-title">
+            {{ deck.name }}
+            <span class="mana-pip-row">{{ mana_pips(color_identity) }}</span>
+          </h2>
           <p class="muted">{{ deck.format or 'Unspecified format' }}</p>
           {% if deck.notes %}<p class="muted">{{ deck.notes }}</p>{% endif %}
           <form action="/decks/{{ deck.id }}/delete"
