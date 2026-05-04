@@ -129,6 +129,107 @@ def compute_deck_tokens(rows: list) -> list[dict]:
     return fetch_deck_tokens(scryfall_ids)
 
 
+def compute_consistency(rows: list) -> dict:
+    """Compute a 0-100 consistency score from draw density, ramp, tutors, curve smoothness, and role coverage."""
+    seen_draw: set[str] = set()
+    seen_ramp: set[str] = set()
+    seen_tutor: set[str] = set()
+    seen_removal: set[str] = set()
+    spell_cmcs: list[float] = []
+
+    for row in rows:
+        card = row.card
+        if not card:
+            continue
+        name = card.name or ""
+        oracle = (card.oracle_text or "").lower()
+        tl = (card.type_line or "").lower()
+        is_land = "land" in tl
+        is_basic = "basic land" in tl
+
+        if not is_land and card.cmc is not None:
+            spell_cmcs.extend([card.cmc] * row.quantity)
+
+        if is_basic or not oracle:
+            continue
+
+        is_land_tutor = bool(_RAMP_LAND_RE.search(oracle))
+
+        if not is_land and "add {" in oracle and name not in seen_ramp:
+            seen_ramp.add(name)
+        elif is_land_tutor and name not in seen_ramp:
+            seen_ramp.add(name)
+
+        if _DRAW_RE.search(oracle) and name not in seen_draw:
+            seen_draw.add(name)
+
+        if "search your library for" in oracle and not is_land_tutor and name not in seen_tutor:
+            seen_tutor.add(name)
+
+        if _REMOVAL_RE.search(oracle) and name not in seen_removal:
+            seen_removal.add(name)
+
+    draw_n = len(seen_draw)
+    ramp_n = len(seen_ramp)
+    tutor_n = len(seen_tutor)
+    removal_n = len(seen_removal)
+
+    if spell_cmcs:
+        mean = sum(spell_cmcs) / len(spell_cmcs)
+        variance = sum((c - mean) ** 2 for c in spell_cmcs) / len(spell_cmcs)
+        std_dev = round(variance**0.5, 1)
+    else:
+        std_dev = 0.0
+
+    draw_score = min(25, round(draw_n / 10 * 25))
+    ramp_score = min(20, round(ramp_n / 10 * 20))
+    tutor_score = min(15, round(tutor_n / 5 * 15))
+    smooth_score = 20 if std_dev < 1.5 else (12 if std_dev < 2.5 else 5)
+    coverage_raw = min(1.0, ramp_n / 10) + min(1.0, draw_n / 10) + min(1.0, removal_n / 8)
+    coverage_score = round(coverage_raw / 3 * 20)
+    total = draw_score + ramp_score + tutor_score + smooth_score + coverage_score
+
+    if total >= 80:
+        label = "Consistent engine"
+    elif total >= 65:
+        label = "Stable midrange"
+    elif total >= 50:
+        label = "Moderate consistency"
+    elif total >= 35:
+        label = "High variance"
+    else:
+        label = "Glass cannon"
+
+    if tutor_n >= 5:
+        descriptor = "tutor-driven"
+    elif draw_n >= 12 and ramp_n >= 10:
+        descriptor = "well-oiled"
+    elif ramp_n >= 12 and draw_n < 7:
+        descriptor = "ramp-heavy"
+    elif draw_n >= 10 and ramp_n < 7:
+        descriptor = "card-advantage-reliant"
+    elif std_dev > 2.5:
+        descriptor = "spikey curve"
+    else:
+        descriptor = None
+
+    tier = "ok" if total >= 65 else ("warn" if total >= 40 else "low")
+
+    return {
+        "score": total,
+        "label": label,
+        "descriptor": descriptor,
+        "tier": tier,
+        "breakdown": {
+            "draw": {"score": draw_score, "max": 25, "count": draw_n},
+            "ramp": {"score": ramp_score, "max": 20, "count": ramp_n},
+            "tutors": {"score": tutor_score, "max": 15, "count": tutor_n},
+            "smoothness": {"score": smooth_score, "max": 20, "std_dev": std_dev},
+            "coverage": {"score": coverage_score, "max": 20, "pct": round(coverage_raw / 3 * 100)},
+        },
+    }
+
+
 def compute_deck_health(rows: list) -> dict:
     """Compute ramp/draw/removal/wipe density and pip strain from InventoryRow ORM objects."""
     ramp_cards: list[str] = []

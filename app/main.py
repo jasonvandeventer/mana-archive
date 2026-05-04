@@ -25,6 +25,7 @@ from app.audit_service import list_transaction_logs
 from app.auth import hash_password
 from app.db import SessionLocal, init_db
 from app.deck_service import (
+    compute_consistency,
     compute_deck_analytics,
     compute_deck_health,
     compute_deck_tokens,
@@ -1326,6 +1327,7 @@ def deck_detail_page(
 
     analytics = None
     health = None
+    consistency = None
     tokens: list = []
     if deck and deck.storage_location_id:
         all_deck_rows = (
@@ -1341,6 +1343,7 @@ def deck_detail_page(
         if all_deck_rows:
             analytics = compute_deck_analytics(all_deck_rows)
             health = compute_deck_health(all_deck_rows)
+            consistency = compute_consistency(all_deck_rows)
             tokens = compute_deck_tokens(all_deck_rows)
 
     # Apply health filter before splitting into commanders/deck_cards
@@ -1377,6 +1380,7 @@ def deck_detail_page(
             "collection_results": collection_results if deck else [],
             "analytics": analytics,
             "health": health,
+            "consistency": consistency,
             "health_filter": health_filter if health_filter in _VALID_HEALTH_FILTERS else "",
             "tokens": tokens,
             "current_user": current_user,

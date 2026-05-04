@@ -108,6 +108,27 @@
   {% if health %}
     <section class="panel health-panel">
       <h3 class="panel-title">Deck Health</h3>
+      {% if consistency %}
+        <div class="consistency-row">
+          <div class="consistency-badge cs-{{ consistency.tier }}">{{ consistency.score }}</div>
+          <div class="consistency-info">
+            <span class="consistency-label">{{ consistency.label }}</span>
+            {% if consistency.descriptor %}<span class="consistency-descriptor">{{ consistency.descriptor }}</span>{% endif %}
+          </div>
+          <div class="consistency-breakdown">
+            {% for key, bd in consistency.breakdown.items() %}
+              <div class="cs-sub">
+                <span class="cs-sub-label">{{ {"draw":"Draw","ramp":"Ramp","tutors":"Tutors","smoothness":"Curve","coverage":"Coverage"}[key] }}</span>
+                <div class="cs-sub-bar-wrap">
+                  <div class="cs-sub-bar cs-{{ consistency.tier }}" style="width: {{ ((bd.score / bd.max) * 100)|round|int }}%"></div>
+                </div>
+                <span class="cs-sub-val">{{ bd.score }}/{{ bd.max }}</span>
+              </div>
+            {% endfor %}
+          </div>
+        </div>
+        <hr class="health-divider">
+      {% endif %}
       <div class="health-grid">
         <div class="health-metrics">
           <div class="health-section-label">Functional Density</div>
