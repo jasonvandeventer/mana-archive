@@ -1,6 +1,6 @@
 # Mana Archive — Claude Context
 
-## Current version: v3.8.0
+## Current version: v3.8.1
 
 ## Stack: FastAPI + Jinja2 + SQLite + K3s/ArgoCD
 
@@ -131,9 +131,20 @@ Templates updated in v3.7: `decks.html`, `import.html`, `import_preview.html`, `
 - Pre-commit hook at `.githooks/pre-commit` mirrors CI lint checks. New developers run `git config core.hooksPath .githooks`.
 - Token tracking on set detail: "Show Tokens" toggle fetches `t{set_code}` token set; tokens tracked ownership-only (no USD price).
 
+### Deck/location UX fixes (v3.8.1)
+
+- `GET /locations/{id}` redirects to `/decks/{deck_id}` when `location.type == "deck"` — eliminates duplicate access path.
+- Deck detail gains sort controls (Name, Type, Mana Cost, Price) matching location detail.
+- Import destination dropdowns (`import_preview.html`, `manual_preview.html`) exclude `type="deck"` locations from the Storage Locations optgroup — deck locations only appear under the Decks optgroup.
+- `delete_location()` in `location_service.py` + `POST /locations/{id}/delete` route — deletes empty non-root, non-deck locations. Delete button appears in locations table only when `row_count == 0`.
+- `location_types` in create form excludes "deck" — prevents creating orphaned deck-type StorageLocations not linked to a Deck record.
+- Collection card actions collapsed into a `<details class="card-actions-drawer">` — cards show only info by default; "Actions ▾" expands Remove, Add to Deck, Move, and Sell/Trade/Delete/Refresh inline.
+- Fixed deck card tile overflow: deck actions section now uses `flex-direction: column`; removed misapplied `compact-form-grid` class from return form.
+
 ## Roadmap
 
 - v3.7: Import-to-deck, decks list redesign, full UI/UX consistency pass, admin CRUD, account page — **shipped**
 - v3.8: Card attrs (colors/cmc/mana_cost), async resort, extended search, unified card macro, token tracking, pre-commit hook — **shipped**
+- v3.8.1: Deck/location UX fixes, collection action drawer — **shipped**
 - v3.9: Legality sort/filter (needs schema design), advanced deck analytics
 - v4.0: PostgreSQL migration
