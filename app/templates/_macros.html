@@ -2,7 +2,7 @@
   {% if colors %}
     {% for letter in ['W', 'U', 'B', 'R', 'G'] %}
       {% if letter in colors.split() %}
-        <img src="https://svgs.scryfall.io/card-symbols/{{ letter }}.svg"
+        <img src="/static/mana/{{ letter }}.svg"
              alt="{{ letter }}"
              class="mana-pip"
              loading="lazy">
