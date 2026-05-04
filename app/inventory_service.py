@@ -242,10 +242,23 @@ def create_or_merge_inventory_row(
     return row
 
 
+def _parse_numeric_op(value: str) -> tuple[str, float] | None:
+    for op in (">=", "<=", ">", "<"):
+        if value.startswith(op):
+            try:
+                return op, float(value[len(op) :])
+            except ValueError:
+                return None
+    try:
+        return "=", float(value)
+    except ValueError:
+        return None
+
+
 def parse_search_query(search: str) -> dict:
     terms = search.strip().split()
 
-    parsed = {
+    parsed: dict = {
         "name": [],
         "type": None,
         "oracle": None,
@@ -253,6 +266,9 @@ def parse_search_query(search: str) -> dict:
         "rarity": None,
         "finish": None,
         "drawer": None,
+        "color": None,
+        "mana": None,
+        "cmc": None,
     }
 
     for term in terms:
@@ -279,6 +295,12 @@ def parse_search_query(search: str) -> dict:
             parsed["finish"] = value
         elif key == "drawer":
             parsed["drawer"] = value
+        elif key in ["c", "color", "colors"]:
+            parsed["color"] = value.upper()
+        elif key in ["m", "mana"]:
+            parsed["mana"] = value
+        elif key == "cmc":
+            parsed["cmc"] = _parse_numeric_op(value)
         else:
             parsed["name"].append(term)
 
@@ -311,6 +333,29 @@ def apply_collection_search_filters(query, search: str):
 
     if parsed["drawer"]:
         query = query.filter(InventoryRow.drawer == parsed["drawer"])
+
+    if parsed["color"]:
+        for letter in parsed["color"]:
+            if letter in "WUBRG":
+                query = query.filter(Card.colors.contains(letter))
+            elif letter == "C":
+                query = query.filter((Card.colors == None) | (Card.colors == ""))  # noqa: E711
+
+    if parsed["mana"]:
+        query = query.filter(Card.mana_cost.ilike(f"%{parsed['mana']}%"))
+
+    if parsed["cmc"]:
+        op, val = parsed["cmc"]
+        if op == "=":
+            query = query.filter(Card.cmc == val)
+        elif op == ">":
+            query = query.filter(Card.cmc > val)
+        elif op == "<":
+            query = query.filter(Card.cmc < val)
+        elif op == ">=":
+            query = query.filter(Card.cmc >= val)
+        elif op == "<=":
+            query = query.filter(Card.cmc <= val)
 
     return query
 
@@ -351,6 +396,16 @@ def list_inventory_rows(
 
     total_count = base_query.count()
 
+    _COLOR_ORDER = {"W": 0, "U": 1, "B": 2, "R": 3, "G": 4}
+
+    def _color_sort_key(row: InventoryRow) -> tuple:
+        colors = (row.card.colors or "").split()
+        if not colors:
+            return (6, "")
+        if len(colors) > 1:
+            return (5, " ".join(colors))
+        return (_COLOR_ORDER.get(colors[0], 7), colors[0])
+
     if sort == "name":
         query = base_query.order_by(
             Card.name.desc() if reverse else Card.name.asc(),
@@ -367,6 +422,24 @@ def list_inventory_rows(
             InventoryRow.id.desc() if reverse else InventoryRow.id.asc(),
         )
         rows = query.offset((page - 1) * per_page).limit(per_page).all()
+    elif sort == "type":
+        query = base_query.order_by(
+            Card.type_line.desc() if reverse else Card.type_line.asc(),
+            Card.name.desc() if reverse else Card.name.asc(),
+            InventoryRow.id.desc() if reverse else InventoryRow.id.asc(),
+        )
+        rows = query.offset((page - 1) * per_page).limit(per_page).all()
+    elif sort == "cmc":
+        query = base_query.order_by(
+            Card.cmc.desc() if reverse else Card.cmc.asc(),
+            Card.name.desc() if reverse else Card.name.asc(),
+            InventoryRow.id.desc() if reverse else InventoryRow.id.asc(),
+        )
+        rows = query.offset((page - 1) * per_page).limit(per_page).all()
+    elif sort == "color":
+        rows = base_query.all()
+        rows.sort(key=_color_sort_key, reverse=reverse)
+        rows = rows[(page - 1) * per_page : (page - 1) * per_page + per_page]
     elif sort == "placement":
         rows = base_query.all()
         rows.sort(

@@ -301,6 +301,9 @@ def persist_import_rows(
             card.price_usd = prefetched["price_usd"]
             card.price_usd_foil = prefetched["price_usd_foil"]
             card.price_usd_etched = prefetched["price_usd_etched"]
+            card.colors = prefetched.get("colors")
+            card.mana_cost = prefetched.get("mana_cost")
+            card.cmc = prefetched.get("cmc")
             card.updated_at = now
 
     card_ids = sorted(

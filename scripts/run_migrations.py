@@ -4,6 +4,7 @@ from scripts.migrate_v3_4_decks_as_locations import main as migrate_v3_4
 from scripts.migrate_v3_5_drop_deck_items import main as migrate_v3_5_deck_items
 from scripts.migrate_v3_5_inventory_role import main as migrate_v3_5_role
 from scripts.migrate_v3_7_admin_user import main as migrate_v3_7_admin
+from scripts.migrate_v3_8_card_attrs import main as migrate_v3_8_card_attrs
 
 
 def _is_applied(name: str) -> bool:
@@ -48,6 +49,13 @@ def run():
         _mark_applied("v3_7_admin_user")
     else:
         print("v3.7 admin_user already applied, skipping")
+
+    if not _is_applied("v3_8_card_attrs"):
+        print("Running v3.8 card attrs migration...")
+        migrate_v3_8_card_attrs()
+        _mark_applied("v3_8_card_attrs")
+    else:
+        print("v3.8 card_attrs already applied, skipping")
 
     print("Migration runner complete")
 

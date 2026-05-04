@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
+from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db import Base
@@ -49,6 +49,9 @@ class Card(Base):
     price_usd: Mapped[str | None] = mapped_column(String(32), nullable=True)
     price_usd_foil: Mapped[str | None] = mapped_column(String(32), nullable=True)
     price_usd_etched: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    colors: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    mana_cost: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    cmc: Mapped[float | None] = mapped_column(Float, nullable=True)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
     inventory_rows: Mapped[list[InventoryRow]] = relationship(back_populates="card")

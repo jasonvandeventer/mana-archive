@@ -49,6 +49,7 @@ from app.import_service import (
 from app.inventory_service import (
     PRICE_STALE_DAYS,
     adjust_inventory_row_quantity,
+    apply_collection_search_filters,
     confirm_all_pending,
     confirm_pending_row,
     delete_inventory_row,
@@ -71,7 +72,6 @@ from app.location_service import (
     get_location,
     get_location_summary,
     list_locations,
-    list_rows_for_location,
 )
 from app.models import Card, ImportBatch, InventoryRow, User
 from app.presentation_service import build_pending_view_model
@@ -153,6 +153,9 @@ def _run_price_refresh_batch() -> None:
                 card.price_usd = fresh["price_usd"]
                 card.price_usd_foil = fresh["price_usd_foil"]
                 card.price_usd_etched = fresh["price_usd_etched"]
+                card.colors = fresh.get("colors")
+                card.mana_cost = fresh.get("mana_cost")
+                card.cmc = fresh.get("cmc")
                 card.updated_at = now
                 updated += 1
         session.commit()
@@ -169,6 +172,18 @@ def _price_refresh_loop() -> None:
     while True:
         _run_price_refresh_batch()
         time.sleep(_PRICE_REFRESH_INTERVAL_SECONDS)
+
+
+def _bg_resort(user_id: int) -> None:
+    """Full collection resort in a background thread using its own DB session."""
+    session = SessionLocal()
+    try:
+        resort_collection(session, user_id=user_id)
+    except Exception as exc:
+        session.rollback()
+        print(f"[resort] error for user {user_id}: {exc}")
+    finally:
+        session.close()
 
 
 @app.on_event("startup")
@@ -348,7 +363,7 @@ async def import_commit(
         placed_in = loc.name if loc else None
 
     elif row_ids and current_user.username in DRAWER_SORTER_USERNAMES:
-        resort_collection(session, user_id=current_user.id)
+        threading.Thread(target=_bg_resort, args=(current_user.id,), daemon=True).start()
         return RedirectResponse(url="/pending", status_code=303)
 
     return render(
@@ -469,7 +484,7 @@ async def manual_import_commit(
         loc = get_location(session, location_id=target_location_id, user_id=current_user.id)
         placed_in = loc.name if loc else None
     elif row_ids and current_user.username in DRAWER_SORTER_USERNAMES:
-        resort_collection(session, user_id=current_user.id)
+        threading.Thread(target=_bg_resort, args=(current_user.id,), daemon=True).start()
 
     return render(
         request,
@@ -916,6 +931,9 @@ def create_location_route(
 def location_detail_page(
     request: Request,
     location_id: int,
+    search: str = "",
+    sort: str = "slot",
+    direction: str = "asc",
     session: Session = Depends(get_db_session),
     current_user: User = Depends(get_current_user),
 ):
@@ -923,11 +941,33 @@ def location_detail_page(
     if location is None:
         raise HTTPException(status_code=404, detail="Location not found")
 
-    rows = list_rows_for_location(
-        session,
-        user_id=current_user.id,
-        location_id=location_id,
+    loc_query = (
+        session.query(InventoryRow)
+        .options(joinedload(InventoryRow.card), joinedload(InventoryRow.storage_location))
+        .join(Card)
+        .filter(
+            InventoryRow.user_id == current_user.id,
+            InventoryRow.storage_location_id == location_id,
+        )
     )
+    if search.strip():
+        loc_query = apply_collection_search_filters(loc_query, search)
+
+    reverse = direction == "desc"
+    if sort == "name":
+        loc_query = loc_query.order_by(Card.name.desc() if reverse else Card.name.asc())
+    elif sort == "value":
+        rows = loc_query.all()
+        rows.sort(key=lambda r: effective_price(r.card, r.finish) or 0.0, reverse=reverse)
+    elif sort == "cmc":
+        loc_query = loc_query.order_by(Card.cmc.desc() if reverse else Card.cmc.asc())
+    elif sort == "type":
+        loc_query = loc_query.order_by(Card.type_line.desc() if reverse else Card.type_line.asc())
+    else:
+        loc_query = loc_query.order_by(InventoryRow.slot.asc())
+
+    if sort not in ("value",):
+        rows = loc_query.all()
 
     items = []
     total_value = 0.0
@@ -961,6 +1001,9 @@ def location_detail_page(
             "items": items,
             "total_quantity": total_quantity,
             "total_value": total_value,
+            "search": search,
+            "sort": sort,
+            "direction": direction,
             "current_user": current_user,
         },
     )
@@ -1169,31 +1212,20 @@ def deck_detail_page(
     total_cards = 0
 
     if deck:
-        normalized_search = search.strip().lower()
-
-        deck_rows = (
+        deck_query = (
             session.query(InventoryRow)
             .options(joinedload(InventoryRow.card))
+            .join(Card)
             .filter(
                 InventoryRow.user_id == current_user.id,
                 InventoryRow.storage_location_id == deck.storage_location_id,
             )
-            .all()
         )
+        if search.strip():
+            deck_query = apply_collection_search_filters(deck_query, search)
+        deck_rows = deck_query.all()
 
         for row in deck_rows:
-            if normalized_search:
-                name = (row.card.name or "").lower()
-                type_line = (row.card.type_line or "").lower()
-                oracle = (row.card.oracle_text or "").lower()
-
-                if (
-                    normalized_search not in name
-                    and normalized_search not in type_line
-                    and normalized_search not in oracle
-                ):
-                    continue
-
             price = effective_price(row.card, row.finish) or 0.0
             total_value = price * row.quantity
             deck_total_value += total_value
@@ -1305,7 +1337,7 @@ async def decks_return(
     )
 
     if current_user.username in DRAWER_SORTER_USERNAMES:
-        resort_collection(session, user_id=current_user.id)
+        threading.Thread(target=_bg_resort, args=(current_user.id,), daemon=True).start()
 
     return RedirectResponse(url=f"/decks/{deck_id}", status_code=303)
 

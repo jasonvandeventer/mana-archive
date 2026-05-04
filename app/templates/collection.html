@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_macros.html" import inventory_card %}
 {% block content %}
   {% if show_onboarding %}
     <section class="panel">
@@ -80,7 +81,7 @@
     <form method="get" action="/collection" class="filter-row">
       <input type="text"
              name="search"
-             placeholder="Search using Scryfall syntax"
+             placeholder="name, t:type, c:WU, cmc:&gt;3, o:oracle, s:set, r:rarity"
              value="{{ search }}">
       <select name="finish">
         <option value="">All finishes</option>
@@ -101,6 +102,9 @@
         <option value="newest" {% if sort == 'newest' %}selected{% endif %}>Date Added</option>
         <option value="name" {% if sort == 'name' %}selected{% endif %}>Name</option>
         <option value="set" {% if sort == 'set' %}selected{% endif %}>Set</option>
+        <option value="type" {% if sort == 'type' %}selected{% endif %}>Type</option>
+        <option value="color" {% if sort == 'color' %}selected{% endif %}>Color</option>
+        <option value="cmc" {% if sort == 'cmc' %}selected{% endif %}>Mana Cost</option>
         <option value="value" {% if sort == 'value' %}selected{% endif %}>Price (Each)</option>
         <option value="placement" {% if sort == 'placement' %}selected{% endif %}>Placement</option>
       </select>
@@ -118,143 +122,11 @@
     <section class="card-grid-section">
       <div class="inventory-grid">
         {% for item in items %}
-          <article class="inventory-card inventory-card-compact">
-            <div class="inventory-card-media">
-              {% if item.card.image_url %}
-                <a href="/cards/{{ item.card.id }}">
-                  <img class="inventory-thumb"
-                       src="{{ item.card.image_url }}"
-                       alt="{{ item.card.name }}"
-                       loading="lazy">
-                </a>
-              {% else %}
-                <a href="/cards/{{ item.card.id }}" class="inventory-thumb placeholder"></a>
-              {% endif %}
-            </div>
-            <div class="inventory-card-body">
-              <h3 class="inventory-card-title">
-                <a href="https://scryfall.com/card/{{ item.card.set_code }}/{{ item.card.collector_number }}"
-                   target="_blank"
-                   rel="noreferrer">{{ item.card.name }}</a>
-              </h3>
-              <div class="inventory-subtitle">
-                {{ item.card.set_name }} · {{ item.card.set_code|upper }} #{{ item.card.collector_number }}
-              </div>
-              <div class="inventory-meta">
-                {{ item.finish|capitalize }} · Qty {{ item.quantity }} ·
-                {% if item.price_status == "current" %}
-                  ${{ '%.2f'|format(item.effective_price) }} each
-                {% elif item.price_status == "stale" %}
-                  Stale: ${{ '%.2f'|format(item.effective_price) }} each
-                {% else %}
-                  — each
-                {% endif %}
-              </div>
-              <div class="inventory-location">
-                {{ item.drawer_label }}
-                {% if item.slot %}· Slot {{ item.slot }}{% endif %}
-              </div>
-              <div class="inventory-total">
-                Total value:
-                {% if item.price_status == "current" %}
-                  ${{ '%.2f'|format(item.total_value) }}
-                {% elif item.price_status == "stale" %}
-                  Stale: ${{ '%.2f'|format(item.total_value) }}
-                {% else %}
-                  —
-                {% endif %}
-              </div>
-              <form action="/inventory/rows/{{ item.id }}/remove"
-                    method="post"
-                    class="inline-form"
-                    style="margin-top: 0.5rem;
-                           gap: 0.4rem;
-                           flex-wrap: wrap">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-                <input type="number"
-                       name="quantity"
-                       min="1"
-                       max="{{ item.quantity }}"
-                       value="1"
-                       style="width: 64px">
-                <button type="submit">Remove</button>
-              </form>
-              {% if decks %}
-                <form action="/decks/pull"
-                      method="post"
-                      class="deck-add-form"
-                      style="margin-top: 0.75rem;
-                             display: flex;
-                             gap: 0.4rem;
-                             align-items: center;
-                             flex-wrap: wrap">
-                  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-                  <input type="hidden" name="inventory_row_id" value="{{ item.id }}">
-                  <select name="deck_id" required>
-                    {% for deck in decks %}<option value="{{ deck.id }}">{{ deck.name }}</option>{% endfor %}
-                  </select>
-                  <input type="number"
-                         name="quantity"
-                         value="1"
-                         min="1"
-                         max="{{ item.quantity }}"
-                         style="width: 64px">
-                  <button type="submit">Add to Deck</button>
-                </form>
-              {% endif %}
-              {% set movable_locations = locations | selectattr("type", "ne", "root") | selectattr("type", "ne", "deck") | list %}
-              {% if movable_locations %}
-                <form action="/inventory/rows/{{ item.id }}/move"
-                      method="post"
-                      class="inline-form"
-                      style="margin-top: 0.5rem;
-                             flex-wrap: wrap;
-                             gap: 0.4rem">
-                  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-                  <select name="location_id" required>
-                    {% for loc in movable_locations %}
-                      <option value="{{ loc.id }}"
-                              {% if item.storage_location_id == loc.id %}selected{% endif %}>
-                        {{ loc.name }} ({{ loc.type }})
-                      </option>
-                    {% endfor %}
-                  </select>
-                  <button type="submit">Move</button>
-                </form>
-              {% endif %}
-              <div class="inventory-actions"
-                   style="display: flex;
-                          gap: 0.4rem;
-                          margin-top: 0.5rem;
-                          flex-wrap: wrap">
-                <form action="/inventory/rows/{{ item.id }}/sell"
-                      method="post"
-                      class="inline-form">
-                  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-                  <input type="hidden" name="quantity" value="1">
-                  <button type="submit">Sell 1</button>
-                </form>
-                <form action="/inventory/rows/{{ item.id }}/trade"
-                      method="post"
-                      class="inline-form">
-                  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-                  <input type="hidden" name="quantity" value="1">
-                  <button type="submit">Trade 1</button>
-                </form>
-                <form action="/inventory/rows/{{ item.id }}/delete"
-                      method="post"
-                      class="inline-form">
-                  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-                  <button type="submit" onclick="return confirm('Delete this row?')">Delete Row</button>
-                </form>
-                <form action="/cards/refresh" method="post" class="inline-form">
-                  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-                  <input type="hidden" name="card_id" value="{{ item.card.id }}">
-                  <button type="submit">Refresh Price</button>
-                </form>
-              </div>
-            </div>
-          </article>
+          {{ inventory_card(item, csrf_token,
+              show_collection_actions=true,
+              show_location_label=true,
+              decks=decks,
+              locations=locations) }}
         {% endfor %}
       </div>
     </section>

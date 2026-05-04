@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_macros.html" import inventory_card %}
 {% block content %}
   <section class="panel hero-panel compact-hero">
     <div class="panel-topline">Storage Location</div>
@@ -29,40 +30,35 @@
       </div>
     </div>
   </section>
+  <section class="panel controls-panel">
+    <form method="get" action="/locations/{{ location.id }}" class="filter-row">
+      <input type="text"
+             name="search"
+             placeholder="name, t:type, c:WU, cmc:&gt;3, o:oracle, s:set"
+             value="{{ search }}">
+      <select name="sort">
+        <option value="slot" {% if sort == 'slot' %}selected{% endif %}>Slot</option>
+        <option value="name" {% if sort == 'name' %}selected{% endif %}>Name</option>
+        <option value="type" {% if sort == 'type' %}selected{% endif %}>Type</option>
+        <option value="cmc" {% if sort == 'cmc' %}selected{% endif %}>Mana Cost</option>
+        <option value="value" {% if sort == 'value' %}selected{% endif %}>Price</option>
+      </select>
+      <select name="direction">
+        <option value="asc" {% if direction == 'asc' %}selected{% endif %}>Ascending</option>
+        <option value="desc" {% if direction == 'desc' %}selected{% endif %}>Descending</option>
+      </select>
+      <button type="submit">Apply</button>
+      <a href="/locations/{{ location.id }}">
+        <button type="button">Clear</button>
+      </a>
+    </form>
+  </section>
   {% if items %}
     <section class="card-grid-section">
       <div class="inventory-grid">
         {% for item in items %}
-          <article class="inventory-card inventory-card-compact">
-            <div class="inventory-card-media">
-              {% if item.card.image_url %}
-                <a href="/cards/{{ item.card.id }}">
-                  <img class="inventory-thumb"
-                       src="{{ item.card.image_url }}"
-                       alt="{{ item.card.name }}"
-                       loading="lazy">
-                </a>
-              {% else %}
-                <a href="/cards/{{ item.card.id }}" class="inventory-thumb placeholder"></a>
-              {% endif %}
-            </div>
-            <div class="inventory-card-body">
-              <h3 class="inventory-card-title">
-                <a href="https://scryfall.com/card/{{ item.card.set_code }}/{{ item.card.collector_number }}"
-                   target="_blank"
-                   rel="noreferrer">{{ item.card.name }}</a>
-              </h3>
-              <div class="inventory-subtitle">
-                {{ item.card.set_name }} · {{ item.card.set_code|upper }} #{{ item.card.collector_number }}
-              </div>
-              <div class="inventory-meta">
-                {{ item.finish|capitalize }} · Qty {{ item.quantity }}
-                {% if item.slot %}· Slot {{ item.slot }}{% endif %}
-              </div>
-              <div class="inventory-total">Total value: ${{ '%.2f'|format(item.total_value) }}</div>
-              {% if item.is_pending %}<div class="muted">Pending placement</div>{% endif %}
-            </div>
-          </article>
+          {{ inventory_card(item, csrf_token) }}
+          {% if item.is_pending %}<div class="muted small-text" style="text-align:center;">Pending placement</div>{% endif %}
         {% endfor %}
       </div>
     </section>

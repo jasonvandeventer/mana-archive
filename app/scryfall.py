@@ -67,6 +67,16 @@ def _normalize_card_payload(raw: dict[str, Any]) -> dict[str, Any]:
             face.get("type_line", "") for face in card_faces if face.get("type_line")
         )
 
+    mana_cost = raw.get("mana_cost")
+    if not mana_cost and card_faces:
+        mana_cost = (
+            " // ".join(face.get("mana_cost", "") for face in card_faces if face.get("mana_cost"))
+            or None
+        )
+
+    raw_colors = raw.get("colors") or []
+    colors_str = " ".join(raw_colors) if raw_colors else None
+
     return {
         "scryfall_id": raw.get("id"),
         "name": raw.get("name"),
@@ -80,6 +90,9 @@ def _normalize_card_payload(raw: dict[str, Any]) -> dict[str, Any]:
         "price_usd": prices.get("usd"),
         "price_usd_foil": prices.get("usd_foil"),
         "price_usd_etched": prices.get("usd_etched"),
+        "colors": colors_str,
+        "mana_cost": mana_cost,
+        "cmc": raw.get("cmc"),
     }
 
 
@@ -206,6 +219,9 @@ def refresh_card_from_scryfall(session: Session, card_id: int) -> bool:
     card.price_usd = fresh["price_usd"]
     card.price_usd_foil = fresh["price_usd_foil"]
     card.price_usd_etched = fresh["price_usd_etched"]
+    card.colors = fresh["colors"]
+    card.mana_cost = fresh["mana_cost"]
+    card.cmc = fresh["cmc"]
     card.updated_at = datetime.utcnow()
     return True
 
