@@ -374,14 +374,7 @@ def _term_to_clause(key: str | None, value: str):
         excluded = [lt for lt in "WUBRG" if lt not in value.upper()]
         if not excluded:
             return None  # id:wubrg matches everything
-        # NULL/empty colors = colorless, which fits within any identity.
-        # NOT LIKE on NULL returns NULL (excluded by SQLite), so guard explicitly.
-        clauses = [
-            (Card.colors == None)  # noqa: E711
-            | (Card.colors == "")
-            | not_(Card.colors.contains(lt))
-            for lt in excluded
-        ]
+        clauses = [not_(Card.colors.contains(lt)) for lt in excluded]
         return and_(*clauses) if len(clauses) > 1 else clauses[0]
     if key in ("n", "name"):
         return Card.name.ilike(f"%{value}%")
