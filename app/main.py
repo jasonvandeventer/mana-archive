@@ -928,6 +928,18 @@ def create_location_route(
     return RedirectResponse("/locations", status_code=303)
 
 
+@app.post("/locations/create-deck")
+def create_deck_from_locations(
+    name: str = Form(...),
+    format_name: str = Form(""),
+    session: Session = Depends(get_db_session),
+    current_user: User = Depends(get_current_user),
+    _: None = CsrfRequired,
+):
+    create_deck(session, user_id=current_user.id, name=name, format_name=format_name)
+    return RedirectResponse("/locations", status_code=303)
+
+
 @app.post("/locations/{location_id}/delete")
 def delete_location_route(
     location_id: int,

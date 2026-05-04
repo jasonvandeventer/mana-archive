@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session, joinedload
 
-from app.models import InventoryRow, StorageLocation
+from app.models import Deck, InventoryRow, StorageLocation
 from app.pricing import effective_price
 
 VALID_LOCATION_TYPES = {"root", "drawer", "binder", "box", "deck", "other"}
@@ -97,12 +97,23 @@ def get_location_summary(session: Session, user_id: int) -> list[dict]:
             price = effective_price(row.card, row.finish) or 0.0
             total_value += price * row.quantity
 
+        is_orphaned_deck = (
+            location.type == "deck"
+            and not session.query(Deck).filter(Deck.storage_location_id == location.id).first()
+        )
+        is_deletable = (
+            len(rows) == 0
+            and location.type not in ("root",)
+            and (location.type != "deck" or is_orphaned_deck)
+        )
+
         summaries.append(
             {
                 "location": location,
                 "row_count": len(rows),
                 "quantity": quantity,
                 "total_value": total_value,
+                "is_deletable": is_deletable,
             }
         )
 
@@ -113,8 +124,12 @@ def delete_location(session: Session, location_id: int, user_id: int) -> None:
     location = get_location(session, location_id=location_id, user_id=user_id)
     if location is None:
         raise ValueError("Location not found.")
-    if location.type in ("root", "deck"):
+    if location.type == "root":
         raise ValueError("This location cannot be deleted directly.")
+    if location.type == "deck":
+        linked_deck = session.query(Deck).filter(Deck.storage_location_id == location_id).first()
+        if linked_deck:
+            raise ValueError("Delete the deck from the Decks page to remove this location.")
     has_rows = (
         session.query(InventoryRow)
         .filter(

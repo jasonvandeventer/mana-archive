@@ -1,6 +1,6 @@
 # Mana Archive — Claude Context
 
-## Current version: v3.8.1
+## Current version: v3.8.2
 
 ## Stack: FastAPI + Jinja2 + SQLite + K3s/ArgoCD
 
@@ -131,6 +131,12 @@ Templates updated in v3.7: `decks.html`, `import.html`, `import_preview.html`, `
 - Pre-commit hook at `.githooks/pre-commit` mirrors CI lint checks. New developers run `git config core.hooksPath .githooks`.
 - Token tracking on set detail: "Show Tokens" toggle fetches `t{set_code}` token set; tokens tracked ownership-only (no USD price).
 
+### Location page deck management (v3.8.2)
+
+- `POST /locations/create-deck` — creates a proper `Deck` record + linked `StorageLocation` from the Locations page; redirects back to `/locations`. Form has name + format dropdown (same options as Decks page).
+- Orphaned deck locations (type="deck", no linked `Deck` record, no rows) now show a Delete button in the Locations table. `delete_location()` allows deletion when no `Deck` references the location; blocks with a clear error if a live `Deck` still owns it.
+- `get_location_summary()` computes `is_deletable` per location (used by template to show/hide Delete); avoids duplicating the logic in the template.
+
 ### Deck/location UX fixes (v3.8.1)
 
 - `GET /locations/{id}` redirects to `/decks/{deck_id}` when `location.type == "deck"` — eliminates duplicate access path.
@@ -146,5 +152,6 @@ Templates updated in v3.7: `decks.html`, `import.html`, `import_preview.html`, `
 - v3.7: Import-to-deck, decks list redesign, full UI/UX consistency pass, admin CRUD, account page — **shipped**
 - v3.8: Card attrs (colors/cmc/mana_cost), async resort, extended search, unified card macro, token tracking, pre-commit hook — **shipped**
 - v3.8.1: Deck/location UX fixes, collection action drawer — **shipped**
+- v3.8.2: Location page deck creation, orphaned deck location cleanup — **shipped**
 - v3.9: Legality sort/filter (needs schema design), advanced deck analytics
 - v4.0: PostgreSQL migration

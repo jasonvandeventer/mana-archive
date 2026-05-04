@@ -25,6 +25,23 @@
       <button type="submit">Create</button>
     </form>
   </section>
+  <section class="panel controls-panel">
+    <h3 class="panel-title">Add Deck</h3>
+    <form method="post" action="/locations/create-deck" class="filter-row" style="margin-top: 0.5rem">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <input type="text" name="name" placeholder="Deck name" required>
+      <select name="format_name">
+        <option value="Commander" selected>Commander</option>
+        <option value="Standard">Standard</option>
+        <option value="Pioneer">Pioneer</option>
+        <option value="Modern">Modern</option>
+        <option value="Legacy">Legacy</option>
+        <option value="Vintage">Vintage</option>
+        <option value="Cube">Cube</option>
+      </select>
+      <button type="submit">Create Deck</button>
+    </form>
+  </section>
   <section class="panel">
     <h3 class="panel-title">Your Locations</h3>
     {% if locations %}
@@ -56,7 +73,7 @@
                 <a href="/locations/{{ loc.id }}">
                   <button type="button">Open</button>
                 </a>
-                {% if summary.row_count == 0 and loc.type not in ('root', 'deck') %}
+                {% if summary.is_deletable %}
                   <form action="/locations/{{ loc.id }}/delete"
                         method="post"
                         style="display: inline-block;
