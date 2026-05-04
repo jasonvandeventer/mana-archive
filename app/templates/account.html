@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block content %}
+  <section class="panel page-hero">
+    <div>
+      <div class="eyebrow">Account</div>
+      <h2 class="panel-title">{{ current_user.username }}</h2>
+      <p class="muted">
+        Member since {{ current_user.created_at.strftime("%B %d, %Y") if current_user.created_at else 'unknown' }}
+        {% if current_user.is_admin %}&nbsp;·&nbsp; <span style="color: #7fb0ff; font-weight: 600;">Admin</span>{% endif %}
+      </p>
+    </div>
+  </section>
+  {% if error %}
+    <section class="panel" style="border-left: 4px solid #b45309;">
+      <p style="margin: 0; font-weight: 600;">
+        {% if error == 'wrong_password' %}
+          Current password is incorrect.
+        {% elif error == 'password_too_short' %}
+          New password must be at least 8 characters.
+        {% elif error == 'passwords_dont_match' %}
+          New passwords do not match.
+        {% else %}
+          An error occurred. Please try again.
+        {% endif %}
+      </p>
+    </section>
+  {% endif %}
+  {% if success %}
+    <section class="panel" style="border-left: 4px solid #2f9e44;">
+      <p style="margin: 0; font-weight: 600;">
+        {% if success == 'password_changed' %}
+          Password updated successfully.
+        {% else %}
+          Done.
+        {% endif %}
+      </p>
+    </section>
+  {% endif %}
+  <section class="panel">
+    <h3 class="panel-title">Change Password</h3>
+    <form action="/account/change-password"
+          method="post"
+          class="stack-form"
+          style="max-width: 360px;
+                 margin-top: 0.75rem">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <label>Current password</label>
+      <input type="password"
+             name="current_password"
+             required
+             autocomplete="current-password">
+      <label>New password</label>
+      <input type="password"
+             name="new_password"
+             required
+             autocomplete="new-password"
+             minlength="8">
+      <label>Confirm new password</label>
+      <input type="password"
+             name="confirm_password"
+             required
+             autocomplete="new-password">
+      <button type="submit">Update Password</button>
+    </form>
+  </section>
+{% endblock %}

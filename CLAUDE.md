@@ -108,9 +108,18 @@ All templates use a consistent panel/section structure:
 - Tables: globally styled — no extra class needed, just bare `<table>`
 - CSS utilities in `style.css`: `.controls-panel`, `.btn-danger-small`, `.finish-badge`, `.warning-text`
 
-Templates updated in v3.7: `decks.html`, `import.html`, `import_preview.html`, `manual_preview.html`, `audit.html`, `sets.html`, `set_detail.html`.
+Templates updated in v3.7: `decks.html`, `import.html`, `import_preview.html`, `manual_preview.html`, `audit.html`, `sets.html`, `set_detail.html`, `pending.html`, `locations.html`, `drawers.html`, `card_detail.html`, `login.html`, `register.html`, `manual_search_results.html`, `import_result.html`.
+
+### Admin and account (v3.7)
+
+- `GET /admin` — admin-only page (gated by `User.is_admin`). Shows all users with card count, deck count, last activity. Actions: toggle active/inactive, toggle admin, reset password, create new user, delete user (cascade-deletes all their data).
+- `GET /account` + `POST /account/change-password` — available to all authenticated users; password change requires current password verification.
+- `require_admin` dependency in `app/dependencies.py` — raises 403 if `current_user.is_admin` is false.
+- Admin/Account links appear in nav. Admin link is gated by `current_user.is_admin`.
+- Migration `v3_7_admin_user` ensures `users.is_admin` column exists and seeds `jason.v` as admin.
+- Delete user cascade order: TransactionLog → InventoryRow → ImportBatch → Deck → StorageLocation → User.
 
 ## Roadmap
 
-- v3.7: Import-to-deck, decks list redesign, UI/UX consistency pass — in dev
+- v3.7: Import-to-deck, decks list redesign, full UI/UX consistency pass (all templates), admin page with user CRUD, user account/password change — in dev
 - v4.0: PostgreSQL migration

@@ -72,7 +72,7 @@ from app.location_service import (
 from app.models import Card, ImportBatch, InventoryRow, User
 from app.presentation_service import build_pending_view_model
 from app.pricing import effective_price
-from app.routes import auth
+from app.routes import account, admin, auth
 from app.scryfall import (
     fetch_card_by_scryfall_id,
     fetch_card_by_set_and_number,
@@ -92,6 +92,8 @@ app.add_middleware(
 )
 
 app.include_router(auth.router)
+app.include_router(admin.router)
+app.include_router(account.router)
 
 
 @app.exception_handler(ValueError)

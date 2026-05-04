@@ -1,22 +1,23 @@
 {% extends "base.html" %}
 {% block content %}
-  <section class="pending-hero">
-    <h2>Pending Placement</h2>
-    {% if use_drawer_sorter %}
-      <p class="muted">
-        Cards listed here have been imported into the database but not yet physically filed in their drawer. Confirm each card once it has been placed.
-      </p>
-    {% else %}
-      <p class="muted">
-        Cards listed here have been imported but not yet assigned to a storage location. Select a location for each card and confirm once it has been physically placed.
-      </p>
-      {% if not locations %}
+  <section class="panel page-hero">
+    <div>
+      <div class="eyebrow">Place</div>
+      <h2 class="panel-title">Pending Placement</h2>
+      {% if use_drawer_sorter %}
+        <p class="muted">Cards imported but not yet physically filed in their drawer. Confirm each once placed.</p>
+      {% else %}
         <p class="muted">
-          You have no storage locations yet. <a href="/locations">Create one</a> before confirming placement.
+          Cards imported but not yet assigned to a storage location. Select a location and confirm once placed.
         </p>
+        {% if not locations %}
+          <p class="muted">
+            You have no storage locations yet. <a href="/locations">Create one</a> before confirming placement.
+          </p>
+        {% endif %}
       {% endif %}
-    {% endif %}
-    <div class="stat-grid">
+    </div>
+    <div class="stat-grid" style="margin-top: 1rem;">
       <div class="stat-card">
         <div class="stat-label">Pending Cards</div>
         <div class="stat-value">{{ pending_count }}</div>
@@ -32,7 +33,9 @@
         <div class="stat-value">{{ total_copies }}</div>
       </div>
     </div>
-    <div class="pending-actions">
+  </section>
+  <section class="panel controls-panel">
+    <div class="pending-actions" style="border: none; padding: 0;">
       {% if use_drawer_sorter %}
         <form action="/pending/confirm-all" method="post" class="inline-form">
           <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
@@ -43,7 +46,7 @@
         <form action="/imports/undo-batch" method="post" class="inline-form">
           <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
           <input type="hidden" name="batch_id" value="{{ latest_batch_id }}">
-          <button type="submit" class="ghost-button">↩ Undo Last Batch Import</button>
+          <button type="submit" class="ghost-button">↩ Undo Last Batch</button>
         </form>
       {% endif %}
     </div>
@@ -58,7 +61,7 @@
             {% else %}
               Pending Cards
             {% endif %}
-            ({{ group.count }} pending)
+            <span class="muted" style="font-weight: 400;">({{ group.count }})</span>
           </summary>
           <div class="pending-list">
             {% for item in group.entries %}
@@ -75,7 +78,7 @@
                 <div class="pending-copy">
                   <div class="pending-name">{{ item.card.name }}</div>
                   <div class="pending-meta">
-                    {{ item.card.set_name }} ({{ item.card.set_code|upper }}) · {{ item.finish|capitalize }} · Qty: {{ item.quantity }} · Price: ${{ '%.2f'|format(item.price) }}
+                    {{ item.card.set_name }} ({{ item.card.set_code|upper }}) · {{ item.finish|capitalize }} · Qty: {{ item.quantity }} · ${{ '%.2f'|format(item.price) }}
                   </div>
                   {% if use_drawer_sorter %}
                     <div class="pending-location">
@@ -122,8 +125,8 @@
       </section>
     {% endfor %}
   {% else %}
-    <section>
-      <p>No pending rows.</p>
+    <section class="panel">
+      <p class="muted">No cards pending placement.</p>
     </section>
   {% endif %}
 {% endblock %}

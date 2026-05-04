@@ -1,10 +1,29 @@
 {% extends "base.html" %}
 {% block content %}
-  <section>
-    <h2>Drawers</h2>
-    <p>Physical collection view grouped by drawer.</p>
+  <section class="panel page-hero">
+    <div>
+      <div class="eyebrow">Organize</div>
+      <h2 class="panel-title">Drawer Layout</h2>
+      <p class="muted">Physical collection view grouped by drawer.</p>
+    </div>
+    {% if drawer_summaries %}
+      <div class="stat-grid" style="margin-top: 1rem;">
+        <div class="stat-card">
+          <div class="stat-value">{{ drawer_summaries|length }}</div>
+          <div class="stat-label">Drawers</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value">{{ drawer_summaries | sum(attribute='row_count') }}</div>
+          <div class="stat-label">Total Rows</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value">${{ '%.0f'|format(drawer_summaries | sum(attribute='total_value') ) }}</div>
+          <div class="stat-label">Total Value</div>
+        </div>
+      </div>
+    {% endif %}
   </section>
-  <section>
+  <section class="panel">
     {% if drawer_summaries %}
       <table>
         <thead>
@@ -12,16 +31,18 @@
             <th>Drawer</th>
             <th>Rows</th>
             <th>Total Value</th>
-            <th>View</th>
+            <th></th>
           </tr>
         </thead>
         <tbody>
           {% for drawer in drawer_summaries %}
             <tr>
-              <td>{{ drawer.drawer }}</td>
+              <td>
+                <strong>{{ drawer.drawer }}</strong>
+              </td>
               <td>{{ drawer.row_count }}</td>
               <td>${{ '%.2f'|format(drawer.total_value) }}</td>
-              <td>
+              <td style="text-align: right;">
                 <a href="/drawers/{{ drawer.drawer }}">Open</a>
               </td>
             </tr>
@@ -29,7 +50,7 @@
         </tbody>
       </table>
     {% else %}
-      <p>No drawers with assigned inventory yet.</p>
+      <p class="muted">No drawers with assigned inventory yet.</p>
     {% endif %}
   </section>
 {% endblock %}

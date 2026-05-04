@@ -3,6 +3,7 @@ from app.migrations import ensure_migrations_table, has_migration, record_migrat
 from scripts.migrate_v3_4_decks_as_locations import main as migrate_v3_4
 from scripts.migrate_v3_5_drop_deck_items import main as migrate_v3_5_deck_items
 from scripts.migrate_v3_5_inventory_role import main as migrate_v3_5_role
+from scripts.migrate_v3_7_admin_user import main as migrate_v3_7_admin
 
 
 def _is_applied(name: str) -> bool:
@@ -40,6 +41,13 @@ def run():
         _mark_applied("v3_5_inventory_role")
     else:
         print("v3.5 inventory_role already applied, skipping")
+
+    if not _is_applied("v3_7_admin_user"):
+        print("Running v3.7 admin user migration...")
+        migrate_v3_7_admin()
+        _mark_applied("v3_7_admin_user")
+    else:
+        print("v3.7 admin_user already applied, skipping")
 
     print("Migration runner complete")
 

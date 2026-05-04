@@ -1,0 +1,181 @@
+{% extends "base.html" %}
+{% block content %}
+  <section class="panel page-hero">
+    <div>
+      <div class="eyebrow">Admin</div>
+      <h2 class="panel-title">User Management</h2>
+      <p class="muted">{{ user_rows|length }} registered user{{ 's' if user_rows|length != 1 else '' }}</p>
+    </div>
+    <div class="stat-grid" style="margin-top: 1rem;">
+      <div class="stat-card">
+        <div class="stat-value">{{ user_rows|length }}</div>
+        <div class="stat-label">Users</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value">{{ user_rows | sum(attribute='card_count') }}</div>
+        <div class="stat-label">Cards Placed</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value">{{ user_rows | sum(attribute='deck_count') }}</div>
+        <div class="stat-label">Decks</div>
+      </div>
+    </div>
+  </section>
+  {% set error = request.query_params.get('error') %}
+  {% set success = request.query_params.get('success') %}
+  {% if error %}
+    <section class="panel" style="border-left: 4px solid #b45309;">
+      <p style="margin: 0; font-weight: 600;">
+        {% if error == 'cannot_deactivate_self' %}
+          You cannot deactivate your own account.
+        {% elif error == 'cannot_remove_own_admin' %}
+          You cannot remove your own admin privileges.
+        {% elif error == 'cannot_delete_self' %}
+          You cannot delete your own account.
+        {% elif error == 'password_too_short' %}
+          Password must be at least 8 characters.
+        {% elif error == 'username_required' %}
+          Username is required.
+        {% elif error == 'username_taken' %}
+          That username is already taken.
+        {% else %}
+          An error occurred.
+        {% endif %}
+      </p>
+    </section>
+  {% endif %}
+  {% if success %}
+    <section class="panel" style="border-left: 4px solid #2f9e44;">
+      <p style="margin: 0; font-weight: 600;">
+        {% if success == 'password_reset' %}
+          Password reset successfully.
+        {% elif success == 'user_created' %}
+          User created successfully.
+        {% elif success == 'user_deleted' %}
+          User deleted.
+        {% else %}
+          Done.
+        {% endif %}
+      </p>
+    </section>
+  {% endif %}
+  <section class="panel controls-panel">
+    <h3 class="panel-title">Create User</h3>
+    <form action="/admin/users/create"
+          method="post"
+          class="filter-row"
+          style="margin-top: 0.5rem">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <input type="text"
+             name="username"
+             placeholder="Username"
+             required
+             style="max-width: 200px">
+      <input type="password"
+             name="password"
+             placeholder="Password (min 8)"
+             required
+             style="max-width: 200px">
+      <label style="display: flex;
+                    align-items: center;
+                    gap: 0.4rem;
+                    font-size: 0.9rem">
+        <input type="checkbox" name="is_admin" value="1">
+        Admin
+      </label>
+      <button type="submit">Create User</button>
+    </form>
+  </section>
+  <section class="panel">
+    <h3 class="panel-title">Users</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>Username</th>
+          <th>Status</th>
+          <th>Role</th>
+          <th>Joined</th>
+          <th>Cards</th>
+          <th>Decks</th>
+          <th>Last Activity</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in user_rows %}
+          <tr>
+            <td>
+              <strong>{{ row.user.username }}</strong>
+            </td>
+            <td>
+              {% if row.user.is_active %}
+                <span style="color: #2f9e44; font-weight: 600;">Active</span>
+              {% else %}
+                <span style="color: #b45309; font-weight: 600;">Inactive</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if row.user.is_admin %}
+                <span style="color: #7fb0ff; font-weight: 600;">Admin</span>
+              {% else %}
+                <span class="muted">User</span>
+              {% endif %}
+            </td>
+            <td class="muted">{{ row.user.created_at.strftime("%Y-%m-%d") if row.user.created_at else '—' }}</td>
+            <td>{{ row.card_count }}</td>
+            <td>{{ row.deck_count }}</td>
+            <td class="muted">{{ row.last_activity.strftime("%Y-%m-%d") if row.last_activity else '—' }}</td>
+            <td>
+              {% if row.user.id != current_user.id %}
+                <div style="display: flex; flex-wrap: wrap; gap: 0.4rem;">
+                  <form action="/admin/users/{{ row.user.id }}/toggle-active"
+                        method="post"
+                        class="inline-form">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                    <button type="submit" class="btn-danger-small">{{ 'Deactivate' if row.user.is_active else 'Activate' }}</button>
+                  </form>
+                  <form action="/admin/users/{{ row.user.id }}/toggle-admin"
+                        method="post"
+                        class="inline-form">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                    <button type="submit" class="btn-danger-small">{{ 'Remove Admin' if row.user.is_admin else 'Make Admin' }}</button>
+                  </form>
+                  <form action="/admin/users/{{ row.user.id }}/delete"
+                        method="post"
+                        class="inline-form">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                    <button type="submit"
+                            class="btn-danger-small"
+                            style="background: #7f1d1d"
+                            onclick="return confirm('Delete {{ row.user.username }}? This removes all their cards, decks, and history. This cannot be undone.');">
+                      Delete
+                    </button>
+                  </form>
+                </div>
+              {% else %}
+                <span class="muted" style="font-size: 0.85rem;">You</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% if row.user.id != current_user.id %}
+            <tr style="background: rgba(8,19,35,0.3);">
+              <td colspan="8" style="padding: 0.4rem 0.5rem 0.75rem;">
+                <form action="/admin/users/{{ row.user.id }}/reset-password"
+                      method="post"
+                      class="filter-row">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                  <span style="font-size: 0.85rem; color: var(--muted); white-space: nowrap;">Reset {{ row.user.username }}'s password:</span>
+                  <input type="password"
+                         name="new_password"
+                         placeholder="New password (min 8 chars)"
+                         style="max-width: 240px">
+                  <button type="submit">Set Password</button>
+                </form>
+              </td>
+            </tr>
+          {% endif %}
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+{% endblock %}

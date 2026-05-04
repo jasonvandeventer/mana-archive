@@ -30,10 +30,11 @@
           {% if current_user and current_user.username in drawer_sorter_usernames %}<a href="/audit">Audit</a>{% endif %}
           <a href="/sets">Sets</a>
           {% if current_user %}
-            <span class="nav-user">Logged in as {{ current_user.username }}</span>
+            {% if current_user.is_admin %}<a href="/admin">Admin</a>{% endif %}
+            <a href="/account">Account</a>
             <form method="post" action="/logout" class="nav-logout-form">
               <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-              <button type="submit" class="nav-logout-button">Logout</button>
+              <button type="submit" class="nav-logout-button">Logout ({{ current_user.username }})</button>
             </form>
           {% endif %}
         </nav>

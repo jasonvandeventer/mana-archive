@@ -1,40 +1,43 @@
 {% extends "base.html" %}
 {% block content %}
-  <section class="page-hero">
-    <div>
-      <p class="eyebrow">CARD DETAIL</p>
-      <h1>{{ card.name }}</h1>
-      <p>
-        {{ card.set_name }} · {{ card.set_code|upper }} #{{ card.collector_number
-        }}
-      </p>
-      <p>
-        <a href="https://scryfall.com/card/{{ card.set_code }}/{{ card.collector_number }}"
-           target="_blank">Open on Scryfall</a>
-      </p>
+  <section class="panel hero-panel compact-hero">
+    <div class="panel-topline">Card Detail</div>
+    <div class="hero-row">
+      <div>
+        <h2 class="panel-title">{{ card.name }}</h2>
+        <p class="muted">
+          {{ card.set_name }} · {{ card.set_code|upper }} #{{ card.collector_number }}
+          &nbsp;·&nbsp;
+          <a href="https://scryfall.com/card/{{ card.set_code }}/{{ card.collector_number }}"
+             target="_blank"
+             rel="noreferrer">Scryfall ↗</a>
+        </p>
+      </div>
+      <div class="stat-grid" style="gap: 0.6rem;">
+        <div class="stat-card compact">
+          <div class="stat-label">Copies</div>
+          <div class="stat-value">{{ total_copies }}</div>
+        </div>
+        <div class="stat-card compact">
+          <div class="stat-label">Value</div>
+          <div class="stat-value">${{ "%.2f"|format(total_value) }}</div>
+        </div>
+      </div>
     </div>
   </section>
   <section class="detail-layout">
     <div class="detail-image-panel">
-      {% if card.image_url %}<img src="{{ card.image_url }}" alt="{{ card.name }}" class="detail-image" />{% endif %}
+      {% if card.image_url %}<img src="{{ card.image_url }}" alt="{{ card.name }}" class="detail-image">{% endif %}
     </div>
     <div class="detail-meta-panel">
-      <div class="stats-grid">
-        <div class="stat-card">
-          <span class="stat-label">Total Copies</span>
-          <strong class="stat-value">{{ total_copies }}</strong>
-        </div>
-        <div class="stat-card">
-          <span class="stat-label">Total Value</span>
-          <strong class="stat-value">${{ "%.2f"|format(total_value) }}</strong>
-        </div>
-      </div>
-      <div class="panel">
-        <h2>Oracle Text</h2>
-        <p>{{ card.oracle_text or "No oracle text available." }}</p>
-      </div>
-      <div class="panel">
-        <h2>Inventory</h2>
+      {% if card.oracle_text %}
+        <section class="panel">
+          <h3 class="panel-title">Oracle Text</h3>
+          <p style="white-space: pre-line; margin-top: 0.5rem;">{{ card.oracle_text }}</p>
+        </section>
+      {% endif %}
+      <section class="panel">
+        <h3 class="panel-title">Inventory</h3>
         {% if rows %}
           <div class="table-wrap">
             <table>
@@ -42,8 +45,7 @@
                 <tr>
                   <th>Finish</th>
                   <th>Qty</th>
-                  <th>Drawer</th>
-                  <th>Slot</th>
+                  <th>Location</th>
                   <th>Pending</th>
                   <th>Price</th>
                   <th>Total</th>
@@ -53,10 +55,11 @@
               <tbody>
                 {% for row in rows %}
                   <tr>
-                    <td>{{ row.finish }}</td>
+                    <td>
+                      <span class="finish-badge">{{ row.finish|capitalize }}</span>
+                    </td>
                     <td>{{ row.quantity }}</td>
                     <td>{{ row.drawer_label }}</td>
-                    <td>{{ row.slot or "-" }}</td>
                     <td>{{ "Yes" if row.is_pending else "No" }}</td>
                     <td>${{ "%.2f"|format(row.effective_price) }}</td>
                     <td>${{ "%.2f"|format(row.total_value) }}</td>
@@ -70,21 +73,21 @@
                                  name="quantity"
                                  min="1"
                                  max="{{ row.quantity }}"
-                                 value="1" />
+                                 value="1">
                           <button type="submit">Remove</button>
                         </form>
                         <form action="/inventory/rows/{{ row.id }}/sell"
                               method="post"
                               class="inline-form">
                           <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-                          <input type="hidden" name="quantity" value="1" />
+                          <input type="hidden" name="quantity" value="1">
                           <button type="submit">Sell 1</button>
                         </form>
                         <form action="/inventory/rows/{{ row.id }}/trade"
                               method="post"
                               class="inline-form">
                           <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-                          <input type="hidden" name="quantity" value="1" />
+                          <input type="hidden" name="quantity" value="1">
                           <button type="submit">Trade 1</button>
                         </form>
                         <form action="/inventory/rows/{{ row.id }}/delete"
@@ -103,9 +106,9 @@
             </table>
           </div>
         {% else %}
-          <p>No inventory rows found.</p>
+          <p class="muted">No inventory rows found.</p>
         {% endif %}
-      </div>
+      </section>
     </div>
   </section>
 {% endblock %}
