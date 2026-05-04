@@ -1,6 +1,6 @@
 # Mana Archive — Claude Context
 
-## Current version: v3.10.4
+## Current version: v3.10.5
 
 ## Stack: FastAPI + Jinja2 + SQLite + K3s/ArgoCD
 
