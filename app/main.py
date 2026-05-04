@@ -631,6 +631,7 @@ def collection_page(
         search=search,
         finish=finish,
         drawer=drawer,
+        location_id=location_id if selected_location and selected_location.type != "drawer" else 0,
         sort=sort,
         direction=direction,
         page=page,
@@ -643,6 +644,7 @@ def collection_page(
         search=search,
         finish=finish,
         drawer=drawer,
+        location_id=location_id if selected_location and selected_location.type != "drawer" else 0,
     )
 
     location_counts = {}

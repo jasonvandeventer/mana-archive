@@ -546,6 +546,7 @@ def list_inventory_rows(
     search: str = "",
     finish: str = "",
     drawer: str = "",
+    location_id: int = 0,
     sort: str = "newest",
     direction: str = "desc",
     page: int = 1,
@@ -573,6 +574,8 @@ def list_inventory_rows(
             StorageLocation.name == f"Drawer {drawer.strip()}",
             StorageLocation.type == "drawer",
         )
+    elif location_id:
+        base_query = base_query.filter(InventoryRow.storage_location_id == location_id)
 
     total_count = base_query.count()
 
@@ -650,6 +653,7 @@ def get_inventory_row_stats(
     search: str = "",
     finish: str = "",
     drawer: str = "",
+    location_id: int = 0,
 ) -> dict:
     query = (
         session.query(InventoryRow)
@@ -669,6 +673,8 @@ def get_inventory_row_stats(
             StorageLocation.name == f"Drawer {drawer.strip()}",
             StorageLocation.type == "drawer",
         )
+    elif location_id:
+        query = query.filter(InventoryRow.storage_location_id == location_id)
 
     rows = query.all()
 
