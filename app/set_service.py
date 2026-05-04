@@ -11,6 +11,7 @@ def get_set_completion(
     set_code: str,
     user_id: int,
     view: str = "all",
+    include_tokens: bool = False,
 ) -> dict:
     """Build set-completion data for one user's collection.
 
@@ -46,6 +47,21 @@ def get_set_completion(
     elif view == "missing":
         visible_cards = missing_cards
 
+    token_data = None
+    if include_tokens:
+        token_set_code = "t" + set_code
+        token_cards = fetch_set_cards(token_set_code)
+        token_owned_map = get_owned_cards_by_set(session, set_code=token_set_code, user_id=user_id)
+        for token in token_cards:
+            token["quantity_owned"] = token_owned_map.get(token["collector_number"], 0)
+        if token_cards:
+            token_data = {
+                "set_code": token_set_code,
+                "cards": token_cards,
+                "owned": sum(1 for t in token_cards if t["quantity_owned"] > 0),
+                "total": len(token_cards),
+            }
+
     return {
         "set_code": set_code,
         "set_name": set_cards[0]["set_name"] if set_cards else set_code.upper(),
@@ -56,6 +72,8 @@ def get_set_completion(
         "missing_cards": missing_cards,
         "visible_cards": visible_cards,
         "view": view,
+        "token_data": token_data,
+        "show_tokens": include_tokens,
     }
 
 

@@ -11,10 +11,17 @@
     </div>
   </section>
   <section class="panel controls-panel">
-    <div class="filter-tabs" style="margin: 0;">
-      <a href="/sets/{{ data.set_code }}?view=all">All</a>
-      <a href="/sets/{{ data.set_code }}?view=owned">Owned</a>
-      <a href="/sets/{{ data.set_code }}?view=missing">Missing</a>
+    <div style="display: flex; gap: 1rem; flex-wrap: wrap; align-items: center; justify-content: space-between;">
+      <div class="filter-tabs" style="margin: 0;">
+        <a href="/sets/{{ data.set_code }}?view=all{% if data.show_tokens %}&show_tokens=true{% endif %}">All</a>
+        <a href="/sets/{{ data.set_code }}?view=owned{% if data.show_tokens %}&show_tokens=true{% endif %}">Owned</a>
+        <a href="/sets/{{ data.set_code }}?view=missing{% if data.show_tokens %}&show_tokens=true{% endif %}">Missing</a>
+      </div>
+      {% if data.show_tokens %}
+        <a href="/sets/{{ data.set_code }}?view={{ data.view }}" class="muted small-text">Hide Tokens</a>
+      {% else %}
+        <a href="/sets/{{ data.set_code }}?view={{ data.view }}&show_tokens=true" class="muted small-text">Show Tokens</a>
+      {% endif %}
     </div>
   </section>
   <div class="card-grid">
@@ -33,4 +40,32 @@
       </div>
     {% endfor %}
   </div>
+  {% if data.show_tokens %}
+    {% if data.token_data %}
+      <section class="panel" style="margin-top: 1rem;">
+        <h3 class="panel-title">Tokens · {{ data.token_data.owned }} / {{ data.token_data.total }} owned</h3>
+        <p class="muted small-text">Tokens have no USD market price. Track ownership only.</p>
+      </section>
+      <div class="card-grid">
+        {% for token in data.token_data.cards %}
+          <div class="card-tile">
+            {% if token.image_url %}<img src="{{ token.image_url }}">{% endif %}
+            <div class="card-name">{{ token.name }}</div>
+            <div class="card-meta">
+              #{{ token.collector_number }}
+              {% if token.quantity_owned and token.quantity_owned > 0 %}
+                · Owned: {{ token.quantity_owned }}
+              {% else %}
+                · Missing
+              {% endif %}
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <section class="panel" style="margin-top: 1rem;">
+        <p class="muted">No token set found for {{ data.set_code.upper() }}.</p>
+      </section>
+    {% endif %}
+  {% endif %}
 {% endblock %}

@@ -1460,10 +1460,13 @@ def set_detail_page(
     request: Request,
     set_code: str,
     view: str = "all",
+    show_tokens: bool = False,
     session: Session = Depends(get_db_session),
     current_user: User = Depends(get_current_user),
 ):
-    data = get_set_completion(session, set_code, view=view, user_id=current_user.id)
+    data = get_set_completion(
+        session, set_code, view=view, user_id=current_user.id, include_tokens=show_tokens
+    )
 
     return render(
         request,

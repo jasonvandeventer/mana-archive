@@ -1,0 +1,13 @@
+#!/bin/bash
+set -e
+
+PASS=true
+
+ruff check . || PASS=false
+black --check . || PASS=false
+
+if [ "$PASS" = false ]; then
+    echo ""
+    echo "  Lint failed. Run scripts/lint.sh to auto-fix, then re-stage and commit."
+    exit 1
+fi
