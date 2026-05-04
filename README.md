@@ -1,109 +1,104 @@
 # Mana Archive
 
-Mana Archive is a self-hosted web application for managing and organizing a physical Magic: The Gathering collection.
+Self-hosted web application for managing a physical Magic: The Gathering collection.
 
-## Purpose
-
-The goal of this project is to solve a real problem:
-
-> A physical card collection is difficult to search, organize, and maintain.
-
-Mana Archive provides:
-
-- searchable inventory
-- structured organization (drawers, sets, decks)
-- import workflows
-- pricing integration
-
----
-
-## Architecture
-
-This repository contains **application code only**.
-
-Platform/infrastructure concerns are intentionally separated:
-
-- Application repo → this repo
-- Platform / Kubernetes / GitOps →  
-  https://github.com/jasonvandeventer/mana-archive-platform
-
----
-
-## Deployment Model
-
-The application is deployed to a Kubernetes cluster using:
-
-- K3s
-- ArgoCD (GitOps)
-- Longhorn (persistent storage)
-
-### Key design decisions
-
-- No infrastructure manifests in this repo
-- No persistent data stored in Git
-- All runtime data lives on Kubernetes persistent volumes
-- Deployments are managed declaratively via ArgoCD
-
----
-
-## Local Development
-
-Run locally using Docker:
-
-```bash
-docker compose -f docker-compose.dev.yml up --build
-```
-
-App will be available at:
-
-http://localhost:8000
-
----
-
-## Data Storage
-
-The application uses a SQLite database.
-
-### Local
-
-- Stored in a local `/data` directory
-
-### Kubernetes
-
-- Backed by a Longhorn persistent volume
-- Mounted into the container at runtime
-
-No database files are stored in this repository.
+**Current version: v3.9.2** · [Platform repo](https://github.com/jasonvandeventer/mana-archive-platform)
 
 ---
 
 ## Features
 
-- Collection browsing and filtering
-- Drawer-based organization
-- Deck tracking
-- Import workflows (CSV/manual)
-- Pricing integration
+### Collection
+- Browse and search your full inventory with Scryfall-style boolean syntax
+- Keywords: `t:creature`, `c:WU`, `cmc:>3`, `o:"draw a card"`, `id:gb`, `price:>=5`, `is:foil`, `qty:>1`, and more
+- Full boolean logic: `OR`, `AND`, `-negation`, `(grouping)`, quoted multi-word values
+- Sort by name, type, mana cost, color, or price
+
+### Imports
+- **CSV upload** — auto-detects Scanner App, Helvault (free/pro), and Moxfield collection CSV formats
+- **Paste list** — parses Moxfield deck exports, MTGA, MTGO, and standard `N CardName (SET) #` format
+- Import directly to a deck or storage location at commit time
+
+### Decks
+- Create and manage Commander (or any format) decks
+- Mark commanders; commander cards appear in a dedicated panel above the deck grid
+- Full Scryfall-style search within a deck
+- **Analytics panel**: mana curve, card type breakdown, color pip counts, avg CMC
+- **Health panel**: ramp/draw/removal/board-wipe density vs recommended thresholds; pip strain analysis (colored pip demand vs land color sources)
+- **Token panel**: auto-discovers tokens produceable by the deck via Scryfall `all_parts`; click a token image to view its detail page
+- Click any health metric count to filter the deck grid to just those cards
+
+### Organization
+- Drawer/slot system for physical organization (gated per-user)
+- Custom storage locations for non-drawer users
+- Move cards between locations; return cards from decks to pending/collection
+
+### Pricing & Card Data
+- Live Scryfall pricing (USD regular, foil, etched) per card and deck totals
+- Background price refresh loop keeps data fresh
+- Card attributes: colors, color identity, mana cost, CMC, oracle text, type line
+
+### Multi-user
+- User accounts with registration and login
+- Admin panel: create/delete users, toggle admin/active, reset passwords
+- Per-user data isolation; drawer sorter is opt-in per username
+
+### Sets
+- Browse cards by set; token tracking toggle per set
 
 ---
 
-## Future Work
+## Stack
 
-- AI-assisted deck building
-- Advanced collection analytics
-- Improved UX and performance
-- API exposure for integrations
+| Layer | Technology |
+|---|---|
+| Web framework | FastAPI + Jinja2 |
+| Database | SQLite (via SQLAlchemy) |
+| Styling | Custom CSS (no framework) |
+| Card data | [Scryfall API](https://scryfall.com/docs/api) |
+| Runtime | Docker / Kubernetes (K3s) |
+| GitOps | ArgoCD + ArgoCD Image Updater |
 
 ---
 
-## Why this project matters
+## Architecture
 
-This is not just an app.
+This repo contains **application code only**. Platform/infrastructure lives separately:
 
-It demonstrates:
+- **App repo** — this repo (FastAPI app, templates, migrations)
+- **Platform repo** — [mana-archive-platform](https://github.com/jasonvandeventer/mana-archive-platform) (Kubernetes manifests, ArgoCD config)
 
-- application development
-- containerization
-- Kubernetes deployment
-- GitOps workflows
-- separation of concerns between app and platform
+CI builds and pushes a Docker image to GHCR on any `v*.*.*` tag. ArgoCD Image Updater detects the new tag (semver strategy) and syncs the cluster automatically.
+
+---
+
+## Local Development
+
+```bash
+docker compose -f docker-compose.dev.yml up --build
+```
+
+App available at `http://localhost:8000`.
+
+### Git hooks
+
+After cloning, activate the pre-commit lint check and post-commit auto-tagger:
+
+```bash
+git config core.hooksPath .githooks
+```
+
+The post-commit hook tags HEAD automatically whenever the commit message starts with `vX.Y.Z:`.
+
+### Migrations
+
+Migrations run automatically on startup via `run_migrations()` in `on_startup()`. To add a migration, drop an idempotent script in `scripts/` and register it in `scripts/run_migrations.py`.
+
+---
+
+## Data Storage
+
+- **Local**: SQLite file in `/data`
+- **Kubernetes**: Longhorn persistent volume mounted at `/data`
+
+No database files are stored in this repository.
