@@ -134,9 +134,13 @@ Templates updated in v3.7: `decks.html`, `import.html`, `import_preview.html`, `
 ### Deck analytics (v3.8.4)
 
 - `compute_deck_analytics(rows)` in `deck_service.py` — takes a list of unfiltered `InventoryRow` ORM objects and returns mana curve (bucketed 0–6+, lands excluded), card type breakdown (Creature → Planeswalker → Battle → Instant → Sorcery → Enchantment → Artifact → Land → Other), color pip counts (parsed from `mana_cost`), and average CMC.
+- `compute_deck_tokens(rows)` in `deck_service.py` — returns deduplicated list of `{name, type_line, image_url, set_code, collector_number, scryfall_id}` dicts for tokens produceable by the deck. Calls `fetch_deck_tokens()` in `scryfall.py`: Pass 1 batch-fetches deck cards to collect token stubs from `all_parts` (component="token"); Pass 2 batch-fetches the token cards themselves for `image_uris` and set info. Cached per unique card set keyed on `(_DECK_TOKEN_CACHE_VERSION, frozenset)` — bump version when dict shape changes.
 - `deck_detail_page` in `main.py` always runs a separate unfiltered query for analytics so the panel reflects the full deck even when the search filter is active. Analytics are `None` for empty decks.
 - Analytics panel in `deck_detail.html` — 3-column layout: Mana Curve | Card Types | Color Pips. Avg CMC shown as a prominent stat. Collapses to 2-col when no pips, stacks on mobile. Vertical dividers between columns.
-- CSS: `.analytics-grid`, `.analytics-section`, `.analytics-avg-cmc`, `.analytics-curve`, `.curve-col/.curve-bar/.curve-count/.curve-label`, `.analytics-row`, `.arow-label/.arow-bar-wrap/.arow-bar/.arow-count`, WUBRG color-coded gradient bars.
+- Tokens panel in `deck_detail.html` — separate panel below the deck card grid. Responsive image grid (`token-image-grid`); clicking a token image opens `/tokens/{scryfall_id}` (internal detail page); clicking the name opens Scryfall in a new tab.
+- `GET /tokens/{scryfall_id}` — token detail page using `token_detail.html`. Fetches token data via `fetch_card_by_scryfall_id` (cached). Shows large image, type line, oracle text, Scryfall link. No inventory section (tokens not owned).
+- Remove-from-deck override fields (drawer/slot) collapsed into a `<details class="return-details">` — "Remove from Deck" summary expands to reveal override inputs + "Confirm Remove" submit. Only shown for drawer-sorter users on non-commander rows.
+- CSS: `.analytics-grid`, `.analytics-section`, `.analytics-avg-cmc`, `.analytics-curve`, `.curve-col/.curve-bar/.curve-count/.curve-label`, `.analytics-row`, `.arow-label/.arow-bar-wrap/.arow-bar/.arow-count`, WUBRG gradient bars, `.token-image-grid/.token-card/.token-card-img/.token-card-placeholder/.token-card-name/.token-card-type`, `.return-details/.return-summary`.
 
 ### Brand assets and header layout (v3.8.3)
 
@@ -182,7 +186,7 @@ Templates updated in v3.7: `decks.html`, `import.html`, `import_preview.html`, `
   - `n:` / `name:` — explicit name prefix (same as bare word, useful in complex expressions)
   - `qty:`/`q:`/`quantity:` — numeric quantity filter (e.g. `qty:>1` to find duplicates)
   - `price:`/`usd:` — numeric price filter against `Card.price_usd` cast to float (e.g. `price:>=5`)
-- `id:` color identity filter added in v3.8.5 patch: "within" subset check — excludes cards containing any color not in the given set. Uses `Card.colors`; approximate (no separate `color_identity` column).
+- `id:` color identity filter: "within" subset check — excludes cards containing any color not in the given set. Uses `Card.color_identity` (exact Scryfall field, added v3.8.8); cards with `NULL` identity are excluded until backfilled.
 - Placeholder text in all three search inputs updated to show real example queries with boolean syntax.
 
 ## Roadmap

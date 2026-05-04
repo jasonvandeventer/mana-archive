@@ -229,5 +229,35 @@
         </section>
       {% endif %}
     {% endif %}
+    {% if tokens %}
+      <section class="panel">
+        <h3 class="panel-title">Tokens</h3>
+        <div class="token-image-grid">
+          {% for token in tokens %}
+            {% set scryfall_url = 'https://scryfall.com/card/' ~ token.set_code ~ '/' ~ token.collector_number if token.set_code else '' %}
+            <div class="token-card">
+              <a href="/tokens/{{ token.scryfall_id }}">
+                {% if token.image_url %}
+                  <img class="token-card-img"
+                       src="{{ token.image_url }}"
+                       alt="{{ token.name }}"
+                       loading="lazy">
+                {% else %}
+                  <div class="token-card-img token-card-placeholder"></div>
+                {% endif %}
+              </a>
+              <div class="token-card-name">
+                {% if scryfall_url %}
+                  <a href="{{ scryfall_url }}" target="_blank" rel="noreferrer">{{ token.name }}</a>
+                {% else %}
+                  {{ token.name }}
+                {% endif %}
+              </div>
+              <div class="token-card-type">{{ token.type_line }}</div>
+            </div>
+          {% endfor %}
+        </div>
+      </section>
+    {% endif %}
   {% endif %}
 {% endblock %}

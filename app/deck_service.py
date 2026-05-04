@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session, joinedload
 
 from app.audit_service import log_transaction
 from app.models import Card, Deck, InventoryRow, StorageLocation
+from app.scryfall import fetch_deck_tokens
 
 _TYPE_ORDER = [
     "Creature",
@@ -71,6 +72,14 @@ def compute_deck_analytics(rows: list) -> dict:
         "pips_max": max(pips.values()) if pips else 1,
         "avg_cmc": avg_cmc,
     }
+
+
+def compute_deck_tokens(rows: list) -> list[dict]:
+    """Return deduplicated tokens produceable by cards in this deck."""
+    scryfall_ids = [row.card.scryfall_id for row in rows if row.card and row.card.scryfall_id]
+    if not scryfall_ids:
+        return []
+    return fetch_deck_tokens(scryfall_ids)
 
 
 def create_deck(

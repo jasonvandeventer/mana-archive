@@ -194,12 +194,15 @@
             <input type="hidden" name="deck_id" value="{{ deck.id }}">
             <input type="hidden" name="deck_row_id" value="{{ item.id }}">
             {% if use_drawer_sorter and item.role != 'commander' %}
-              <div class="deck-item-actions">
-                <input type="text" name="drawer" placeholder="Drawer override">
-                <input type="text" name="slot" placeholder="Slot override">
-                <button type="submit">Remove from Deck</button>
-              </div>
-              <p class="muted small-text" style="margin: 0.2rem 0 0">Leave blank to send to Pending.</p>
+              <details class="return-details">
+                <summary class="return-summary">Remove from Deck</summary>
+                <div class="deck-item-actions" style="margin-top: 0.45rem">
+                  <input type="text" name="drawer" placeholder="Drawer override">
+                  <input type="text" name="slot" placeholder="Slot override">
+                  <button type="submit">Confirm Remove</button>
+                </div>
+                <p class="muted small-text" style="margin: 0.2rem 0 0">Leave blank to send to Pending.</p>
+              </details>
             {% else %}
               <button type="submit">Remove from Deck</button>
             {% endif %}

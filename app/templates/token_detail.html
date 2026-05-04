@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block content %}
+  <section class="panel hero-panel compact-hero">
+    <div class="panel-topline">Token</div>
+    <div class="hero-row">
+      <div>
+        <h2 class="panel-title">{{ token.name }}</h2>
+        <p class="muted">
+          {{ token.set_name }} · {{ token.set_code|upper }} #{{ token.collector_number }}
+          &nbsp;·&nbsp;
+          <a href="{{ scryfall_url }}" target="_blank" rel="noreferrer">Scryfall ↗</a>
+        </p>
+      </div>
+    </div>
+  </section>
+  <section class="detail-layout">
+    <div class="detail-image-panel">
+      {% if token.image_url %}
+        <img src="{{ token.image_url }}"
+             alt="{{ token.name }}"
+             class="detail-image">
+      {% endif %}
+    </div>
+    <div class="detail-meta-panel">
+      {% if token.type_line %}
+        <section class="panel">
+          <h3 class="panel-title">Type</h3>
+          <p style="margin-top: 0.5rem;">{{ token.type_line }}</p>
+        </section>
+      {% endif %}
+      {% if token.oracle_text %}
+        <section class="panel">
+          <h3 class="panel-title">Oracle Text</h3>
+          <p style="white-space: pre-line; margin-top: 0.5rem;">{{ token.oracle_text }}</p>
+        </section>
+      {% endif %}
+    </div>
+  </section>
+{% endblock %}

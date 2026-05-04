@@ -122,6 +122,92 @@ def _post_json(url: str, payload: dict[str, Any]) -> dict[str, Any] | None:
 
 _COLLECTION_BATCH_SIZE = 75
 
+# Cache keyed on (version, frozenset of scryfall_ids) → deduped token list.
+# Bump _DECK_TOKEN_CACHE_VERSION when the returned dict shape changes.
+_DECK_TOKEN_CACHE_VERSION = 2
+_deck_token_cache: dict[tuple, list[dict[str, str]]] = {}
+
+
+def fetch_deck_tokens(scryfall_ids: list[str]) -> list[dict[str, str]]:
+    """Return deduplicated tokens produceable by the given cards, with images.
+
+    Pass 1: batch-fetch deck cards to collect token stubs from all_parts.
+    Pass 2: batch-fetch the token cards themselves to get image_uris and set info.
+    Result is cached per unique set of scryfall_ids — deck page reloads are free.
+    Returns sorted list of {name, type_line, image_url, set_code, collector_number, scryfall_id}.
+    """
+    cache_key = (_DECK_TOKEN_CACHE_VERSION, frozenset(sid for sid in scryfall_ids if sid))
+    if cache_key in _deck_token_cache:
+        return _deck_token_cache[cache_key]
+
+    # Pass 1: collect token stubs from all_parts of the deck cards
+    seen_ids: set[str] = set()
+    token_stubs: list[dict[str, str]] = []
+    ids = list(cache_key[1])
+
+    for i in range(0, len(ids), _COLLECTION_BATCH_SIZE):
+        batch = ids[i : i + _COLLECTION_BATCH_SIZE]
+        payload = {"identifiers": [{"id": sid} for sid in batch]}
+        data = _post_json(f"{SCRYFALL_CARD_URL}/collection", payload)
+        if not data:
+            continue
+        for card in data.get("data", []):
+            for part in card.get("all_parts") or []:
+                if part.get("component") != "token":
+                    continue
+                token_id = part.get("id", "")
+                if token_id and token_id not in seen_ids:
+                    seen_ids.add(token_id)
+                    token_stubs.append(
+                        {
+                            "id": token_id,
+                            "name": part.get("name", ""),
+                            "type_line": part.get("type_line", ""),
+                        }
+                    )
+
+    # Pass 2: batch-fetch the token cards to get image_uris and set info
+    token_meta: dict[str, dict[str, str]] = {}
+    token_ids = [t["id"] for t in token_stubs]
+    for i in range(0, len(token_ids), _COLLECTION_BATCH_SIZE):
+        batch = token_ids[i : i + _COLLECTION_BATCH_SIZE]
+        payload = {"identifiers": [{"id": tid} for tid in batch]}
+        data = _post_json(f"{SCRYFALL_CARD_URL}/collection", payload)
+        if not data:
+            continue
+        for card in data.get("data", []):
+            card_id = card.get("id", "")
+            image_uris = card.get("image_uris") or {}
+            card_faces = card.get("card_faces") or []
+            if not image_uris and card_faces:
+                image_uris = (card_faces[0] or {}).get("image_uris") or {}
+            url = (
+                image_uris.get("normal") or image_uris.get("large") or image_uris.get("small") or ""
+            )
+            if card_id:
+                token_meta[card_id] = {
+                    "image_url": url,
+                    "set_code": card.get("set", ""),
+                    "collector_number": card.get("collector_number", ""),
+                }
+
+    result = sorted(
+        [
+            {
+                "name": t["name"],
+                "type_line": t["type_line"],
+                "image_url": token_meta.get(t["id"], {}).get("image_url", ""),
+                "set_code": token_meta.get(t["id"], {}).get("set_code", ""),
+                "collector_number": token_meta.get(t["id"], {}).get("collector_number", ""),
+                "scryfall_id": t["id"],
+            }
+            for t in token_stubs
+        ],
+        key=lambda t: t["name"],
+    )
+    _deck_token_cache[cache_key] = result
+    return result
+
 
 def bulk_refresh_prices(scryfall_ids: list[str]) -> dict[str, dict[str, Any]]:
     """Fetch fresh price data for many cards using the /cards/collection batch endpoint.

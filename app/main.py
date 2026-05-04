@@ -26,6 +26,7 @@ from app.auth import hash_password
 from app.db import SessionLocal, init_db
 from app.deck_service import (
     compute_deck_analytics,
+    compute_deck_tokens,
     create_deck,
     delete_deck,
     get_deck,
@@ -1319,6 +1320,7 @@ def deck_detail_page(
     deck_cards = [i for i in items if i["role"] != "commander"]
 
     analytics = None
+    tokens: list = []
     if deck and deck.storage_location_id:
         all_deck_rows = (
             session.query(InventoryRow)
@@ -1332,6 +1334,7 @@ def deck_detail_page(
         )
         if all_deck_rows:
             analytics = compute_deck_analytics(all_deck_rows)
+            tokens = compute_deck_tokens(all_deck_rows)
 
     # Derive color identity from commanders; fall back to colorless if none assigned yet
     _identity_letters: list[str] = []
@@ -1358,6 +1361,7 @@ def deck_detail_page(
             "collection_search": collection_search,
             "collection_results": collection_results if deck else [],
             "analytics": analytics,
+            "tokens": tokens,
             "current_user": current_user,
             "use_drawer_sorter": use_drawer_sorter,
         },
@@ -1509,6 +1513,27 @@ def card_detail_page(
             "rows": card_rows,
             "total_copies": total_copies,
             "total_value": total_value,
+            "current_user": current_user,
+        },
+    )
+
+
+@app.get("/tokens/{scryfall_id}")
+def token_detail_page(
+    request: Request,
+    scryfall_id: str,
+    current_user: User = Depends(get_current_user),
+):
+    data = fetch_card_by_scryfall_id(scryfall_id)
+    if not data:
+        return RedirectResponse(url="/collection", status_code=303)
+    return render(
+        request,
+        "token_detail.html",
+        {
+            "title": data["name"],
+            "token": data,
+            "scryfall_url": f"https://scryfall.com/card/{data['set_code']}/{data['collector_number']}",
             "current_user": current_user,
         },
     )
