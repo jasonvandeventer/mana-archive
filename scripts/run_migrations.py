@@ -7,6 +7,7 @@ from scripts.migrate_v3_7_admin_user import main as migrate_v3_7_admin
 from scripts.migrate_v3_8_8_color_identity import main as migrate_v3_8_8_color_identity
 from scripts.migrate_v3_8_card_attrs import main as migrate_v3_8_card_attrs
 from scripts.migrate_v3_9_5_row_tags import main as migrate_v3_9_5_row_tags
+from scripts.migrate_v3_9_6_legalities import main as migrate_v3_9_6_legalities
 
 
 def _is_applied(name: str) -> bool:
@@ -72,6 +73,13 @@ def run():
         _mark_applied("v3_9_5_row_tags")
     else:
         print("v3.9.5 row_tags already applied, skipping")
+
+    if not _is_applied("v3_9_6_legalities"):
+        print("Running v3.9.6 legalities migration...")
+        migrate_v3_9_6_legalities()
+        _mark_applied("v3_9_6_legalities")
+    else:
+        print("v3.9.6 legalities already applied, skipping")
 
     print("Migration runner complete")
 

@@ -6,6 +6,7 @@ responses into the Card model shape used by the rest of the app.
 
 from __future__ import annotations
 
+import json
 import time
 from datetime import datetime
 from functools import lru_cache
@@ -97,6 +98,7 @@ def _normalize_card_payload(raw: dict[str, Any]) -> dict[str, Any]:
         "color_identity": color_identity_str,
         "mana_cost": mana_cost,
         "cmc": raw.get("cmc"),
+        "legalities": json.dumps(raw.get("legalities") or {}),
     }
 
 
@@ -313,6 +315,7 @@ def refresh_card_from_scryfall(session: Session, card_id: int) -> bool:
     card.color_identity = fresh["color_identity"]
     card.mana_cost = fresh["mana_cost"]
     card.cmc = fresh["cmc"]
+    card.legalities = fresh["legalities"]
     card.updated_at = datetime.utcnow()
     return True
 

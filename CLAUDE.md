@@ -1,6 +1,6 @@
 # Mana Archive — Claude Context
 
-## Current version: v3.9.0
+## Current version: v3.9.6
 
 ## Stack: FastAPI + Jinja2 + SQLite + K3s/ArgoCD
 
@@ -189,6 +189,20 @@ Templates updated in v3.7: `decks.html`, `import.html`, `import_preview.html`, `
 - `id:` color identity filter: "within" subset check — excludes cards containing any color not in the given set. Uses `Card.color_identity` (exact Scryfall field, added v3.8.8); cards with `NULL` identity are excluded until backfilled.
 - Placeholder text in all three search inputs updated to show real example queries with boolean syntax.
 
+### Legality filter (v3.9.6)
+
+- `Card.legalities` (TEXT, nullable) — JSON-encoded dict from Scryfall `legalities` field (e.g. `{"commander": "legal", "modern": "not_legal"}`). Added via migration `v3_9_6_legalities`. `NULL` = not yet fetched; backfilled by the price refresh loop.
+- `_normalize_card_payload()` in `scryfall.py` now includes `"legalities": json.dumps(raw.get("legalities") or {})`. `refresh_card_from_scryfall()` writes `card.legalities`; price refresh loop does too.
+- `get_card_legality(card, format_name) -> str | None` in `deck_service.py` — parses JSON, lowercases format name, returns legality value ("legal", "not_legal", "banned", "restricted") or None.
+- Deck detail items dict includes `"legality_status": get_card_legality(row.card, deck.format)`.
+- New search keywords in `_term_to_clause()`:
+  - `legal:FORMAT` — cards legal in that format (e.g. `legal:commander`)
+  - `banned:FORMAT` — cards banned in that format (e.g. `banned:modern`)
+  - Both use SQLite `json_extract(legalities, '$.format')` comparison.
+- Legality badge in `_macros.html` in deck context — shown only when status is not "legal" and not None: red "Banned", orange "Restricted", amber "Not Legal".
+- CSS classes: `.legality-badge`, `.legality-banned`, `.legality-restricted`, `.legality-not-legal`.
+- Deck format values are Title Case in UI ("Commander", "Modern") — `get_card_legality()` lowercases before JSON key lookup, so they match Scryfall's lowercase keys.
+
 ### Deck health (v3.9.0)
 
 - `compute_deck_health(rows)` in `deck_service.py` — takes unfiltered `InventoryRow` ORM objects and returns four functional-density metrics plus pip strain analysis.
@@ -233,8 +247,8 @@ Templates updated in v3.7: `decks.html`, `import.html`, `import_preview.html`, `
 - v3.9.2: Fix health_filter= param name mismatch — **shipped**
 - v3.9.3: Enhanced mana curve — stacked bars (ramp/spells), avg threat turn estimate, dead-hand risk indicator (% CMC≥5) — **shipped**
 - v3.9.4: Consistency score — draw/ramp/tutor/curve-smoothness/coverage → 0-100 score with label (Consistent engine → Glass cannon) and optional descriptor; compact header in health panel — **shipped**
-- v3.9.5: Card role tagging — user-defined per-row tags (Ramp, Draw, Removal, Combo piece, Payoff, Protection, etc.); multi-role support; schema migration; unlocks deeper analytics
-- v3.9.6: Legality filter — add legality data to Card (fetched from Scryfall); filter/badge on deck and collection views; schema migration
+- v3.9.5: Card role tagging — user-defined per-row tags (Ramp, Draw, Removal, Combo piece, Payoff, Protection, etc.); multi-role support; schema migration; unlocks deeper analytics — **shipped**
+- v3.9.6: Legality filter — `Card.legalities` JSON column; `legal:FORMAT` / `banned:FORMAT` search keywords; legality badge (Banned/Restricted/Not Legal) on deck cards when format is set — **shipped**
 - v3.10: Win condition detection — CommanderSpellbook API integration for combo detection; synergy cluster identification; "cards contributing to win" vs "cards that do nothing alone" panel
 - v3.11: Commander synergy score — % of deck that directly synergizes, indirectly supports, or is unrelated to the commander; uses role tags + CommanderSpellbook data
 - v3.12: Dead card detection — flag cards requiring existing board state to function, no synergy with commander, or "win-more" cards; depends on role tags and synergy data

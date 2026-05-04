@@ -32,6 +32,7 @@ from app.deck_service import (
     compute_deck_tokens,
     create_deck,
     delete_deck,
+    get_card_legality,
     get_deck,
     get_row_tags,
     list_decks,
@@ -166,6 +167,7 @@ def _run_price_refresh_batch() -> None:
                 card.color_identity = fresh.get("color_identity")
                 card.mana_cost = fresh.get("mana_cost")
                 card.cmc = fresh.get("cmc")
+                card.legalities = fresh.get("legalities")
                 card.updated_at = now
                 updated += 1
         session.commit()
@@ -1304,6 +1306,7 @@ def deck_detail_page(
                     "role": row.role,
                     "tags": get_row_tags(row),
                     "suggested_tags": suggest_card_roles(row.card),
+                    "legality_status": get_card_legality(row.card, deck.format),
                 }
             )
 

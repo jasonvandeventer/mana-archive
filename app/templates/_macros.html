@@ -172,6 +172,18 @@
         </details>
       {% endif %}
       {% if show_deck_actions and deck %}
+        {% set leg = item.get('legality_status') %}
+        {% if leg and leg != 'legal' %}
+          <div style="margin-top: 0.25rem">
+            {% if leg == 'banned' %}
+              <span class="legality-badge legality-banned">Banned</span>
+            {% elif leg == 'restricted' %}
+              <span class="legality-badge legality-restricted">Restricted</span>
+            {% elif leg == 'not_legal' %}
+              <span class="legality-badge legality-not-legal">Not Legal</span>
+            {% endif %}
+          </div>
+        {% endif %}
         {% set row_tags = item.get('tags', []) %}
         {% set suggestions = item.get('suggested_tags', []) %}
         {% if row_tags %}

@@ -1310,6 +1310,27 @@ td {
 .card-tag-protection {
   background: #1a7a7a;
 }
+.legality-badge {
+  display: inline-block;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  padding: 0.1rem 0.45rem;
+  border-radius: 3px;
+  text-transform: uppercase;
+}
+.legality-banned {
+  background: #7a1a1a;
+  color: #ffd0d0;
+}
+.legality-restricted {
+  background: #7a4a0a;
+  color: #ffe0b0;
+}
+.legality-not-legal {
+  background: #5a4a00;
+  color: #ffe880;
+}
 .tag-editor-details {
   margin-top: 0.3rem;
 }

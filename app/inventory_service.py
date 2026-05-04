@@ -434,6 +434,12 @@ def _term_to_clause(key: str | None, value: str):
             return price_col >= val
         if op == "<=":
             return price_col <= val
+    if key == "legal":
+        fmt = value.lower()
+        return func.json_extract(Card.legalities, f"$.{fmt}") == "legal"
+    if key == "banned":
+        fmt = value.lower()
+        return func.json_extract(Card.legalities, f"$.{fmt}") == "banned"
     if key in ("m", "mana"):
         return Card.mana_cost.ilike(f"%{value}%")
     if key == "cmc":

@@ -47,6 +47,17 @@ def set_row_tags(row, tags: list[str]) -> None:
     row.tags = json.dumps(valid) if valid else None
 
 
+def get_card_legality(card, format_name: str) -> str | None:
+    """Return legality string for the given format, or None if unknown."""
+    if not card.legalities or not format_name:
+        return None
+    try:
+        data = json.loads(card.legalities)
+    except (json.JSONDecodeError, TypeError):
+        return None
+    return data.get(format_name.lower())
+
+
 def suggest_card_roles(card) -> list[str]:
     """Return auto-detected role tags for a card based on oracle text patterns."""
     oracle = (card.oracle_text or "").lower()
