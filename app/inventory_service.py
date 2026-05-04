@@ -4,7 +4,8 @@ import re
 from collections.abc import Iterable
 from datetime import UTC, datetime, timedelta
 
-from sqlalchemy import and_, func, not_, or_
+from sqlalchemy import Float as SAFloat
+from sqlalchemy import and_, cast, func, not_, or_
 from sqlalchemy.orm import Session, joinedload
 
 from app.audit_service import log_transaction
@@ -315,10 +316,10 @@ def _tokenize_search(search: str) -> list[tuple]:
         if not raw:
             continue
 
-        # OR / AND keywords (case-sensitive, Scryfall convention)
-        if not negated and raw == "OR":
+        # OR / AND keywords (case-insensitive)
+        if not negated and raw.upper() == "OR":
             tokens.append(("OR",))
-        elif not negated and raw == "AND":
+        elif not negated and raw.upper() == "AND":
             tokens.append(("AND",))
         elif ":" in raw:
             colon = raw.index(":")
@@ -326,7 +327,11 @@ def _tokenize_search(search: str) -> list[tuple]:
             val = raw[colon + 1 :]
             if val.startswith('"') and val.endswith('"') and len(val) >= 2:
                 val = val[1:-1]
-            tokens.append(("TERM", key, val.lower(), negated))
+            # not:X is syntactic sugar for negated is:X
+            if key == "not":
+                tokens.append(("TERM", "is", val.lower(), not negated))
+            else:
+                tokens.append(("TERM", key, val.lower(), negated))
         else:
             tokens.append(("TERM", None, raw.lower(), negated))
 
@@ -371,6 +376,50 @@ def _term_to_clause(key: str | None, value: str):
             return None  # id:wubrg matches everything
         clauses = [not_(Card.colors.contains(lt)) for lt in excluded]
         return and_(*clauses) if len(clauses) > 1 else clauses[0]
+    if key in ("n", "name"):
+        return Card.name.ilike(f"%{value}%")
+    if key == "is":
+        if value == "foil":
+            return InventoryRow.finish == "foil"
+        if value in ("nonfoil", "non-foil"):
+            return InventoryRow.finish == "normal"
+        if value == "etched":
+            return InventoryRow.finish == "etched"
+        if value == "commander":
+            return InventoryRow.role == "commander"
+        return None
+    if key in ("qty", "q", "quantity"):
+        parsed = _parse_numeric_op(value)
+        if parsed is None:
+            return None
+        op, val = parsed
+        qty = InventoryRow.quantity
+        if op == "=":
+            return qty == int(val)
+        if op == ">":
+            return qty > int(val)
+        if op == "<":
+            return qty < int(val)
+        if op == ">=":
+            return qty >= int(val)
+        if op == "<=":
+            return qty <= int(val)
+    if key in ("price", "usd"):
+        parsed = _parse_numeric_op(value)
+        if parsed is None:
+            return None
+        op, val = parsed
+        price_col = cast(Card.price_usd, SAFloat)
+        if op == "=":
+            return price_col == val
+        if op == ">":
+            return price_col > val
+        if op == "<":
+            return price_col < val
+        if op == ">=":
+            return price_col >= val
+        if op == "<=":
+            return price_col <= val
     if key in ("m", "mana"):
         return Card.mana_cost.ilike(f"%{value}%")
     if key == "cmc":

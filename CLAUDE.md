@@ -1,6 +1,6 @@
 # Mana Archive — Claude Context
 
-## Current version: v3.8.5
+## Current version: v3.8.6
 
 ## Stack: FastAPI + Jinja2 + SQLite + K3s/ArgoCD
 
@@ -172,6 +172,19 @@ Templates updated in v3.7: `decks.html`, `import.html`, `import_preview.html`, `
 - Implementation: `_tokenize_search()` → flat token list; `_term_to_clause()` → single SQLAlchemy clause; `_parse_search_expr()` / `_parse_and_expr()` / `_parse_atom()` → recursive-descent parser building nested `and_()` / `or_()` / `not_()` clauses.
 - Malformed queries fall back to no-filter rather than 500.
 
+### Search polish (v3.8.6)
+
+- `OR` / `AND` keywords are now case-insensitive (`or`, `Or`, `OR` all work).
+- `not:X` is syntactic sugar for `-is:X` (double-negation via `-not:X` cancels correctly).
+- New keywords in `_term_to_clause()`:
+  - `is:foil` / `is:nonfoil` / `is:etched` — finish filter; `not:foil` inverts
+  - `is:commander` — cards flagged as commander in a deck
+  - `n:` / `name:` — explicit name prefix (same as bare word, useful in complex expressions)
+  - `qty:`/`q:`/`quantity:` — numeric quantity filter (e.g. `qty:>1` to find duplicates)
+  - `price:`/`usd:` — numeric price filter against `Card.price_usd` cast to float (e.g. `price:>=5`)
+- `id:` color identity filter added in v3.8.5 patch: "within" subset check — excludes cards containing any color not in the given set. Uses `Card.colors`; approximate (no separate `color_identity` column).
+- Placeholder text in all three search inputs updated to show real example queries with boolean syntax.
+
 ## Roadmap
 
 - v3.7: Import-to-deck, decks list redesign, full UI/UX consistency pass, admin CRUD, account page — **shipped**
@@ -181,5 +194,6 @@ Templates updated in v3.7: `decks.html`, `import.html`, `import_preview.html`, `
 - v3.8.3: Brand assets (real PNG icon pack + wordmark), header two-column layout, deck total-copy count — **shipped**
 - v3.8.4: Deck analytics panel (mana curve, card types, color pips, avg CMC) — **shipped**
 - v3.8.5: Boolean search logic (OR, AND, NOT/-, parentheses, quoted multi-word values) — **shipped**
+- v3.8.6: Search polish — case-insensitive OR/AND, not: keyword, is:/qty:/price:/name: keywords, updated placeholders — **shipped**
 - v3.9: Legality sort/filter (needs schema design), game tracker (life totals, 2–8 players, deck selection per seat, results tied to deck records)
 - v4.0: PostgreSQL migration

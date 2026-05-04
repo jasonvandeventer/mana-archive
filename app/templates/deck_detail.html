@@ -189,7 +189,7 @@
                value="{{ collection_search }}">
         <input type="text"
                name="search"
-               placeholder="name, t:type, c:WU, cmc:&gt;3, o:oracle"
+               placeholder="t:creature OR t:artifact · id:gb · -t:land · cmc:&gt;=3 · is:commander"
                value="{{ search }}">
         <select name="sort">
           <option value="name" {% if sort == 'name' %}selected{% endif %}>Name</option>

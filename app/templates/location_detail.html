@@ -34,7 +34,7 @@
     <form method="get" action="/locations/{{ location.id }}" class="filter-row">
       <input type="text"
              name="search"
-             placeholder="name, t:type, c:WU, cmc:&gt;3, o:oracle, s:set"
+             placeholder="t:rat -t:pirate · t:creature OR t:artifact · id:gb · cmc:&gt;=3 · is:foil"
              value="{{ search }}">
       <select name="sort">
         <option value="slot" {% if sort == 'slot' %}selected{% endif %}>Slot</option>
