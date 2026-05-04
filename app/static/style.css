@@ -864,9 +864,17 @@ td {
 }
 .curve-bar {
   width: 100%;
-  background: linear-gradient(180deg, #5a9dff 0%, var(--accent) 100%);
   border-radius: 3px 3px 0 0;
   min-height: 2px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.curve-bar-ramp-fill {
+  background: linear-gradient(180deg, #42c46a 0%, #238a46 100%);
+}
+.curve-bar-spell-fill {
+  background: linear-gradient(180deg, #5a9dff 0%, var(--accent) 100%);
 }
 .curve-count {
   font-size: 0.68rem;
@@ -879,6 +887,28 @@ td {
   color: rgba(156, 169, 199, 0.7);
   margin-top: 4px;
 }
+.curve-insights {
+  display: flex;
+  flex-direction: column;
+  gap: 0.22rem;
+  margin-top: 0.6rem;
+}
+.curve-insight {
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+.curve-insight strong { color: var(--text); }
+.curve-insight-low      { color: #42c46a; }
+.curve-insight-moderate { color: #d4a840; }
+.curve-insight-high     { color: #e86850; }
+.curve-insight-detail   { color: var(--muted); font-size: 0.7rem; }
+.curve-legend {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 0.4rem;
+}
+.curve-legend-ramp  { font-size: 0.7rem; color: #42c46a; }
+.curve-legend-spell { font-size: 0.7rem; color: #5a9dff; }
 .analytics-row {
   display: grid;
   grid-template-columns: 88px 1fr 2.2rem;

@@ -41,16 +41,21 @@ _TYPE_ORDER = [
 
 def compute_deck_analytics(rows: list) -> dict:
     """Compute mana curve, type breakdown, and color pip counts from a list of InventoryRow ORM objects."""
-    curve: dict[int, int] = {i: 0 for i in range(7)}  # 0–5, 6 = "6+"
+    curve: dict[int, int] = {i: 0 for i in range(7)}
+    curve_ramp: dict[int, int] = {i: 0 for i in range(7)}
+    curve_spells: dict[int, int] = {i: 0 for i in range(7)}
     types: dict[str, int] = {}
     pips: dict[str, int] = {}
     total_cmc = 0.0
     non_land_copies = 0
+    threat_cmc_total = 0.0
+    threat_copies = 0
 
     for row in rows:
         card = row.card
         qty = row.quantity
         tl = (card.type_line or "").lower()
+        oracle = (card.oracle_text or "").lower()
 
         matched = False
         for t in _TYPE_ORDER:
@@ -62,12 +67,21 @@ def compute_deck_analytics(rows: list) -> dict:
             types["Other"] = types.get("Other", 0) + qty
 
         is_land = "land" in tl
+        is_basic = "basic land" in tl
 
         if not is_land and card.cmc is not None:
             bucket = min(int(card.cmc), 6)
             curve[bucket] += qty
             total_cmc += card.cmc * qty
             non_land_copies += qty
+
+            is_ramp = not is_basic and ("add {" in oracle or bool(_RAMP_LAND_RE.search(oracle)))
+            if is_ramp:
+                curve_ramp[bucket] += qty
+            else:
+                curve_spells[bucket] += qty
+                threat_cmc_total += card.cmc * qty
+                threat_copies += qty
 
         if card.mana_cost:
             for color in ("W", "U", "B", "R", "G"):
@@ -76,6 +90,14 @@ def compute_deck_analytics(rows: list) -> dict:
                     pips[color] = pips.get(color, 0) + n
 
     avg_cmc = round(total_cmc / non_land_copies, 2) if non_land_copies else 0.0
+    avg_threat_cmc = round(threat_cmc_total / threat_copies, 1) if threat_copies else 0.0
+
+    total_ramp = sum(curve_ramp.values())
+    turns_to_play = max(1, round(avg_threat_cmc) - (1 if total_ramp >= 10 else 0))
+
+    high_cmc_spells = sum(curve_spells[i] for i in range(5, 7))
+    dead_hand_pct = round(high_cmc_spells / threat_copies * 100) if threat_copies else 0
+    dead_hand_risk = "high" if dead_hand_pct > 45 else ("moderate" if dead_hand_pct > 25 else "low")
 
     ordered_types = {k: types[k] for k in _TYPE_ORDER if k in types}
     if "Other" in types:
@@ -83,12 +105,19 @@ def compute_deck_analytics(rows: list) -> dict:
 
     return {
         "curve": curve,
+        "curve_ramp": curve_ramp,
+        "curve_spells": curve_spells,
         "curve_max": max(curve.values()) or 1,
         "types": ordered_types,
         "types_max": max(types.values()) if types else 1,
         "pips": {c: pips[c] for c in ("W", "U", "B", "R", "G") if c in pips},
         "pips_max": max(pips.values()) if pips else 1,
         "avg_cmc": avg_cmc,
+        "avg_threat_cmc": avg_threat_cmc,
+        "turns_to_play": turns_to_play,
+        "dead_hand_risk": dead_hand_risk,
+        "dead_hand_pct": dead_hand_pct,
+        "total_ramp": total_ramp,
     }
 
 

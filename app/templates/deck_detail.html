@@ -43,13 +43,29 @@
           <div class="analytics-curve">
             {% for cmc in range(7) %}
               {% set count = analytics.curve[cmc] %}
+              {% set ramp = analytics.curve_ramp[cmc] %}
+              {% set spell = analytics.curve_spells[cmc] %}
               {% set bar_h = ((count / analytics.curve_max) * 88)|round|int %}
               <div class="curve-col">
                 <span class="curve-count">{{ count if count else '' }}</span>
-                <div class="curve-bar" style="height: {{ bar_h }}px"></div>
+                <div class="curve-bar" style="height: {{ [bar_h, 2]|max }}px">
+                  {% if ramp > 0 %}<div class="curve-bar-ramp-fill" style="flex: {{ ramp }}"></div>{% endif %}
+                  {% if spell > 0 %}<div class="curve-bar-spell-fill" style="flex: {{ spell }}"></div>{% endif %}
+                </div>
                 <span class="curve-label">{{ cmc if cmc < 6 else '6+' }}</span>
               </div>
             {% endfor %}
+          </div>
+          <div class="curve-insights">
+            <span class="curve-insight">Threats avg turn <strong>{{ analytics.turns_to_play }}</strong></span>
+            <span class="curve-insight curve-insight-{{ analytics.dead_hand_risk }}">
+              {{ analytics.dead_hand_risk|capitalize }} dead-hand risk
+              <span class="curve-insight-detail">({{ analytics.dead_hand_pct }}% CMC≥5)</span>
+            </span>
+          </div>
+          <div class="curve-legend">
+            <span class="curve-legend-ramp">▪ Ramp ({{ analytics.total_ramp }})</span>
+            <span class="curve-legend-spell">▪ Spells</span>
           </div>
         </div>
         {% if analytics.types %}
