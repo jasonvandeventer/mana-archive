@@ -210,7 +210,7 @@ Templates updated in v3.7: `decks.html`, `import.html`, `import_preview.html`, `
 
 - CI builds and pushes to GHCR on any tag matching `v*.*.*`. Untagged commits run lint only.
 - ArgoCD Image Updater (semver strategy) watches GHCR and writes the new tag to `.argocd-source-mana-archive.yaml` in `mana-archive-platform`, which ArgoCD then syncs to the cluster.
-- **Version convention**: always bump the patch number — never use `-N` suffixes. `v3.8.9` → hotfix → `v3.8.10`. Semver treats `-N` as a pre-release (sorts *below* the base tag) so the Image Updater ignores it.
+- **Version convention**: always bump the patch number — never use `-N` suffixes. `v3.8.9` → hotfix → `v3.8.10`. Semver treats `-N` as a pre-release (sorts _below_ the base tag) so the Image Updater ignores it.
 - **Tagging is automatic**: the `.githooks/post-commit` hook tags HEAD whenever the commit message starts with `vX.Y.Z:`. No separate `git tag` step needed.
 - New developers must run `git config core.hooksPath .githooks` to activate both the pre-commit lint check and the post-commit auto-tag.
 
@@ -232,7 +232,7 @@ Templates updated in v3.7: `decks.html`, `import.html`, `import_preview.html`, `
 - v3.9.1: Health metric chips link to filtered deck card list — **shipped**
 - v3.9.2: Fix health_filter= param name mismatch — **shipped**
 - v3.9.3: Enhanced mana curve — stacked bars (ramp/spells), avg threat turn estimate, dead-hand risk indicator (% CMC≥5) — **shipped**
-- v3.9.4: Consistency score — redundancy (roles filling each slot), draw density, tutor count, curve smoothness → single score + qualitative label (e.g. "High-variance combo", "Stable midrange")
+- v3.9.4: Consistency score — draw/ramp/tutor/curve-smoothness/coverage → 0-100 score with label (Consistent engine → Glass cannon) and optional descriptor; compact header in health panel — **shipped**
 - v3.9.5: Card role tagging — user-defined per-row tags (Ramp, Draw, Removal, Combo piece, Payoff, Protection, etc.); multi-role support; schema migration; unlocks deeper analytics
 - v3.9.6: Legality filter — add legality data to Card (fetched from Scryfall); filter/badge on deck and collection views; schema migration
 - v3.10: Win condition detection — CommanderSpellbook API integration for combo detection; synergy cluster identification; "cards contributing to win" vs "cards that do nothing alone" panel
