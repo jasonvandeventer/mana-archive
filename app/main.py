@@ -26,6 +26,7 @@ from app.auth import hash_password
 from app.db import SessionLocal, init_db
 from app.deck_service import (
     compute_deck_analytics,
+    compute_deck_health,
     compute_deck_tokens,
     create_deck,
     delete_deck,
@@ -1322,6 +1323,7 @@ def deck_detail_page(
     deck_cards = [i for i in items if i["role"] != "commander"]
 
     analytics = None
+    health = None
     tokens: list = []
     if deck and deck.storage_location_id:
         all_deck_rows = (
@@ -1336,6 +1338,7 @@ def deck_detail_page(
         )
         if all_deck_rows:
             analytics = compute_deck_analytics(all_deck_rows)
+            health = compute_deck_health(all_deck_rows)
             tokens = compute_deck_tokens(all_deck_rows)
 
     # Derive color identity from commanders; fall back to colorless if none assigned yet
@@ -1363,6 +1366,7 @@ def deck_detail_page(
             "collection_search": collection_search,
             "collection_results": collection_results if deck else [],
             "analytics": analytics,
+            "health": health,
             "tokens": tokens,
             "current_user": current_user,
             "use_drawer_sorter": use_drawer_sorter,

@@ -1,6 +1,6 @@
 # Mana Archive — Claude Context
 
-## Current version: v3.8.10
+## Current version: v3.9.0
 
 ## Stack: FastAPI + Jinja2 + SQLite + K3s/ArgoCD
 
@@ -189,6 +189,23 @@ Templates updated in v3.7: `decks.html`, `import.html`, `import_preview.html`, `
 - `id:` color identity filter: "within" subset check — excludes cards containing any color not in the given set. Uses `Card.color_identity` (exact Scryfall field, added v3.8.8); cards with `NULL` identity are excluded until backfilled.
 - Placeholder text in all three search inputs updated to show real example queries with boolean syntax.
 
+### Deck health (v3.9.0)
+
+- `compute_deck_health(rows)` in `deck_service.py` — takes unfiltered `InventoryRow` ORM objects and returns four functional-density metrics plus pip strain analysis.
+- **Functional density metrics** (each: `{count, cards, threshold}`):
+  - **Ramp**: non-land cards with `"add {"` in oracle text + any non-basic card with a land-tutor pattern (`search your library for ... land`). Threshold: 10.
+  - **Draw**: cards matching `draw (a|an|x|N|two–six|that many) cards?`. Threshold: 10.
+  - **Removal**: cards matching `(destroy|exile) target ... (creature|artifact|enchantment|planeswalker|permanent)`. Threshold: 8.
+  - **Board Wipes**: `destroy all`, `exile all creatures/permanents`, `all creatures get -N/-N`, `deals N damage to each creature`. Threshold: 2.
+  - `count` = number of distinct card names; `cards` = sorted list for the expandable UI.
+- **Pip strain** (`pip_strain` dict keyed by color letter):
+  - `demand` = sum of colored pips of that color across all non-land `mana_cost` (quantity-weighted).
+  - `sources` = sum of quantities of land cards whose `color_identity` contains that color.
+  - `ratio` = demand/sources (or `None` if no sources); `strained = ratio > 2.5 or ratio is None`.
+  - Only colors with nonzero demand are included.
+- **Deck Health panel** in `deck_detail.html` — two-column layout: left = Functional Density rows (bar + count/threshold + expandable card list); right = Pip Strain rows (pip symbol + bar + demand/sources/ratio). Color-coded: green (at/above threshold), yellow (≥60%), red (<60%); strained pips shown in red.
+- CSS classes: `.health-grid`, `.health-metrics`, `.health-pips`, `.health-row`, `.health-pip-row`, `.health-bar(-ok|-warn|-low)`, `.health-count(-ok|-warn|-low)`, `.health-cards-details`, `.health-cards-list`, `.pip-sym(-w|-u|-b|-r|-g)`.
+
 ## Deployment and versioning
 
 - CI builds and pushes to GHCR on any tag matching `v*.*.*`. Untagged commits run lint only.
@@ -211,5 +228,6 @@ Templates updated in v3.7: `decks.html`, `import.html`, `import_preview.html`, `
 - v3.8.8: `color_identity` column on `Card` — proper Scryfall `color_identity` field (space-sep WUBRG, `""` = colorless, `NULL` = not yet fetched); `id:` filter now uses this instead of approximating from `colors`; migration `v3_8_8_color_identity` adds column; refresh loop and all card-write paths updated — **shipped**
 - v3.8.9: Deck token panel (image grid, `/tokens/{scryfall_id}` detail page), collapse remove-from-deck overrides into `<details>`, post-commit auto-tag hook — **shipped**
 - v3.8.10: Collection location filter now works for non-drawer locations (decks, custom storage); stats (total value, total cards, matching rows) also scoped correctly — **shipped**
-- v3.9: Legality sort/filter (needs schema design), game tracker (life totals, 2–8 players, deck selection per seat, results tied to deck records)
+- v3.9.0: Deck health panel — ramp/draw/removal/board-wipe density counts with recommended thresholds and expandable card lists; pip strain analysis (colored pip demand vs land color sources, ratio >2.5 flagged as strained) — **shipped**
+- v3.9.1: Legality sort/filter (needs schema design), game tracker (life totals, 2–8 players, deck selection per seat, results tied to deck records)
 - v4.0: PostgreSQL migration

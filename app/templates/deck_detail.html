@@ -89,6 +89,64 @@
       </div>
     </section>
   {% endif %}
+  {% if health %}
+    <section class="panel health-panel">
+      <h3 class="panel-title">Deck Health</h3>
+      <div class="health-grid">
+        <div class="health-metrics">
+          <div class="health-section-label">Functional Density</div>
+          {% for key, label in [("ramp","Ramp"),("draw","Card Draw"),("removal","Removal"),("wipes","Board Wipes")] %}
+            {% set m = health[key] %}
+            {% set pct = [((m.count / m.threshold) * 100)|round|int, 100]|min %}
+            {% set status = "ok" if m.count >= m.threshold else ("warn" if m.count >= (m.threshold * 0.6)|round|int else "low") %}
+            <div class="health-row">
+              <span class="health-label">{{ label }}</span>
+              <div class="health-bar-wrap">
+                <div class="health-bar health-bar-{{ status }}" style="width: {{ pct }}%"></div>
+              </div>
+              <span class="health-count health-count-{{ status }}">{{ m.count }}/{{ m.threshold }}</span>
+              {% if m.cards %}
+                <details class="health-cards-details">
+                  <summary class="health-cards-summary">{{ m.count }} card{{ "s" if m.count != 1 }}</summary>
+                  <ul class="health-cards-list">
+                    {% for name in m.cards %}<li>{{ name }}</li>{% endfor %}
+                  </ul>
+                </details>
+              {% else %}
+                <span class="health-cards-empty">—</span>
+              {% endif %}
+            </div>
+          {% endfor %}
+        </div>
+        {% if health.pip_strain %}
+          <div class="health-pips">
+            <div class="health-section-label">Pip Strain</div>
+            <div class="health-pip-note muted small-text">Colored pip demand vs land sources. Ratio &gt;2.5 may be strained.</div>
+            {% for color in ["W","U","B","R","G"] %}
+              {% if color in health.pip_strain %}
+                {% set ps = health.pip_strain[color] %}
+                <div class="health-row health-pip-row">
+                  <span class="pip-sym pip-sym-{{ color|lower }}">{{ color }}</span>
+                  <div class="health-bar-wrap">
+                    {% if ps.sources %}
+                      {% set fill = [((ps.demand / (ps.demand + ps.sources)) * 100)|round|int, 100]|min %}
+                      <div class="health-bar {{ 'health-bar-low' if ps.strained else 'health-bar-ok' }}" style="width: {{ fill }}%"></div>
+                    {% else %}
+                      <div class="health-bar health-bar-low" style="width: 100%"></div>
+                    {% endif %}
+                  </div>
+                  <span class="health-pip-stat {% if ps.strained %}health-count-low{% else %}health-count-ok{% endif %}">
+                    {{ ps.demand }}p / {{ ps.sources }}L
+                    {% if ps.ratio is not none %}= {{ ps.ratio }}{% else %}<span class="warning-text">no sources</span>{% endif %}
+                  </span>
+                </div>
+              {% endif %}
+            {% endfor %}
+          </div>
+        {% endif %}
+      </div>
+    </section>
+  {% endif %}
   {% if deck %}
     <section class="panel controls-panel">
       <h3>Search Collection</h3>

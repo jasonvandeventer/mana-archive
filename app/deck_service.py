@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from datetime import datetime
 
 from sqlalchemy import func
@@ -8,6 +9,23 @@ from sqlalchemy.orm import Session, joinedload
 from app.audit_service import log_transaction
 from app.models import Card, Deck, InventoryRow, StorageLocation
 from app.scryfall import fetch_deck_tokens
+
+_RAMP_LAND_RE = re.compile(r"search your library for .{0,60}land", re.IGNORECASE)
+_DRAW_RE = re.compile(
+    r"\bdraw (?:a|an|x|\d+|two|three|four|five|six|that many) cards?\b", re.IGNORECASE
+)
+_REMOVAL_RE = re.compile(
+    r"(?:destroy|exile) target (?:\w+ ){0,4}(?:creature|artifact|enchantment|planeswalker|permanent)\b",
+    re.IGNORECASE,
+)
+_WIPE_RE = re.compile(
+    r"(?:destroy all|exile all (?:creatures?|permanents?)"
+    r"|all creatures? (?:get|have) -\d+/-\d+"
+    r"|each creature (?:gets?|has) -\d+/-\d+"
+    r"|deals \d+ damage to each creature)",
+    re.IGNORECASE,
+)
+_HEALTH_THRESHOLDS = {"ramp": 10, "draw": 10, "removal": 8, "wipes": 2}
 
 _TYPE_ORDER = [
     "Creature",
@@ -80,6 +98,81 @@ def compute_deck_tokens(rows: list) -> list[dict]:
     if not scryfall_ids:
         return []
     return fetch_deck_tokens(scryfall_ids)
+
+
+def compute_deck_health(rows: list) -> dict:
+    """Compute ramp/draw/removal/wipe density and pip strain from InventoryRow ORM objects."""
+    ramp_cards: list[str] = []
+    draw_cards: list[str] = []
+    removal_cards: list[str] = []
+    wipe_cards: list[str] = []
+    pip_demand: dict[str, int] = {}
+    land_sources: dict[str, int] = {}
+
+    for row in rows:
+        card = row.card
+        if not card:
+            continue
+        name = card.name or ""
+        oracle = (card.oracle_text or "").lower()
+        type_line = (card.type_line or "").lower()
+        is_land = "land" in type_line
+        is_basic = "basic land" in type_line
+        qty = row.quantity
+
+        if not is_land and card.mana_cost:
+            for color in ("W", "U", "B", "R", "G"):
+                n = card.mana_cost.count("{" + color + "}") * qty
+                if n:
+                    pip_demand[color] = pip_demand.get(color, 0) + n
+
+        if is_land and card.color_identity is not None:
+            for color in ("W", "U", "B", "R", "G"):
+                if color in card.color_identity:
+                    land_sources[color] = land_sources.get(color, 0) + qty
+
+        if is_basic or not oracle:
+            continue
+
+        if not is_land and "add {" in oracle:
+            ramp_cards.append(name)
+        elif _RAMP_LAND_RE.search(oracle):
+            ramp_cards.append(name)
+
+        if _DRAW_RE.search(oracle):
+            draw_cards.append(name)
+
+        if _REMOVAL_RE.search(oracle):
+            removal_cards.append(name)
+
+        if _WIPE_RE.search(oracle):
+            wipe_cards.append(name)
+
+    pip_strain: dict[str, dict] = {}
+    for color in ("W", "U", "B", "R", "G"):
+        demand = pip_demand.get(color, 0)
+        if demand == 0:
+            continue
+        sources = land_sources.get(color, 0)
+        ratio = round(demand / sources, 1) if sources else None
+        pip_strain[color] = {
+            "demand": demand,
+            "sources": sources,
+            "ratio": ratio,
+            "strained": ratio is None or ratio > 2.5,
+        }
+
+    def _metric(cards: list[str], key: str) -> dict:
+        unique = sorted(set(cards))
+        return {"count": len(unique), "cards": unique, "threshold": _HEALTH_THRESHOLDS[key]}
+
+    return {
+        "ramp": _metric(ramp_cards, "ramp"),
+        "draw": _metric(draw_cards, "draw"),
+        "removal": _metric(removal_cards, "removal"),
+        "wipes": _metric(wipe_cards, "wipes"),
+        "pip_strain": pip_strain,
+    }
 
 
 def create_deck(
