@@ -229,5 +229,16 @@ Templates updated in v3.7: `decks.html`, `import.html`, `import_preview.html`, `
 - v3.8.9: Deck token panel (image grid, `/tokens/{scryfall_id}` detail page), collapse remove-from-deck overrides into `<details>`, post-commit auto-tag hook — **shipped**
 - v3.8.10: Collection location filter now works for non-drawer locations (decks, custom storage); stats (total value, total cards, matching rows) also scoped correctly — **shipped**
 - v3.9.0: Deck health panel — ramp/draw/removal/board-wipe density counts with recommended thresholds and expandable card lists; pip strain analysis (colored pip demand vs land color sources, ratio >2.5 flagged as strained) — **shipped**
-- v3.9.1: Legality sort/filter (needs schema design), game tracker (life totals, 2–8 players, deck selection per seat, results tied to deck records)
+- v3.9.1: Health metric chips link to filtered deck card list — **shipped**
+- v3.9.2: Fix health_filter= param name mismatch — **shipped**
+- v3.9.3: Enhanced mana curve — split by ramp vs non-ramp, "turns to meaningful play" estimate, dead-hand risk indicator (no schema changes, pure computation)
+- v3.9.4: Consistency score — redundancy (roles filling each slot), draw density, tutor count, curve smoothness → single score + qualitative label (e.g. "High-variance combo", "Stable midrange")
+- v3.9.5: Card role tagging — user-defined per-row tags (Ramp, Draw, Removal, Combo piece, Payoff, Protection, etc.); multi-role support; schema migration; unlocks deeper analytics
+- v3.9.6: Legality filter — add legality data to Card (fetched from Scryfall); filter/badge on deck and collection views; schema migration
+- v3.10: Win condition detection — CommanderSpellbook API integration for combo detection; synergy cluster identification; "cards contributing to win" vs "cards that do nothing alone" panel
+- v3.11: Commander synergy score — % of deck that directly synergizes, indirectly supports, or is unrelated to the commander; uses role tags + CommanderSpellbook data
+- v3.12: Dead card detection — flag cards requiring existing board state to function, no synergy with commander, or "win-more" cards; depends on role tags and synergy data
+- v3.13: Average turn impact — estimate when cards are typically playable and when they matter; "deck peaks at turn X" summary
+- v3.14: Game tracker — life totals, 2–8 players, deck selection per seat, game results tied to deck records
 - v4.0: PostgreSQL migration
+- v4.1: Playgroup meta adjustment — track win/loss vs specific decks, common threats, avg game length; suggest curve/removal/hate adjustments
