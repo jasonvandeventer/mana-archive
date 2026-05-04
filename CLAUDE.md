@@ -231,7 +231,7 @@ Templates updated in v3.7: `decks.html`, `import.html`, `import_preview.html`, `
 - v3.9.0: Deck health panel — ramp/draw/removal/board-wipe density counts with recommended thresholds and expandable card lists; pip strain analysis (colored pip demand vs land color sources, ratio >2.5 flagged as strained) — **shipped**
 - v3.9.1: Health metric chips link to filtered deck card list — **shipped**
 - v3.9.2: Fix health_filter= param name mismatch — **shipped**
-- v3.9.3: Enhanced mana curve — split by ramp vs non-ramp, "turns to meaningful play" estimate, dead-hand risk indicator (no schema changes, pure computation)
+- v3.9.3: Enhanced mana curve — stacked bars (ramp/spells), avg threat turn estimate, dead-hand risk indicator (% CMC≥5) — **shipped**
 - v3.9.4: Consistency score — redundancy (roles filling each slot), draw density, tutor count, curve smoothness → single score + qualitative label (e.g. "High-variance combo", "Stable midrange")
 - v3.9.5: Card role tagging — user-defined per-row tags (Ramp, Draw, Removal, Combo piece, Payoff, Protection, etc.); multi-role support; schema migration; unlocks deeper analytics
 - v3.9.6: Legality filter — add legality data to Card (fetched from Scryfall); filter/badge on deck and collection views; schema migration
