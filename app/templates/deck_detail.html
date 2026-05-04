@@ -38,7 +38,7 @@
         <div class="analytics-section">
           <div class="analytics-section-label">Mana Curve</div>
           <div class="analytics-avg-cmc">
-            {{ analytics.avg_cmc }}<span class="analytics-avg-cmc-unit"> avg CMC</span>
+            {{ analytics.avg_cmc }}<span class="analytics-avg-cmc-unit">avg CMC</span>
           </div>
           <div class="analytics-curve">
             {% for cmc in range(7) %}
@@ -59,7 +59,8 @@
               <div class="analytics-row">
                 <span class="arow-label">{{ type }}</span>
                 <div class="arow-bar-wrap">
-                  <div class="arow-bar" style="width: {{ ((count / analytics.types_max) * 100)|round|int }}%"></div>
+                  <div class="arow-bar"
+                       style="width: {{ ((count / analytics.types_max) * 100)|round|int }}%"></div>
                 </div>
                 <span class="arow-count">{{ count }}</span>
               </div>
@@ -73,7 +74,8 @@
               <div class="analytics-row">
                 <span class="arow-label arow-label-pip">
                   <img src="https://svgs.scryfall.io/card-symbols/{{ color }}.svg"
-                       class="mana-pip" alt="{{ color }}">
+                       class="mana-pip"
+                       alt="{{ color }}">
                 </span>
                 <div class="arow-bar-wrap">
                   <div class="arow-bar arow-bar-{{ color|lower }}"

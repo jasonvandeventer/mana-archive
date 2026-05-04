@@ -1,6 +1,6 @@
 # Mana Archive — Claude Context
 
-## Current version: v3.8.4
+## Current version: v3.8.5
 
 ## Stack: FastAPI + Jinja2 + SQLite + K3s/ArgoCD
 
@@ -163,6 +163,15 @@ Templates updated in v3.7: `decks.html`, `import.html`, `import_preview.html`, `
 - Collection card actions collapsed into a `<details class="card-actions-drawer">` — cards show only info by default; "Actions ▾" expands Remove, Add to Deck, Move, and Sell/Trade/Delete/Refresh inline.
 - Fixed deck card tile overflow: deck actions section now uses `flex-direction: column`; removed misapplied `compact-form-grid` class from return form.
 
+### Boolean search logic (v3.8.5)
+
+- `apply_collection_search_filters()` in `inventory_service.py` now parses full Scryfall-style boolean logic. Public signature unchanged — all three search surfaces (collection, location detail, deck detail) get the upgrade for free.
+- **Operators**: `OR` (explicit), `AND` (explicit or implicit between adjacent terms), `-` prefix for negation (e.g. `-t:land`, `-folio`).
+- **Grouping**: parentheses `(t:creature OR t:planeswalker)` for complex expressions.
+- **Quoted multi-word values**: `t:"legendary creature"`, `o:"draw a card"`, `"lightning bolt"`.
+- Implementation: `_tokenize_search()` → flat token list; `_term_to_clause()` → single SQLAlchemy clause; `_parse_search_expr()` / `_parse_and_expr()` / `_parse_atom()` → recursive-descent parser building nested `and_()` / `or_()` / `not_()` clauses.
+- Malformed queries fall back to no-filter rather than 500.
+
 ## Roadmap
 
 - v3.7: Import-to-deck, decks list redesign, full UI/UX consistency pass, admin CRUD, account page — **shipped**
@@ -171,5 +180,6 @@ Templates updated in v3.7: `decks.html`, `import.html`, `import_preview.html`, `
 - v3.8.2: Location page deck creation, orphaned deck location cleanup — **shipped**
 - v3.8.3: Brand assets (real PNG icon pack + wordmark), header two-column layout, deck total-copy count — **shipped**
 - v3.8.4: Deck analytics panel (mana curve, card types, color pips, avg CMC) — **shipped**
+- v3.8.5: Boolean search logic (OR, AND, NOT/-, parentheses, quoted multi-word values) — **shipped**
 - v3.9: Legality sort/filter (needs schema design), game tracker (life totals, 2–8 players, deck selection per seat, results tied to deck records)
 - v4.0: PostgreSQL migration

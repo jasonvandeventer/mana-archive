@@ -886,11 +886,21 @@ td {
   background: var(--accent);
   border-radius: 4px;
 }
-.arow-bar-w { background: linear-gradient(90deg, #c8b47a, #e8d8a0); }
-.arow-bar-u { background: linear-gradient(90deg, #2d74c4, #5aa0e8); }
-.arow-bar-b { background: linear-gradient(90deg, #7a4db0, #a87de0); }
-.arow-bar-r { background: linear-gradient(90deg, #c43a2a, #e86850); }
-.arow-bar-g { background: linear-gradient(90deg, #238a46, #42c46a); }
+.arow-bar-w {
+  background: linear-gradient(90deg, #c8b47a, #e8d8a0);
+}
+.arow-bar-u {
+  background: linear-gradient(90deg, #2d74c4, #5aa0e8);
+}
+.arow-bar-b {
+  background: linear-gradient(90deg, #7a4db0, #a87de0);
+}
+.arow-bar-r {
+  background: linear-gradient(90deg, #c43a2a, #e86850);
+}
+.arow-bar-g {
+  background: linear-gradient(90deg, #238a46, #42c46a);
+}
 .arow-count {
   font-size: 0.8rem;
   color: var(--muted);

@@ -4,7 +4,7 @@ import re
 from collections.abc import Iterable
 from datetime import UTC, datetime, timedelta
 
-from sqlalchemy import func
+from sqlalchemy import and_, func, not_, or_
 from sqlalchemy.orm import Session, joinedload
 
 from app.audit_service import log_transaction
@@ -255,107 +255,216 @@ def _parse_numeric_op(value: str) -> tuple[str, float] | None:
         return None
 
 
-def parse_search_query(search: str) -> dict:
-    terms = search.strip().split()
+def _tokenize_search(search: str) -> list[tuple]:
+    """
+    Tokenize a Scryfall-style search string into a flat list of tokens.
 
-    parsed: dict = {
-        "name": [],
-        "type": None,
-        "oracle": None,
-        "set": None,
-        "rarity": None,
-        "finish": None,
-        "drawer": None,
-        "color": None,
-        "mana": None,
-        "cmc": None,
-    }
+    Token types:
+      ('OR',)
+      ('AND',)
+      ('LPAREN',)
+      ('RPAREN',)
+      ('TERM', key_or_None, value, negated)  — key is lowercased, value is lowercased
+    """
+    tokens: list[tuple] = []
+    i = 0
+    n = len(search)
 
-    for term in terms:
-        if ":" not in term:
-            parsed["name"].append(term)
+    while i < n:
+        if search[i].isspace():
+            i += 1
             continue
 
-        key, value = term.split(":", 1)
-        key = key.strip().lower()
-        value = value.strip().lower()
-
-        if not value:
+        if search[i] == "(":
+            tokens.append(("LPAREN",))
+            i += 1
             continue
 
-        if key in ["t", "type"]:
-            parsed["type"] = value
-        elif key in ["o", "oracle"]:
-            parsed["oracle"] = value
-        elif key in ["s", "set"]:
-            parsed["set"] = value
-        elif key in ["r", "rarity"]:
-            parsed["rarity"] = value
-        elif key == "finish":
-            parsed["finish"] = value
-        elif key == "drawer":
-            parsed["drawer"] = value
-        elif key in ["c", "color", "colors"]:
-            parsed["color"] = value.upper()
-        elif key in ["m", "mana"]:
-            parsed["mana"] = value
-        elif key == "cmc":
-            parsed["cmc"] = _parse_numeric_op(value)
+        if search[i] == ")":
+            tokens.append(("RPAREN",))
+            i += 1
+            continue
+
+        # Optional leading negation
+        negated = False
+        if search[i] == "-" and i + 1 < n and not search[i + 1].isspace() and search[i + 1] != ")":
+            negated = True
+            i += 1
+
+        # Quoted bare name: "multi word"
+        if i < n and search[i] == '"':
+            j = search.find('"', i + 1)
+            j = j if j != -1 else n
+            value = search[i + 1 : j].lower()
+            i = j + 1
+            tokens.append(("TERM", None, value, negated))
+            continue
+
+        # Read until next whitespace or unquoted paren
+        j = i
+        while j < n and not search[j].isspace() and search[j] not in "()":
+            if search[j] == '"':
+                end = search.find('"', j + 1)
+                j = (end + 1) if end != -1 else n
+            else:
+                j += 1
+
+        raw = search[i:j]
+        i = j
+
+        if not raw:
+            continue
+
+        # OR / AND keywords (case-sensitive, Scryfall convention)
+        if not negated and raw == "OR":
+            tokens.append(("OR",))
+        elif not negated and raw == "AND":
+            tokens.append(("AND",))
+        elif ":" in raw:
+            colon = raw.index(":")
+            key = raw[:colon].lower()
+            val = raw[colon + 1 :]
+            if val.startswith('"') and val.endswith('"') and len(val) >= 2:
+                val = val[1:-1]
+            tokens.append(("TERM", key, val.lower(), negated))
         else:
-            parsed["name"].append(term)
+            tokens.append(("TERM", None, raw.lower(), negated))
 
-    return parsed
+    return tokens
+
+
+def _term_to_clause(key: str | None, value: str):
+    """Convert a single parsed term to a SQLAlchemy filter clause, or None."""
+    if not value:
+        return None
+
+    if key is None:
+        return Card.name.ilike(f"%{value}%")
+
+    if key in ("t", "type"):
+        return Card.type_line.ilike(f"%{value}%")
+    if key in ("o", "oracle"):
+        return Card.oracle_text.ilike(f"%{value}%")
+    if key in ("s", "set"):
+        return Card.set_code.ilike(f"%{value}%")
+    if key in ("r", "rarity"):
+        return Card.rarity.ilike(f"%{value}%")
+    if key == "finish":
+        return InventoryRow.finish == value
+    if key == "drawer":
+        return InventoryRow.drawer == value
+    if key in ("c", "color", "colors"):
+        color_clauses = []
+        for letter in value.upper():
+            if letter in "WUBRG":
+                color_clauses.append(Card.colors.contains(letter))
+            elif letter == "C":
+                color_clauses.append((Card.colors == None) | (Card.colors == ""))  # noqa: E711
+        if not color_clauses:
+            return None
+        return and_(*color_clauses) if len(color_clauses) > 1 else color_clauses[0]
+    if key in ("m", "mana"):
+        return Card.mana_cost.ilike(f"%{value}%")
+    if key == "cmc":
+        parsed = _parse_numeric_op(value)
+        if parsed is None:
+            return None
+        op, val = parsed
+        if op == "=":
+            return Card.cmc == val
+        if op == ">":
+            return Card.cmc > val
+        if op == "<":
+            return Card.cmc < val
+        if op == ">=":
+            return Card.cmc >= val
+        if op == "<=":
+            return Card.cmc <= val
+
+    return None
+
+
+def _parse_search_expr(tokens: list[tuple], pos: int) -> tuple:
+    """Top-level: parse OR-separated AND-expressions."""
+    clauses = []
+    clause, pos = _parse_and_expr(tokens, pos)
+    if clause is not None:
+        clauses.append(clause)
+
+    while pos < len(tokens) and tokens[pos][0] == "OR":
+        pos += 1
+        clause, pos = _parse_and_expr(tokens, pos)
+        if clause is not None:
+            clauses.append(clause)
+
+    if not clauses:
+        return None, pos
+    if len(clauses) == 1:
+        return clauses[0], pos
+    return or_(*clauses), pos
+
+
+def _parse_and_expr(tokens: list[tuple], pos: int) -> tuple:
+    """Parse implicitly/explicitly AND-joined atoms."""
+    clauses = []
+    clause, pos = _parse_atom(tokens, pos)
+    if clause is not None:
+        clauses.append(clause)
+
+    while pos < len(tokens) and tokens[pos][0] not in ("OR", "RPAREN"):
+        if tokens[pos][0] == "AND":
+            pos += 1
+        clause, pos = _parse_atom(tokens, pos)
+        if clause is not None:
+            clauses.append(clause)
+
+    if not clauses:
+        return None, pos
+    if len(clauses) == 1:
+        return clauses[0], pos
+    return and_(*clauses), pos
+
+
+def _parse_atom(tokens: list[tuple], pos: int) -> tuple:
+    """Parse a single term or a parenthesized sub-expression."""
+    if pos >= len(tokens):
+        return None, pos
+
+    tok = tokens[pos]
+
+    if tok[0] == "LPAREN":
+        pos += 1
+        clause, pos = _parse_search_expr(tokens, pos)
+        if pos < len(tokens) and tokens[pos][0] == "RPAREN":
+            pos += 1
+        return clause, pos
+
+    if tok[0] == "TERM":
+        _, key, value, negated = tok
+        clause = _term_to_clause(key, value)
+        if clause is not None and negated:
+            clause = not_(clause)
+        return clause, pos + 1
+
+    # OR/AND/RPAREN in unexpected position — skip
+    return None, pos + 1
 
 
 def apply_collection_search_filters(query, search: str):
     if not search.strip():
         return query
 
-    parsed = parse_search_query(search)
+    tokens = _tokenize_search(search)
+    if not tokens:
+        return query
 
-    for term in parsed["name"]:
-        query = query.filter(Card.name.ilike(f"%{term}%"))
+    try:
+        clause, _ = _parse_search_expr(tokens, 0)
+    except Exception:
+        return query
 
-    if parsed["type"]:
-        query = query.filter(Card.type_line.ilike(f"%{parsed['type']}%"))
-
-    if parsed["oracle"]:
-        query = query.filter(Card.oracle_text.ilike(f"%{parsed['oracle']}%"))
-
-    if parsed["set"]:
-        query = query.filter(Card.set_code.ilike(f"%{parsed['set']}%"))
-
-    if parsed["rarity"]:
-        query = query.filter(Card.rarity.ilike(f"%{parsed['rarity']}%"))
-
-    if parsed["finish"]:
-        query = query.filter(InventoryRow.finish == parsed["finish"])
-
-    if parsed["drawer"]:
-        query = query.filter(InventoryRow.drawer == parsed["drawer"])
-
-    if parsed["color"]:
-        for letter in parsed["color"]:
-            if letter in "WUBRG":
-                query = query.filter(Card.colors.contains(letter))
-            elif letter == "C":
-                query = query.filter((Card.colors == None) | (Card.colors == ""))  # noqa: E711
-
-    if parsed["mana"]:
-        query = query.filter(Card.mana_cost.ilike(f"%{parsed['mana']}%"))
-
-    if parsed["cmc"]:
-        op, val = parsed["cmc"]
-        if op == "=":
-            query = query.filter(Card.cmc == val)
-        elif op == ">":
-            query = query.filter(Card.cmc > val)
-        elif op == "<":
-            query = query.filter(Card.cmc < val)
-        elif op == ">=":
-            query = query.filter(Card.cmc >= val)
-        elif op == "<=":
-            query = query.filter(Card.cmc <= val)
+    if clause is not None:
+        query = query.filter(clause)
 
     return query
 
