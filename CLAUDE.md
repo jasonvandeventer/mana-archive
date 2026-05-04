@@ -1,6 +1,6 @@
 # Mana Archive — Claude Context
 
-## Current version: v3.9.6
+## Current version: v3.10.4
 
 ## Stack: FastAPI + Jinja2 + SQLite + K3s/ArgoCD
 
@@ -249,7 +249,20 @@ Templates updated in v3.7: `decks.html`, `import.html`, `import_preview.html`, `
 - v3.9.4: Consistency score — draw/ramp/tutor/curve-smoothness/coverage → 0-100 score with label (Consistent engine → Glass cannon) and optional descriptor; compact header in health panel — **shipped**
 - v3.9.5: Card role tagging — user-defined per-row tags (Ramp, Draw, Removal, Combo piece, Payoff, Protection, etc.); multi-role support; schema migration; unlocks deeper analytics — **shipped**
 - v3.9.6: Legality filter — `Card.legalities` JSON column; `legal:FORMAT` / `banned:FORMAT` search keywords; legality badge (Banned/Restricted/Not Legal) on deck cards when format is set — **shipped**
-- v3.10: Win condition detection — CommanderSpellbook API integration for combo detection; synergy cluster identification; "cards contributing to win" vs "cards that do nothing alone" panel
+- v3.9.7: Legalities backfill — added `Card.legalities == None` to refresh loop stale filter so existing cards get legalities populated — **shipped**
+- v3.9.8: Auto-tag untagged deck rows from oracle text on deck load (Ramp/Draw/Removal/Wipe) — **shipped**
+- v3.9.9: Mana pip size 20→24px, added drop-shadow — **shipped**
+- v3.10.0–v3.10.4: Mana pip SVGs — iterative replacement; final v3.10.4 uses Scryfall card-symbols SVGs directly (`svgs.scryfall.io/card-symbols/{W,U,B,R,G}.svg`). Structure: colored circle background + `#0D0F0F` positive-space symbol path. Colorless (C) still uses Scryfall CDN in `_macros.html` — **shipped**
+
+### Mana pip SVG notes
+
+- Local files at `app/static/mana/{W,U,B,R,G}.svg` — downloaded directly from `svgs.scryfall.io/card-symbols/`.
+- Structure: `<circle fill="<mana-color>"/>` + `<path fill="#0D0F0F"/>` (positive-space symbol).
+- Rendered at 24×24px via `.mana-pip` CSS class with drop-shadow filter.
+- Colorless (C) pip still served from Scryfall CDN in `mana_pips` macro in `_macros.html`.
+- To update: re-download from Scryfall CDN; the B symbol uses `fill-rule="evenodd"` for skull detail holes.
+
+- v3.11: Win condition detection — CommanderSpellbook API integration for combo detection; synergy cluster identification; "cards contributing to win" vs "cards that do nothing alone" panel
 - v3.11: Commander synergy score — % of deck that directly synergizes, indirectly supports, or is unrelated to the commander; uses role tags + CommanderSpellbook data
 - v3.12: Dead card detection — flag cards requiring existing board state to function, no synergy with commander, or "win-more" cards; depends on role tags and synergy data
 - v3.13: Average turn impact — estimate when cards are typically playable and when they matter; "deck peaks at turn X" summary
