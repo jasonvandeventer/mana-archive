@@ -1,0 +1,14 @@
+#!/bin/bash
+# Auto-tag when commit message starts with a version number (e.g. "v3.8.9: ...").
+# This keeps the tag and commit atomic — no separate tagging step needed.
+
+msg=$(git log -1 --format="%s")
+if [[ "$msg" =~ ^(v[0-9]+\.[0-9]+\.[0-9]+(-[0-9]+)?): ]]; then
+    version="${BASH_REMATCH[1]}"
+    if git tag | grep -qx "$version"; then
+        echo "Tag $version already exists, skipping auto-tag."
+    else
+        git tag "$version"
+        echo "Auto-tagged: $version"
+    fi
+fi
