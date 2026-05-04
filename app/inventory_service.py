@@ -363,6 +363,14 @@ def _term_to_clause(key: str | None, value: str):
         if not color_clauses:
             return None
         return and_(*color_clauses) if len(color_clauses) > 1 else color_clauses[0]
+    if key == "id":
+        # Color identity "within" filter: exclude cards containing any color NOT in the given set.
+        # Approximation using Card.colors — color_identity is not stored separately.
+        excluded = [lt for lt in "WUBRG" if lt not in value.upper()]
+        if not excluded:
+            return None  # id:wubrg matches everything
+        clauses = [not_(Card.colors.contains(lt)) for lt in excluded]
+        return and_(*clauses) if len(clauses) > 1 else clauses[0]
     if key in ("m", "mana"):
         return Card.mana_cost.ilike(f"%{value}%")
     if key == "cmc":
