@@ -89,9 +89,7 @@
             {% for color, count in analytics.pips.items() %}
               <div class="analytics-row">
                 <span class="arow-label arow-label-pip">
-                  <img src="/static/mana/{{ color }}.svg"
-                       class="mana-pip"
-                       alt="{{ color }}">
+                  <img src="/static/mana/{{ color }}.svg" class="mana-pip" alt="{{ color }}">
                 </span>
                 <div class="arow-bar-wrap">
                   <div class="arow-bar arow-bar-{{ color|lower }}"

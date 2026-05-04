@@ -1,9 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-labelledby="title">
-  <title id="title">Mana Archive Monochrome Mark</title>
-  <rect width="1024" height="1024" rx="190" fill="#05070d"/>
-  <circle cx="512" cy="512" r="360" fill="none" stroke="#ffffff" stroke-width="38"/>
-  <path d="M236 750 V270 H332 L512 612 L692 270 H788 V750 H688 V486 L550 750 H474 L336 486 V750 Z" fill="#ffffff"/>
-  <path d="M652 750 H790 L660 270 H560 Z" fill="#ffffff"/>
-  <path d="M653 590 H738 L696 432 Z" fill="#05070d"/>
-  <path d="M512 612 L562 496 L562 750 H462 V496 Z" fill="#05070d" opacity="0.75"/>
-</svg>
