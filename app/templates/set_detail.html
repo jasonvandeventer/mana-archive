@@ -1,19 +1,22 @@
 {% extends "base.html" %}
 {% block content %}
-  <h1>{{ title }}</h1>
-  <p>
-    {{ data.owned_cards }} / {{ data.total_cards }}
-    ({{ data.completion_pct }}%)
-  </p>
-  <div class="progress-bar">
-    <div class="progress-fill" style="width: {{ data.completion_pct }}%;"></div>
-  </div>
-  <div class="filter-tabs">
-    <a href="/sets/{{ data.set_code }}?view=all">All</a>
-    <a href="/sets/{{ data.set_code }}?view=owned">Owned</a>
-    <a href="/sets/{{ data.set_code }}?view=missing">Missing</a>
-  </div>
-  <h2>Cards</h2>
+  <section class="panel hero-panel compact-hero">
+    <div class="panel-topline">
+      <div class="eyebrow">{{ data.set_code.upper() }}</div>
+    </div>
+    <h2 class="panel-title">{{ title }}</h2>
+    <p class="muted">{{ data.owned_cards }} / {{ data.total_cards }} cards owned ({{ data.completion_pct }}%)</p>
+    <div class="progress-bar" style="margin-top: 0.75rem;">
+      <div class="progress-fill" style="width: {{ data.completion_pct }}%;"></div>
+    </div>
+  </section>
+  <section class="panel controls-panel">
+    <div class="filter-tabs" style="margin: 0;">
+      <a href="/sets/{{ data.set_code }}?view=all">All</a>
+      <a href="/sets/{{ data.set_code }}?view=owned">Owned</a>
+      <a href="/sets/{{ data.set_code }}?view=missing">Missing</a>
+    </div>
+  </section>
   <div class="card-grid">
     {% for card in data.visible_cards %}
       <div class="card-tile">

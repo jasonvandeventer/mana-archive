@@ -735,3 +735,31 @@ td {
 .nav-logout-button:hover {
   background: var(--surface-muted);
 }
+
+.controls-panel {
+  display: block;
+}
+
+.btn-danger-small {
+  background: var(--danger);
+  color: #fff;
+  padding: 0.3rem 0.65rem;
+  font-size: 0.85rem;
+  border-radius: 8px;
+}
+
+.finish-badge {
+  display: inline-block;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  border: 1px solid rgba(86, 113, 160, 0.5);
+}
+
+.warning-text {
+  color: #b45309;
+  font-size: 0.9rem;
+  font-weight: 600;
+  margin-bottom: 0.2rem;
+}

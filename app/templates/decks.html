@@ -1,10 +1,29 @@
 {% extends "base.html" %}
 {% block content %}
-  <section>
-    <h2>Decks</h2>
-    <form action="/decks/create" method="post" class="deck-create-form">
+  <section class="panel page-hero">
+    <div>
+      <div class="eyebrow">Build</div>
+      <h2 class="panel-title">Deck Management</h2>
+      <p class="muted">Track cards pulled into decks and return them cleanly to your collection.</p>
+    </div>
+    {% if decks %}
+      <div class="stat-grid">
+        <div class="stat-card">
+          <div class="stat-value">{{ decks|length }}</div>
+          <div class="stat-label">Decks</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value">{{ decks | sum(attribute='card_count') }}</div>
+          <div class="stat-label">Cards in Decks</div>
+        </div>
+      </div>
+    {% endif %}
+  </section>
+  <section class="panel controls-panel">
+    <h3 class="panel-title">New Deck</h3>
+    <form action="/decks/create" method="post" class="filter-row">
       <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-      <input type="text" name="name" placeholder="Deck Name" required>
+      <input type="text" name="name" placeholder="Deck name" required>
       <select name="format_name">
         <option value="Commander" selected>Commander</option>
         <option value="Standard">Standard</option>
@@ -14,40 +33,36 @@
         <option value="Vintage">Vintage</option>
         <option value="Cube">Cube</option>
       </select>
-      <textarea name="notes" placeholder="Notes (optional)"></textarea>
       <button type="submit">Create Deck</button>
     </form>
   </section>
-  <section>
-    {% if decks %}
+  {% if decks %}
+    <section class="panel">
       <table>
         <thead>
           <tr>
-            <th>ID</th>
             <th>Name</th>
             <th>Format</th>
             <th>Cards</th>
-            <th>Actions</th>
+            <th></th>
           </tr>
         </thead>
         <tbody>
           {% for deck in decks %}
             <tr>
-              <td>{{ deck.id }}</td>
-              <td>{{ deck.name }}</td>
-              <td>{{ deck.format or '-' }}</td>
-              <td>{{ deck.card_count or 0 }}</td>
               <td>
-                <form action="/decks/{{ deck.id }}" method="get" style="display:inline;">
-                  <button type="submit">Open</button>
-                </form>
+                <a href="/decks/{{ deck.id }}">{{ deck.name }}</a>
+              </td>
+              <td>{{ deck.format or '—' }}</td>
+              <td>{{ deck.card_count or 0 }}</td>
+              <td style="text-align: right;">
                 <form action="/decks/{{ deck.id }}/delete"
                       method="post"
-                      style="display:inline;
-                             margin-left: 0.5rem">
+                      style="display: inline">
                   <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                   <button type="submit"
-                          onclick="return confirm('Delete this deck? Cards in this deck will be removed.');">
+                          class="btn-danger-small"
+                          onclick="return confirm('Delete {{ deck.name }}? Cards in this deck will be removed.');">
                     Delete
                   </button>
                 </form>
@@ -56,11 +71,10 @@
           {% endfor %}
         </tbody>
       </table>
-    {% else %}
-      <section class="panel">
-        <p>No decks yet.</p>
-        <p class="muted small-text">Create your first deck to start organizing cards.</p>
-      </section>
-    {% endif %}
-  </section>
+    </section>
+  {% else %}
+    <section class="panel">
+      <p class="muted">No decks yet. Create one above to start organizing your cards.</p>
+    </section>
+  {% endif %}
 {% endblock %}

@@ -8,26 +8,40 @@
       </p>
     </section>
   {% endif %}
-  <section>
-    <h2>Import Collection CSV</h2>
+  <section class="panel page-hero">
+    <div>
+      <div class="eyebrow">Import</div>
+      <h2 class="panel-title">Add Cards</h2>
+      <p class="muted">Import from a CSV export, paste a card list, search by name, or enter a Scryfall ID directly.</p>
+    </div>
+  </section>
+  <section class="panel">
+    <h3 class="panel-title">Upload CSV</h3>
     <p class="muted small-text">
       Supported formats: <strong>Helvault</strong> (free &amp; pro), <strong>Moxfield</strong> collection export,
       and the built-in <strong>Scanner App</strong> format. The format is detected automatically from the column headers.
     </p>
-    <form action="/import/preview" method="post" enctype="multipart/form-data">
+    <form action="/import/preview"
+          method="post"
+          enctype="multipart/form-data"
+          class="filter-row"
+          style="margin-top: 0.75rem">
       <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
       <input type="file" name="file" accept=".csv" required>
       <button type="submit">Preview Import</button>
     </form>
   </section>
   <section class="panel">
-    <h2>Paste Card List</h2>
+    <h3 class="panel-title">Paste Card List</h3>
     <p class="muted small-text">
       Paste a deck or collection list from <strong>Moxfield</strong>, <strong>MTGA</strong>, <strong>MTGO</strong>, or any tool
       that exports in <code>N Card Name (SET) Collector#</code> format.
       Set code and collector number are optional but improve accuracy.
     </p>
-    <form action="/import/list/preview" method="post" class="stack-form">
+    <form action="/import/list/preview"
+          method="post"
+          class="stack-form"
+          style="margin-top: 0.75rem">
       <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
       <textarea name="card_list"
                 rows="10"
@@ -36,7 +50,7 @@
     </form>
   </section>
   <section class="panel">
-    <h2>Add Card by Name</h2>
+    <h3 class="panel-title">Search by Name</h3>
     <form action="/import/manual/search" method="post" class="filter-row">
       <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
       <input type="text"
@@ -46,9 +60,13 @@
       <button type="submit">Search</button>
     </form>
   </section>
-  <section>
-    <h2>Manual Import</h2>
-    <form action="/import/manual/preview" method="post" class="stack-form">
+  <section class="panel">
+    <h3 class="panel-title">Manual Entry</h3>
+    <p class="muted small-text">Enter a Scryfall ID or exact set code and collector number.</p>
+    <form action="/import/manual/preview"
+          method="post"
+          class="stack-form"
+          style="margin-top: 0.75rem">
       <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
       <label>Scryfall ID</label>
       <input type="text" name="scryfall_id">
@@ -64,7 +82,7 @@
       </select>
       <label>Quantity</label>
       <input type="number" name="quantity" value="1" min="1">
-      <button type="submit">Preview Manual Import</button>
+      <button type="submit">Preview</button>
     </form>
   </section>
 {% endblock %}

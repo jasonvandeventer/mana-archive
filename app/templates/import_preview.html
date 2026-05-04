@@ -1,19 +1,25 @@
 {% extends "base.html" %}
 {% block content %}
-  <section>
-    <h2>Import Preview</h2>
-    <p class="muted small-text">
-      <strong>File:</strong> {{ filename }} &nbsp;·&nbsp;
-      <strong>Format:</strong> {{ format_name }} &nbsp;·&nbsp;
-      {{ valid_rows|length }} valid &nbsp;·&nbsp;
+  <section class="panel hero-panel compact-hero">
+    <div class="panel-topline">
+      <div class="eyebrow">Import</div>
+    </div>
+    <h2 class="panel-title">Preview: {{ filename }}</h2>
+    <p class="muted">
+      Format: <strong>{{ format_name }}</strong> &nbsp;·&nbsp;
+      <strong>{{ valid_rows|length }}</strong> valid
       {% if invalid_rows|length > 0 %}
-        <span style="color: #b45309;">{{ invalid_rows|length }} invalid</span>
+        &nbsp;·&nbsp; <span style="color: #b45309;"><strong>{{ invalid_rows|length }}</strong> invalid</span>
       {% else %}
-        0 invalid
+        &nbsp;·&nbsp; 0 invalid
       {% endif %}
     </p>
     {% if valid_rows %}
-      <form action="/import/commit" method="post">
+      {% set placeable = locations | selectattr("type", "ne", "root") | list %}
+      <form action="/import/commit"
+            method="post"
+            class="filter-row"
+            style="margin-top: 1rem">
         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
         <input type="hidden" name="filename" value="{{ filename }}">
         {% for row in valid_rows %}
@@ -28,40 +34,47 @@
           <input type="hidden" name="quantity" value="{{ row.quantity }}">
           <input type="hidden" name="location" value="{{ row.location }}">
         {% endfor %}
-        {% set placeable = locations | selectattr("type", "ne", "root") | list %}
-        <div style="display: flex;
-                    gap: 0.75rem;
-                    align-items: center;
-                    flex-wrap: wrap;
-                    margin-bottom: 0.5rem">
-          <label style="font-weight: 600;">Destination</label>
-          <select name="target_location_id">
-            {% if use_drawer_sorter %}<option value="0">Auto-sort to drawers</option>{% endif %}
-            {% for loc in placeable %}<option value="{{ loc.id }}">{{ loc.name }} ({{ loc.type }})</option>{% endfor %}
-            {% if not use_drawer_sorter and not placeable %}
-              <option value="" disabled>No locations — create one first</option>
-            {% endif %}
-          </select>
-        </div>
+        <label style="font-weight: 600;">Destination</label>
+        <select name="target_location_id">
+          {% if use_drawer_sorter %}<option value="0">Auto-sort to drawers</option>{% endif %}
+          {% if placeable %}
+            <optgroup label="Storage Locations">
+              {% for loc in placeable %}<option value="{{ loc.id }}">{{ loc.name }} ({{ loc.type }})</option>{% endfor %}
+            </optgroup>
+          {% endif %}
+          {% if decks %}
+            <optgroup label="Decks">
+              {% for deck in decks %}
+                <option value="{{ deck.storage_location_id }}">
+                  {{ deck.name }}
+                  {% if deck.format %}({{ deck.format }}){% endif %}
+                </option>
+              {% endfor %}
+            </optgroup>
+          {% endif %}
+          {% if not use_drawer_sorter and not placeable and not decks %}
+            <option value="" disabled>No locations — create one first</option>
+          {% endif %}
+        </select>
         <button type="submit"
-                {% if not use_drawer_sorter and not placeable %}disabled{% endif %}>Import Valid Rows</button>
+                {% if not use_drawer_sorter and not placeable and not decks %}disabled{% endif %}>
+          Import Valid Rows
+        </button>
       </form>
     {% endif %}
   </section>
-  <section>
-    <h3>Valid Rows</h3>
+  <section class="panel">
+    <h3 class="panel-title">Valid Rows</h3>
     {% if valid_rows %}
       <table>
         <thead>
           <tr>
             <th>Line</th>
             <th>Name</th>
-            <th>Scryfall ID</th>
             <th>Set</th>
             <th>Collector #</th>
             <th>Finish</th>
-            <th>Quantity</th>
-            <th>Location</th>
+            <th>Qty</th>
             <th>Warnings</th>
           </tr>
         </thead>
@@ -70,29 +83,17 @@
             <tr>
               <td>{{ row.line_number }}</td>
               <td>{{ row.name or '-' }}</td>
-              <td>{{ row.scryfall_id or '-' }}</td>
               <td>{{ row.set_code or '-' }}</td>
               <td>{{ row.collector_number or '-' }}</td>
               <td>
-                <span style="display: inline-block;
-                             padding: 0.15rem 0.5rem;
-                             border-radius: 999px;
-                             font-size: 0.85rem;
-                             font-weight: 700;
-                             border: 1px solid #999">{{ row.finish|capitalize }}</span>
+                <span class="finish-badge">{{ row.finish|capitalize }}</span>
               </td>
               <td>{{ row.quantity }}</td>
-              <td>{{ row.location or '-' }}</td>
               <td>
                 {% if row.warnings %}
-                  {% for warning in row.warnings %}
-                    <div style="color: #b45309;
-                                font-size: 0.9rem;
-                                font-weight: 600;
-                                margin-bottom: 0.25rem">Warning: {{ warning }}</div>
-                  {% endfor %}
+                  {% for warning in row.warnings %}<div class="warning-text">{{ warning }}</div>{% endfor %}
                 {% else %}
-                  <span style="color: #666;">—</span>
+                  <span class="muted">—</span>
                 {% endif %}
               </td>
             </tr>
@@ -100,12 +101,12 @@
         </tbody>
       </table>
     {% else %}
-      <p>No valid rows found.</p>
+      <p class="muted">No valid rows found.</p>
     {% endif %}
   </section>
-  <section>
-    <h3>Invalid Rows</h3>
-    {% if invalid_rows %}
+  {% if invalid_rows %}
+    <section class="panel">
+      <h3 class="panel-title">Invalid Rows</h3>
       <table>
         <thead>
           <tr>
@@ -114,7 +115,7 @@
             <th>Set</th>
             <th>Collector #</th>
             <th>Finish</th>
-            <th>Quantity</th>
+            <th>Qty</th>
             <th>Reason</th>
           </tr>
         </thead>
@@ -127,13 +128,11 @@
               <td>{{ row.collector_number or '-' }}</td>
               <td>{{ row.finish }}</td>
               <td>{{ row.quantity }}</td>
-              <td>{{ row.reason or 'Invalid row' }}</td>
+              <td style="color: #b45309;">{{ row.reason or 'Invalid row' }}</td>
             </tr>
           {% endfor %}
         </tbody>
       </table>
-    {% else %}
-      <p>No invalid rows found.</p>
-    {% endif %}
-  </section>
+    </section>
+  {% endif %}
 {% endblock %}

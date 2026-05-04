@@ -1,7 +1,14 @@
 {% extends "base.html" %}
 {% block content %}
-  <h1>Sets</h1>
-  <p class="muted">Fast local overview. Open a set to calculate full Scryfall completion.</p>
+  <section class="panel page-hero">
+    <div>
+      <div class="eyebrow">Track</div>
+      <h2 class="panel-title">Set Collection Status</h2>
+      <p class="muted">
+        Track set completion, owned cards, and progress by expansion. Open a set to calculate full Scryfall completion.
+      </p>
+    </div>
+  </section>
   <div class="set-dashboard-grid">
     {% for s in sets %}
       <a href="/sets/{{ s.set_code }}" class="set-dashboard-card">

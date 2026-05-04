@@ -1,14 +1,20 @@
 {% extends "base.html" %}
 {% block content %}
-  <section>
-    <h2>Audit Log</h2>
+  <section class="panel page-hero">
+    <div>
+      <div class="eyebrow">Review</div>
+      <h2 class="panel-title">Audit &amp; Undo</h2>
+      <p class="muted">Review import batches and transaction history. Undo the last mistake fast.</p>
+    </div>
+  </section>
+  <section class="panel controls-panel">
     <form action="/imports/undo-last" method="post" class="inline-form">
       <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
       <button type="submit">Undo Last Import</button>
     </form>
   </section>
-  <section>
-    <h3>Import Batches</h3>
+  <section class="panel">
+    <h3 class="panel-title">Import Batches</h3>
     {% if batches %}
       <table>
         <thead>
@@ -17,7 +23,7 @@
             <th>Filename</th>
             <th>Imported At</th>
             <th>Rows</th>
-            <th>Undo</th>
+            <th></th>
           </tr>
         </thead>
         <tbody>
@@ -27,11 +33,11 @@
               <td>{{ batch.filename }}</td>
               <td>{{ batch.imported_at }}</td>
               <td>{{ batch.row_count }}</td>
-              <td>
+              <td style="text-align: right;">
                 <form action="/imports/undo-batch" method="post" class="inline-form">
                   <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                   <input type="hidden" name="batch_id" value="{{ batch.id }}">
-                  <button type="submit">Undo Batch</button>
+                  <button type="submit" class="btn-danger-small">Undo Batch</button>
                 </form>
               </td>
             </tr>
@@ -39,18 +45,18 @@
         </tbody>
       </table>
     {% else %}
-      <p>No import batches yet.</p>
+      <p class="muted">No import batches yet.</p>
     {% endif %}
   </section>
-  <section>
-    <h3>Transactions</h3>
+  <section class="panel">
+    <h3 class="panel-title">Transaction Log</h3>
     {% if logs %}
       <table>
         <thead>
           <tr>
             <th>ID</th>
             <th>Event</th>
-            <th>Card ID</th>
+            <th>Card</th>
             <th>Finish</th>
             <th>Qty Δ</th>
             <th>From</th>
@@ -65,20 +71,20 @@
             <tr>
               <td>{{ log.id }}</td>
               <td>{{ log.event_type }}</td>
-              <td>{{ log.card_id or '-' }}</td>
-              <td>{{ log.finish or '-' }}</td>
+              <td>{{ log.card_id or '—' }}</td>
+              <td>{{ log.finish or '—' }}</td>
               <td>{{ log.quantity_delta }}</td>
-              <td>{{ log.source_location or '-' }}</td>
-              <td>{{ log.destination_location or '-' }}</td>
-              <td>{{ log.batch_id or '-' }}</td>
+              <td>{{ log.source_location or '—' }}</td>
+              <td>{{ log.destination_location or '—' }}</td>
+              <td>{{ log.batch_id or '—' }}</td>
               <td>{{ log.created_at }}</td>
-              <td>{{ log.note or '-' }}</td>
+              <td>{{ log.note or '—' }}</td>
             </tr>
           {% endfor %}
         </tbody>
       </table>
     {% else %}
-      <p>No transaction logs yet.</p>
+      <p class="muted">No transaction logs yet.</p>
     {% endif %}
   </section>
 {% endblock %}

@@ -1,42 +1,59 @@
 {% extends "base.html" %}
 {% block content %}
-  <section>
-    <h2>Manual Import Preview</h2>
+  <section class="panel hero-panel compact-hero">
+    <div class="eyebrow">Import</div>
+    <h2 class="panel-title">Manual Import Preview</h2>
     {% if card %}
       <p>
         <strong>{{ card.name }}</strong> — {{ card.set_code|upper }} {{ card.collector_number }}
       </p>
-      <p>Finish: {{ finish }} | Quantity: {{ quantity }}</p>
-      <p>
-        Normal: ${{ card.price_usd or "0" }} | Foil: ${{ card.price_usd_foil or "0" }} | Etched: ${{ card.price_usd_etched or "0" }}
+      <p class="muted">
+        Finish: {{ finish|capitalize }} &nbsp;·&nbsp; Quantity: {{ quantity }}
+        &nbsp;·&nbsp; Normal: ${{ card.price_usd or "0.00" }}
+        &nbsp;·&nbsp; Foil: ${{ card.price_usd_foil or "0.00" }}
+        &nbsp;·&nbsp; Etched: ${{ card.price_usd_etched or "0.00" }}
       </p>
-      <form action="/import/manual/commit" method="post">
+      {% set placeable = locations | selectattr("type", "ne", "root") | list %}
+      <form action="/import/manual/commit"
+            method="post"
+            class="filter-row"
+            style="margin-top: 1rem">
         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
         <input type="hidden" name="scryfall_id" value="{{ resolved_scryfall_id }}">
         <input type="hidden" name="set_code" value="{{ set_code }}">
         <input type="hidden" name="collector_number" value="{{ collector_number }}">
         <input type="hidden" name="finish" value="{{ finish }}">
         <input type="hidden" name="quantity" value="{{ quantity }}">
-        {% set placeable = locations | selectattr("type", "ne", "root") | list %}
-        <div style="display: flex;
-                    gap: 0.75rem;
-                    align-items: center;
-                    flex-wrap: wrap;
-                    margin: 0.75rem 0">
-          <label style="font-weight: 600;">Destination</label>
-          <select name="target_location_id">
-            {% if use_drawer_sorter %}<option value="0">Auto-sort to drawers</option>{% endif %}
-            {% for loc in placeable %}<option value="{{ loc.id }}">{{ loc.name }} ({{ loc.type }})</option>{% endfor %}
-            {% if not use_drawer_sorter and not placeable %}
-              <option value="" disabled>No locations — create one first</option>
-            {% endif %}
-          </select>
-        </div>
+        <label style="font-weight: 600;">Destination</label>
+        <select name="target_location_id">
+          {% if use_drawer_sorter %}<option value="0">Auto-sort to drawers</option>{% endif %}
+          {% if placeable %}
+            <optgroup label="Storage Locations">
+              {% for loc in placeable %}<option value="{{ loc.id }}">{{ loc.name }} ({{ loc.type }})</option>{% endfor %}
+            </optgroup>
+          {% endif %}
+          {% if decks %}
+            <optgroup label="Decks">
+              {% for deck in decks %}
+                <option value="{{ deck.storage_location_id }}">
+                  {{ deck.name }}
+                  {% if deck.format %}({{ deck.format }}){% endif %}
+                </option>
+              {% endfor %}
+            </optgroup>
+          {% endif %}
+          {% if not use_drawer_sorter and not placeable and not decks %}
+            <option value="" disabled>No locations — create one first</option>
+          {% endif %}
+        </select>
         <button type="submit"
-                {% if not use_drawer_sorter and not placeable %}disabled{% endif %}>Commit Manual Import</button>
+                {% if not use_drawer_sorter and not placeable and not decks %}disabled{% endif %}>
+          Commit Import
+        </button>
       </form>
     {% else %}
-      <p>Could not resolve that card exactly. Use a valid Scryfall ID or exact set code and collector number.</p>
+      <p class="muted">Could not resolve that card. Use a valid Scryfall ID or exact set code and collector number.</p>
+      <a href="/import">Back to import</a>
     {% endif %}
   </section>
 {% endblock %}

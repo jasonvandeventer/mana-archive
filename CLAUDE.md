@@ -1,6 +1,6 @@
 # Mana Archive — Claude Context
 
-## Current version: v3.6.0-dev
+## Current version: v3.7.0-dev
 
 ## Stack: FastAPI + Jinja2 + SQLite + K3s/ArgoCD
 
@@ -28,7 +28,11 @@ To add a user to the auto-sorter, update `DRAWER_SORTER_USERNAMES` in `app/depen
 
 ### Import destination
 
-All import paths (CSV and manual) present a **Destination** dropdown at commit time. For drawer-sorter users the first option is "Auto-sort to drawers" (existing behaviour); any other selection places cards directly into that StorageLocation and skips pending entirely. For other users, a location must be chosen. `place_imported_rows()` in `inventory_service.py` handles the bulk placement.
+All import paths (CSV, paste list, and manual) present a **Destination** dropdown at commit time. For drawer-sorter users the first option is "Auto-sort to drawers" (existing behaviour); any other selection places cards directly into that StorageLocation and skips pending entirely. For other users, a location must be chosen.
+
+**Decks appear as destinations** in the dropdown (as a separate `<optgroup>`), using the deck's `storage_location_id` as the value. This lets users import directly into a deck without the placement step. `place_imported_rows()` in `inventory_service.py` handles bulk placement to any location, including deck locations.
+
+The `decks` list (from `list_decks()`) is passed to all three preview templates: `import_preview.html`, `manual_preview.html`.
 
 ### Security (added v3.4.6)
 
@@ -94,7 +98,19 @@ Two import paths on `/import`:
 
 Both paths normalize to the same row dict and feed into `persist_import_rows()` via the shared preview → commit flow. `format_name` is shown on the preview page.
 
+### UI/UX consistency (v3.7)
+
+All templates use a consistent panel/section structure:
+
+- Hero sections: `class="panel page-hero"` (large) or `class="panel hero-panel compact-hero"` (compact)
+- Action/filter strips: `class="panel controls-panel"` (block layout; form inside uses `.filter-row` for flex)
+- Content panels: `class="panel"` with `<h3 class="panel-title">` inside
+- Tables: globally styled — no extra class needed, just bare `<table>`
+- CSS utilities in `style.css`: `.controls-panel`, `.btn-danger-small`, `.finish-badge`, `.warning-text`
+
+Templates updated in v3.7: `decks.html`, `import.html`, `import_preview.html`, `manual_preview.html`, `audit.html`, `sets.html`, `set_detail.html`.
+
 ## Roadmap
 
-- v3.6: Import framework (Helvault, Moxfield CSV) — complete in dev, pending prod deploy
+- v3.7: Import-to-deck, decks list redesign, UI/UX consistency pass — in dev
 - v4.0: PostgreSQL migration

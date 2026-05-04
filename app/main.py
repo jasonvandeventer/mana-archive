@@ -217,6 +217,7 @@ async def import_preview(
             "current_user": current_user,
             "use_drawer_sorter": current_user.username in DRAWER_SORTER_USERNAMES,
             "locations": list_locations(session, current_user.id),
+            "decks": list_decks(session, user_id=current_user.id),
         },
     )
 
@@ -242,6 +243,7 @@ async def import_list_preview(
             "current_user": current_user,
             "use_drawer_sorter": current_user.username in DRAWER_SORTER_USERNAMES,
             "locations": list_locations(session, current_user.id),
+            "decks": list_decks(session, user_id=current_user.id),
         },
     )
 
@@ -344,6 +346,7 @@ async def manual_import_preview(
             "current_user": current_user,
             "use_drawer_sorter": current_user.username in DRAWER_SORTER_USERNAMES,
             "locations": list_locations(session, current_user.id),
+            "decks": list_decks(session, user_id=current_user.id),
         },
     )
 
