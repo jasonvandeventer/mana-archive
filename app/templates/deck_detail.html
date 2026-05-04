@@ -32,6 +32,61 @@
       <h2 class="panel-title">Deck not found</h2>
     {% endif %}
   </section>
+  {% if analytics %}
+    <section class="panel analytics-panel">
+      <div class="analytics-grid {% if not analytics.pips %}no-pips{% endif %}">
+        <div class="analytics-section">
+          <div class="analytics-section-label">Mana Curve</div>
+          <div class="analytics-avg-cmc">
+            {{ analytics.avg_cmc }}<span class="analytics-avg-cmc-unit"> avg CMC</span>
+          </div>
+          <div class="analytics-curve">
+            {% for cmc in range(7) %}
+              {% set count = analytics.curve[cmc] %}
+              {% set bar_h = ((count / analytics.curve_max) * 88)|round|int %}
+              <div class="curve-col">
+                <span class="curve-count">{{ count if count else '' }}</span>
+                <div class="curve-bar" style="height: {{ bar_h }}px"></div>
+                <span class="curve-label">{{ cmc if cmc < 6 else '6+' }}</span>
+              </div>
+            {% endfor %}
+          </div>
+        </div>
+        {% if analytics.types %}
+          <div class="analytics-section">
+            <div class="analytics-section-label">Card Types</div>
+            {% for type, count in analytics.types.items() %}
+              <div class="analytics-row">
+                <span class="arow-label">{{ type }}</span>
+                <div class="arow-bar-wrap">
+                  <div class="arow-bar" style="width: {{ ((count / analytics.types_max) * 100)|round|int }}%"></div>
+                </div>
+                <span class="arow-count">{{ count }}</span>
+              </div>
+            {% endfor %}
+          </div>
+        {% endif %}
+        {% if analytics.pips %}
+          <div class="analytics-section">
+            <div class="analytics-section-label">Color Pips</div>
+            {% for color, count in analytics.pips.items() %}
+              <div class="analytics-row">
+                <span class="arow-label arow-label-pip">
+                  <img src="https://svgs.scryfall.io/card-symbols/{{ color }}.svg"
+                       class="mana-pip" alt="{{ color }}">
+                </span>
+                <div class="arow-bar-wrap">
+                  <div class="arow-bar arow-bar-{{ color|lower }}"
+                       style="width: {{ ((count / analytics.pips_max) * 100)|round|int }}%"></div>
+                </div>
+                <span class="arow-count">{{ count }}</span>
+              </div>
+            {% endfor %}
+          </div>
+        {% endif %}
+      </div>
+    </section>
+  {% endif %}
   {% if deck %}
     <section class="panel controls-panel">
       <h3>Search Collection</h3>

@@ -8,6 +8,70 @@ from sqlalchemy.orm import Session, joinedload
 from app.audit_service import log_transaction
 from app.models import Card, Deck, InventoryRow, StorageLocation
 
+_TYPE_ORDER = [
+    "Creature",
+    "Planeswalker",
+    "Battle",
+    "Instant",
+    "Sorcery",
+    "Enchantment",
+    "Artifact",
+    "Land",
+]
+
+
+def compute_deck_analytics(rows: list) -> dict:
+    """Compute mana curve, type breakdown, and color pip counts from a list of InventoryRow ORM objects."""
+    curve: dict[int, int] = {i: 0 for i in range(7)}  # 0–5, 6 = "6+"
+    types: dict[str, int] = {}
+    pips: dict[str, int] = {}
+    total_cmc = 0.0
+    non_land_copies = 0
+
+    for row in rows:
+        card = row.card
+        qty = row.quantity
+        tl = (card.type_line or "").lower()
+
+        matched = False
+        for t in _TYPE_ORDER:
+            if t.lower() in tl:
+                types[t] = types.get(t, 0) + qty
+                matched = True
+                break
+        if not matched:
+            types["Other"] = types.get("Other", 0) + qty
+
+        is_land = "land" in tl
+
+        if not is_land and card.cmc is not None:
+            bucket = min(int(card.cmc), 6)
+            curve[bucket] += qty
+            total_cmc += card.cmc * qty
+            non_land_copies += qty
+
+        if card.mana_cost:
+            for color in ("W", "U", "B", "R", "G"):
+                n = card.mana_cost.count("{" + color + "}") * qty
+                if n:
+                    pips[color] = pips.get(color, 0) + n
+
+    avg_cmc = round(total_cmc / non_land_copies, 2) if non_land_copies else 0.0
+
+    ordered_types = {k: types[k] for k in _TYPE_ORDER if k in types}
+    if "Other" in types:
+        ordered_types["Other"] = types["Other"]
+
+    return {
+        "curve": curve,
+        "curve_max": max(curve.values()) or 1,
+        "types": ordered_types,
+        "types_max": max(types.values()) if types else 1,
+        "pips": {c: pips[c] for c in ("W", "U", "B", "R", "G") if c in pips},
+        "pips_max": max(pips.values()) if pips else 1,
+        "avg_cmc": avg_cmc,
+    }
+
 
 def create_deck(
     session: Session,

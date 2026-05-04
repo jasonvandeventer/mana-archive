@@ -1,6 +1,6 @@
 # Mana Archive — Claude Context
 
-## Current version: v3.8.3
+## Current version: v3.8.4
 
 ## Stack: FastAPI + Jinja2 + SQLite + K3s/ArgoCD
 
@@ -131,6 +131,13 @@ Templates updated in v3.7: `decks.html`, `import.html`, `import_preview.html`, `
 - Pre-commit hook at `.githooks/pre-commit` mirrors CI lint checks. New developers run `git config core.hooksPath .githooks`.
 - Token tracking on set detail: "Show Tokens" toggle fetches `t{set_code}` token set; tokens tracked ownership-only (no USD price).
 
+### Deck analytics (v3.8.4)
+
+- `compute_deck_analytics(rows)` in `deck_service.py` — takes a list of unfiltered `InventoryRow` ORM objects and returns mana curve (bucketed 0–6+, lands excluded), card type breakdown (Creature → Planeswalker → Battle → Instant → Sorcery → Enchantment → Artifact → Land → Other), color pip counts (parsed from `mana_cost`), and average CMC.
+- `deck_detail_page` in `main.py` always runs a separate unfiltered query for analytics so the panel reflects the full deck even when the search filter is active. Analytics are `None` for empty decks.
+- Analytics panel in `deck_detail.html` — 3-column layout: Mana Curve | Card Types | Color Pips. Avg CMC shown as a prominent stat. Collapses to 2-col when no pips, stacks on mobile. Vertical dividers between columns.
+- CSS: `.analytics-grid`, `.analytics-section`, `.analytics-avg-cmc`, `.analytics-curve`, `.curve-col/.curve-bar/.curve-count/.curve-label`, `.analytics-row`, `.arow-label/.arow-bar-wrap/.arow-bar/.arow-count`, WUBRG color-coded gradient bars.
+
 ### Brand assets and header layout (v3.8.3)
 
 - `app/static/icons/` — actual brand PNGs at 15 sizes (16–1024px) using card-frame app icon design; wordmark PNGs at 256/512/1024px; `favicon.ico` built from 16/32/48px icons.
@@ -163,5 +170,6 @@ Templates updated in v3.7: `decks.html`, `import.html`, `import_preview.html`, `
 - v3.8.1: Deck/location UX fixes, collection action drawer — **shipped**
 - v3.8.2: Location page deck creation, orphaned deck location cleanup — **shipped**
 - v3.8.3: Brand assets (real PNG icon pack + wordmark), header two-column layout, deck total-copy count — **shipped**
-- v3.9: Legality sort/filter (needs schema design), advanced deck analytics
+- v3.8.4: Deck analytics panel (mana curve, card types, color pips, avg CMC) — **shipped**
+- v3.9: Legality sort/filter (needs schema design), game tracker (life totals, 2–8 players, deck selection per seat, results tied to deck records)
 - v4.0: PostgreSQL migration

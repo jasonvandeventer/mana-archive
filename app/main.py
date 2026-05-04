@@ -25,6 +25,7 @@ from app.audit_service import list_transaction_logs
 from app.auth import hash_password
 from app.db import SessionLocal, init_db
 from app.deck_service import (
+    compute_deck_analytics,
     create_deck,
     delete_deck,
     get_deck,
@@ -1316,6 +1317,21 @@ def deck_detail_page(
     commanders = [i for i in items if i["role"] == "commander"]
     deck_cards = [i for i in items if i["role"] != "commander"]
 
+    analytics = None
+    if deck and deck.storage_location_id:
+        all_deck_rows = (
+            session.query(InventoryRow)
+            .options(joinedload(InventoryRow.card))
+            .join(Card)
+            .filter(
+                InventoryRow.user_id == current_user.id,
+                InventoryRow.storage_location_id == deck.storage_location_id,
+            )
+            .all()
+        )
+        if all_deck_rows:
+            analytics = compute_deck_analytics(all_deck_rows)
+
     # Derive color identity from commanders; fall back to colorless if none assigned yet
     _identity_letters: list[str] = []
     for c in commanders:
@@ -1340,6 +1356,7 @@ def deck_detail_page(
             "direction": direction,
             "collection_search": collection_search,
             "collection_results": collection_results if deck else [],
+            "analytics": analytics,
             "current_user": current_user,
             "use_drawer_sorter": use_drawer_sorter,
         },
