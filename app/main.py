@@ -133,7 +133,15 @@ def home(
     request: Request,
     current_user: User = Depends(get_current_user),
 ):
-    return render(request, "home.html", {"title": "Mana Archive", "current_user": current_user})
+    return render(
+        request,
+        "home.html",
+        {
+            "title": "Mana Archive",
+            "current_user": current_user,
+            "use_drawer_sorter": current_user.username in DRAWER_SORTER_USERNAMES,
+        },
+    )
 
 
 @app.post("/register")
