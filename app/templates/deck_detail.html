@@ -109,7 +109,7 @@
                 {% if health_filter == key %}
                   <a href="/decks/{{ deck.id }}?sort={{ sort }}&direction={{ direction }}" class="health-cards-link active">{{ m.count }} card{{ "s" if m.count != 1 }} ×</a>
                 {% else %}
-                  <a href="?health={{ key }}&sort={{ sort }}&direction={{ direction }}" class="health-cards-link">{{ m.count }} card{{ "s" if m.count != 1 }}</a>
+                  <a href="?health_filter={{ key }}&sort={{ sort }}&direction={{ direction }}" class="health-cards-link">{{ m.count }} card{{ "s" if m.count != 1 }}</a>
                 {% endif %}
               {% else %}
                 <span class="health-cards-empty">—</span>
