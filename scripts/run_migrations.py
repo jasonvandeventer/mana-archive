@@ -6,6 +6,7 @@ from scripts.migrate_v3_5_inventory_role import main as migrate_v3_5_role
 from scripts.migrate_v3_7_admin_user import main as migrate_v3_7_admin
 from scripts.migrate_v3_8_8_color_identity import main as migrate_v3_8_8_color_identity
 from scripts.migrate_v3_8_card_attrs import main as migrate_v3_8_card_attrs
+from scripts.migrate_v3_9_5_row_tags import main as migrate_v3_9_5_row_tags
 
 
 def _is_applied(name: str) -> bool:
@@ -64,6 +65,13 @@ def run():
         _mark_applied("v3_8_8_color_identity")
     else:
         print("v3.8.8 color_identity already applied, skipping")
+
+    if not _is_applied("v3_9_5_row_tags"):
+        print("Running v3.9.5 row tags migration...")
+        migrate_v3_9_5_row_tags()
+        _mark_applied("v3_9_5_row_tags")
+    else:
+        print("v3.9.5 row_tags already applied, skipping")
 
     print("Migration runner complete")
 

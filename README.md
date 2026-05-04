@@ -9,17 +9,20 @@ Self-hosted web application for managing a physical Magic: The Gathering collect
 ## Features
 
 ### Collection
+
 - Browse and search your full inventory with Scryfall-style boolean syntax
 - Keywords: `t:creature`, `c:WU`, `cmc:>3`, `o:"draw a card"`, `id:gb`, `price:>=5`, `is:foil`, `qty:>1`, and more
 - Full boolean logic: `OR`, `AND`, `-negation`, `(grouping)`, quoted multi-word values
 - Sort by name, type, mana cost, color, or price
 
 ### Imports
+
 - **CSV upload** — auto-detects Scanner App, Helvault (free/pro), and Moxfield collection CSV formats
 - **Paste list** — parses Moxfield deck exports, MTGA, MTGO, and standard `N CardName (SET) #` format
 - Import directly to a deck or storage location at commit time
 
 ### Decks
+
 - Create and manage Commander (or any format) decks
 - Mark commanders; commander cards appear in a dedicated panel above the deck grid
 - Full Scryfall-style search within a deck
@@ -29,35 +32,39 @@ Self-hosted web application for managing a physical Magic: The Gathering collect
 - Click any health metric count to filter the deck grid to just those cards
 
 ### Organization
+
 - Drawer/slot system for physical organization (gated per-user)
 - Custom storage locations for non-drawer users
 - Move cards between locations; return cards from decks to pending/collection
 
 ### Pricing & Card Data
+
 - Live Scryfall pricing (USD regular, foil, etched) per card and deck totals
 - Background price refresh loop keeps data fresh
 - Card attributes: colors, color identity, mana cost, CMC, oracle text, type line
 
 ### Multi-user
+
 - User accounts with registration and login
 - Admin panel: create/delete users, toggle admin/active, reset passwords
 - Per-user data isolation; drawer sorter is opt-in per username
 
 ### Sets
+
 - Browse cards by set; token tracking toggle per set
 
 ---
 
 ## Stack
 
-| Layer | Technology |
-|---|---|
-| Web framework | FastAPI + Jinja2 |
-| Database | SQLite (via SQLAlchemy) |
-| Styling | Custom CSS (no framework) |
-| Card data | [Scryfall API](https://scryfall.com/docs/api) |
-| Runtime | Docker / Kubernetes (K3s) |
-| GitOps | ArgoCD + ArgoCD Image Updater |
+| Layer         | Technology                                    |
+| ------------- | --------------------------------------------- |
+| Web framework | FastAPI + Jinja2                              |
+| Database      | SQLite (via SQLAlchemy)                       |
+| Styling       | Custom CSS (no framework)                     |
+| Card data     | [Scryfall API](https://scryfall.com/docs/api) |
+| Runtime       | Docker / Kubernetes (K3s)                     |
+| GitOps        | ArgoCD + ArgoCD Image Updater                 |
 
 ---
 

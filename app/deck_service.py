@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import re
 from datetime import datetime
 
@@ -26,6 +27,49 @@ _WIPE_RE = re.compile(
     re.IGNORECASE,
 )
 _HEALTH_THRESHOLDS = {"ramp": 10, "draw": 10, "removal": 8, "wipes": 2}
+
+CARD_ROLE_TAGS = ["Ramp", "Draw", "Removal", "Wipe", "Tutor", "Combo", "Payoff", "Protection"]
+
+_TAG_SET = set(CARD_ROLE_TAGS)
+
+
+def get_row_tags(row) -> list[str]:
+    if not row.tags:
+        return []
+    try:
+        return json.loads(row.tags)
+    except (json.JSONDecodeError, TypeError):
+        return []
+
+
+def set_row_tags(row, tags: list[str]) -> None:
+    valid = sorted({t for t in tags if t in _TAG_SET})
+    row.tags = json.dumps(valid) if valid else None
+
+
+def suggest_card_roles(card) -> list[str]:
+    """Return auto-detected role tags for a card based on oracle text patterns."""
+    oracle = (card.oracle_text or "").lower()
+    tl = (card.type_line or "").lower()
+    if "basic land" in tl or not oracle:
+        return []
+    is_land = "land" in tl
+    is_land_tutor = bool(_RAMP_LAND_RE.search(oracle))
+    suggestions = []
+    if not is_land and "add {" in oracle:
+        suggestions.append("Ramp")
+    elif is_land_tutor:
+        suggestions.append("Ramp")
+    if _DRAW_RE.search(oracle):
+        suggestions.append("Draw")
+    if _REMOVAL_RE.search(oracle):
+        suggestions.append("Removal")
+    if _WIPE_RE.search(oracle):
+        suggestions.append("Wipe")
+    if "search your library for" in oracle and not is_land_tutor:
+        suggestions.append("Tutor")
+    return suggestions
+
 
 _TYPE_ORDER = [
     "Creature",

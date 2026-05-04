@@ -96,6 +96,7 @@ class InventoryRow(Base):
     slot: Mapped[str | None] = mapped_column(String(32), nullable=True)
     is_pending: Mapped[bool] = mapped_column(Boolean, default=True, index=True)
     role: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    tags: Mapped[str | None] = mapped_column(Text, nullable=True)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)

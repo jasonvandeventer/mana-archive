@@ -120,7 +120,8 @@
               <div class="cs-sub">
                 <span class="cs-sub-label">{{ {"draw":"Draw","ramp":"Ramp","tutors":"Tutors","smoothness":"Curve","coverage":"Coverage"}[key] }}</span>
                 <div class="cs-sub-bar-wrap">
-                  <div class="cs-sub-bar cs-{{ consistency.tier }}" style="width: {{ ((bd.score / bd.max) * 100)|round|int }}%"></div>
+                  <div class="cs-sub-bar cs-{{ consistency.tier }}"
+                       style="width: {{ ((bd.score / bd.max) * 100)|round|int }}%"></div>
                 </div>
                 <span class="cs-sub-val">{{ bd.score }}/{{ bd.max }}</span>
               </div>
@@ -144,9 +145,11 @@
               <span class="health-count health-count-{{ status }}">{{ m.count }}/{{ m.threshold }}</span>
               {% if m.cards %}
                 {% if health_filter == key %}
-                  <a href="/decks/{{ deck.id }}?sort={{ sort }}&direction={{ direction }}" class="health-cards-link active">{{ m.count }} card{{ "s" if m.count != 1 }} ×</a>
+                  <a href="/decks/{{ deck.id }}?sort={{ sort }}&direction={{ direction }}"
+                     class="health-cards-link active">{{ m.count }} card{{ "s" if m.count != 1 }} ×</a>
                 {% else %}
-                  <a href="?health_filter={{ key }}&sort={{ sort }}&direction={{ direction }}" class="health-cards-link">{{ m.count }} card{{ "s" if m.count != 1 }}</a>
+                  <a href="?health_filter={{ key }}&sort={{ sort }}&direction={{ direction }}"
+                     class="health-cards-link">{{ m.count }} card{{ "s" if m.count != 1 }}</a>
                 {% endif %}
               {% else %}
                 <span class="health-cards-empty">—</span>
@@ -166,14 +169,19 @@
                   <div class="health-bar-wrap">
                     {% if ps.sources %}
                       {% set fill = [((ps.demand / (ps.demand + ps.sources)) * 100)|round|int, 100]|min %}
-                      <div class="health-bar {{ 'health-bar-low' if ps.strained else 'health-bar-ok' }}" style="width: {{ fill }}%"></div>
+                      <div class="health-bar {{ 'health-bar-low' if ps.strained else 'health-bar-ok' }}"
+                           style="width: {{ fill }}%"></div>
                     {% else %}
                       <div class="health-bar health-bar-low" style="width: 100%"></div>
                     {% endif %}
                   </div>
                   <span class="health-pip-stat {% if ps.strained %}health-count-low{% else %}health-count-ok{% endif %}">
                     {{ ps.demand }}p / {{ ps.sources }}L
-                    {% if ps.ratio is not none %}= {{ ps.ratio }}{% else %}<span class="warning-text">no sources</span>{% endif %}
+                    {% if ps.ratio is not none %}
+                      = {{ ps.ratio }}
+                    {% else %}
+                      <span class="warning-text">no sources</span>
+                    {% endif %}
                   </span>
                 </div>
               {% endif %}
@@ -276,7 +284,13 @@
       </section>
     {% endif %}
     <section class="panel controls-panel">
-      <h3>Deck Cards{% if health_filter %} — <span class="health-filter-badge">{{ {"ramp":"Ramp","draw":"Card Draw","removal":"Removal","wipes":"Board Wipes"}[health_filter] }}</span> <a href="/decks/{{ deck.id }}?sort={{ sort }}&direction={{ direction }}" class="health-filter-clear">× clear</a>{% endif %}</h3>
+      <h3>
+        Deck Cards
+        {% if health_filter %}
+          — <span class="health-filter-badge">{{ {"ramp":"Ramp","draw":"Card Draw","removal":"Removal","wipes":"Board Wipes"}[health_filter] }}</span> <a href="/decks/{{ deck.id }}?sort={{ sort }}&direction={{ direction }}"
+    class="health-filter-clear">× clear</a>
+        {% endif %}
+      </h3>
       <form method="get" action="/decks/{{ deck.id }}" class="filter-row">
         <input type="hidden"
                name="collection_search"

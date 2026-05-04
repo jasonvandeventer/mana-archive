@@ -172,10 +172,47 @@
         </details>
       {% endif %}
       {% if show_deck_actions and deck %}
+        {% set row_tags = item.get('tags', []) %}
+        {% set suggestions = item.get('suggested_tags', []) %}
+        {% if row_tags %}
+          <div class="card-tag-row">
+            {% for tag in row_tags %}<span class="card-tag card-tag-{{ tag|lower }}">{{ tag }}</span>{% endfor %}
+          </div>
+        {% endif %}
+        <details class="tag-editor-details">
+          <summary class="tag-editor-summary">
+            {% if row_tags %}
+              Edit Tags
+            {% else %}
+              Add Tags
+            {% endif %}
+          </summary>
+          <form action="/decks/rows/{{ item.id }}/tags"
+                method="post"
+                class="tag-editor-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <input type="hidden" name="deck_id" value="{{ deck.id }}">
+            <div class="tag-editor-grid">
+              {% for tag in card_role_tags %}
+                {% set checked = tag in row_tags %}
+                {% set suggested = tag in suggestions and not checked %}
+                <label class="tag-checkbox{% if suggested %} tag-suggested{% endif %}">
+                  <input type="checkbox"
+                         name="tags"
+                         value="{{ tag }}"
+                         {% if checked %}checked{% endif %}>
+                  {{ tag }}
+                  {% if suggested %}✦{% endif %}
+                </label>
+              {% endfor %}
+            </div>
+            <button type="submit" class="tag-save-btn">Save</button>
+          </form>
+        </details>
         <div style="display: flex;
                     flex-direction: column;
                     gap: 0.4rem;
-                    margin-top: 0.5rem">
+                    margin-top: 0.3rem">
           <form action="/decks/rows/{{ item.id }}/toggle-commander"
                 method="post"
                 class="inline-form">

@@ -25,6 +25,7 @@ from app.audit_service import list_transaction_logs
 from app.auth import hash_password
 from app.db import SessionLocal, init_db
 from app.deck_service import (
+    CARD_ROLE_TAGS,
     compute_consistency,
     compute_deck_analytics,
     compute_deck_health,
@@ -32,9 +33,12 @@ from app.deck_service import (
     create_deck,
     delete_deck,
     get_deck,
+    get_row_tags,
     list_decks,
     pull_card_to_deck,
     return_card_from_deck,
+    set_row_tags,
+    suggest_card_roles,
 )
 from app.dependencies import (
     DRAWER_SORTER_USERNAMES,
@@ -1298,6 +1302,8 @@ def deck_detail_page(
                     "effective_price": price,
                     "total_value": total_value,
                     "role": row.role,
+                    "tags": get_row_tags(row),
+                    "suggested_tags": suggest_card_roles(row.card),
                 }
             )
 
@@ -1460,6 +1466,28 @@ async def toggle_commander(
     )
     if row:
         row.role = None if row.role == "commander" else "commander"
+        session.commit()
+    return RedirectResponse(url=f"/decks/{deck_id}", status_code=303)
+
+
+@app.post("/decks/rows/{row_id}/tags")
+async def update_row_tags(
+    request: Request,
+    row_id: int,
+    deck_id: int = Form(...),
+    tags: list[str] = Form(default=[]),
+    session: Session = Depends(get_db_session),
+    current_user: User = Depends(get_current_user),
+    _: None = CsrfRequired,
+):
+    row = (
+        session.query(InventoryRow)
+        .filter(InventoryRow.id == row_id, InventoryRow.user_id == current_user.id)
+        .first()
+    )
+    if row:
+        set_row_tags(row, [t for t in tags if t in CARD_ROLE_TAGS])
+        row.updated_at = datetime.utcnow()
         session.commit()
     return RedirectResponse(url=f"/decks/{deck_id}", status_code=303)
 
