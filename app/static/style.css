@@ -1035,42 +1035,37 @@ td {
 .health-count-ok   { color: #42c46a; }
 .health-count-warn { color: #d4a840; }
 .health-count-low  { color: #e86850; }
-.health-cards-details {
+.health-cards-link {
   font-size: 0.78rem;
-  position: relative;
-}
-.health-cards-summary {
-  cursor: pointer;
   color: var(--accent);
-  list-style: none;
   white-space: nowrap;
-}
-.health-cards-summary::-webkit-details-marker { display: none; }
-.health-cards-list {
-  position: absolute;
-  z-index: 10;
-  background: var(--panel-bg);
+  text-decoration: none;
+  padding: 0.15rem 0.45rem;
+  border-radius: 4px;
   border: 1px solid rgba(86, 113, 160, 0.3);
-  border-radius: 8px;
-  padding: 0.5rem 0.75rem;
-  margin: 0.25rem 0 0;
-  list-style: none;
-  max-height: 220px;
-  overflow-y: auto;
-  min-width: 180px;
-  box-shadow: 0 4px 16px rgba(0,0,0,0.4);
 }
-.health-cards-list li {
-  padding: 0.18rem 0;
+.health-cards-link:hover {
+  background: rgba(86, 113, 160, 0.15);
+}
+.health-cards-link.active {
+  background: rgba(86, 113, 160, 0.2);
   color: var(--text);
-  font-size: 0.78rem;
-  border-bottom: 1px solid rgba(86, 113, 160, 0.1);
 }
-.health-cards-list li:last-child { border-bottom: none; }
 .health-cards-empty {
   color: var(--muted);
   font-size: 0.78rem;
 }
+.health-filter-badge {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--accent);
+}
+.health-filter-clear {
+  font-size: 0.78rem;
+  color: var(--muted);
+  text-decoration: none;
+}
+.health-filter-clear:hover { color: var(--text); }
 .health-pips {
   border-left: 1px solid rgba(86, 113, 160, 0.2);
   padding-left: 2.5rem;

@@ -1231,6 +1231,9 @@ async def decks_create(
     return RedirectResponse(url="/decks", status_code=303)
 
 
+_VALID_HEALTH_FILTERS = {"ramp", "draw", "removal", "wipes"}
+
+
 @app.get("/decks/{deck_id}")
 def deck_detail_page(
     request: Request,
@@ -1239,6 +1242,7 @@ def deck_detail_page(
     sort: str = "name",
     direction: str = "asc",
     collection_search: str = "",
+    health_filter: str = "",
     session: Session = Depends(get_db_session),
     current_user: User = Depends(get_current_user),
 ):
@@ -1319,8 +1323,6 @@ def deck_detail_page(
             )
 
     use_drawer_sorter = current_user.username in DRAWER_SORTER_USERNAMES
-    commanders = [i for i in items if i["role"] == "commander"]
-    deck_cards = [i for i in items if i["role"] != "commander"]
 
     analytics = None
     health = None
@@ -1340,6 +1342,14 @@ def deck_detail_page(
             analytics = compute_deck_analytics(all_deck_rows)
             health = compute_deck_health(all_deck_rows)
             tokens = compute_deck_tokens(all_deck_rows)
+
+    # Apply health filter before splitting into commanders/deck_cards
+    if health and health_filter in _VALID_HEALTH_FILTERS:
+        _health_names = set(health[health_filter]["cards"])
+        items = [i for i in items if i["card"].name in _health_names]
+
+    commanders = [i for i in items if i["role"] == "commander"]
+    deck_cards = [i for i in items if i["role"] != "commander"]
 
     # Derive color identity from commanders; fall back to colorless if none assigned yet
     _identity_letters: list[str] = []
@@ -1367,6 +1377,7 @@ def deck_detail_page(
             "collection_results": collection_results if deck else [],
             "analytics": analytics,
             "health": health,
+            "health_filter": health_filter if health_filter in _VALID_HEALTH_FILTERS else "",
             "tokens": tokens,
             "current_user": current_user,
             "use_drawer_sorter": use_drawer_sorter,
