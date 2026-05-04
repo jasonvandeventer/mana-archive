@@ -1,6 +1,6 @@
 # Mana Archive — Claude Context
 
-## Current version: v3.8.8
+## Current version: v3.8.9-1
 
 ## Stack: FastAPI + Jinja2 + SQLite + K3s/ArgoCD
 
@@ -189,6 +189,14 @@ Templates updated in v3.7: `decks.html`, `import.html`, `import_preview.html`, `
 - `id:` color identity filter: "within" subset check — excludes cards containing any color not in the given set. Uses `Card.color_identity` (exact Scryfall field, added v3.8.8); cards with `NULL` identity are excluded until backfilled.
 - Placeholder text in all three search inputs updated to show real example queries with boolean syntax.
 
+## Deployment and versioning
+
+- CI builds and pushes to GHCR on any tag matching `v*.*.*`. Untagged commits run lint only.
+- ArgoCD Image Updater (semver strategy) watches GHCR and writes the new tag to `.argocd-source-mana-archive.yaml` in `mana-archive-platform`, which ArgoCD then syncs to the cluster.
+- **Version convention**: always bump the patch number — never use `-N` suffixes. `v3.8.9` → hotfix → `v3.8.10`. Semver treats `-N` as a pre-release (sorts *below* the base tag) so the Image Updater ignores it.
+- **Tagging is automatic**: the `.githooks/post-commit` hook tags HEAD whenever the commit message starts with `vX.Y.Z:`. No separate `git tag` step needed.
+- New developers must run `git config core.hooksPath .githooks` to activate both the pre-commit lint check and the post-commit auto-tag.
+
 ## Roadmap
 
 - v3.7: Import-to-deck, decks list redesign, full UI/UX consistency pass, admin CRUD, account page — **shipped**
@@ -201,5 +209,6 @@ Templates updated in v3.7: `decks.html`, `import.html`, `import_preview.html`, `
 - v3.8.6: Search polish — case-insensitive OR/AND, not: keyword, is:/qty:/price:/name: keywords, updated placeholders — **shipped**
 - v3.8.7: id: color identity filter bug fixes — NULL colors excluded by SQLite NOT LIKE; refresh loop now also picks up cards with NULL colors; one-time backfill via individual + set/collector Scryfall fallback fixed ~1,400 stale scryfall_ids — **shipped**
 - v3.8.8: `color_identity` column on `Card` — proper Scryfall `color_identity` field (space-sep WUBRG, `""` = colorless, `NULL` = not yet fetched); `id:` filter now uses this instead of approximating from `colors`; migration `v3_8_8_color_identity` adds column; refresh loop and all card-write paths updated — **shipped**
+- v3.8.9: Deck token panel (image grid, `/tokens/{scryfall_id}` detail page), collapse remove-from-deck overrides into `<details>`, post-commit auto-tag hook — **shipped**
 - v3.9: Legality sort/filter (needs schema design), game tracker (life totals, 2–8 players, deck selection per seat, results tied to deck records)
 - v4.0: PostgreSQL migration
