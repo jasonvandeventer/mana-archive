@@ -47,6 +47,7 @@ from app.import_service import (
     persist_import_rows,
 )
 from app.inventory_service import (
+    PRICE_STALE_DAYS,
     adjust_inventory_row_quantity,
     confirm_all_pending,
     confirm_pending_row,
@@ -54,7 +55,6 @@ from app.inventory_service import (
     get_drawer_label,
     get_inventory_row_stats,
     get_location_label,
-    PRICE_STALE_DAYS,
     is_price_stale,
     list_inventory_rows,
     list_owned_sets,
