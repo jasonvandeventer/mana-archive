@@ -1,6 +1,6 @@
 # Mana Archive — Claude Context
 
-## Current version: v3.7.0-dev
+## Current version: v3.8.0
 
 ## Stack: FastAPI + Jinja2 + SQLite + K3s/ArgoCD
 
@@ -119,7 +119,21 @@ Templates updated in v3.7: `decks.html`, `import.html`, `import_preview.html`, `
 - Migration `v3_7_admin_user` ensures `users.is_admin` column exists and seeds `jason.v` as admin.
 - Delete user cascade order: TransactionLog → InventoryRow → ImportBatch → Deck → StorageLocation → User.
 
+### Card attributes (v3.8)
+
+- `Card` model gains `colors` (space-sep WUBRG, e.g. `"W U"`), `mana_cost` (e.g. `"{2}{W}"`), `cmc` (float). Migration `v3_8_card_attrs` adds columns; background price-refresh loop backfills existing cards as they age past 7 days.
+- Extended search syntax everywhere: `c:WU`, `cmc:>3`, `mana:{W}`, on top of existing `t:`, `o:`, `s:`, `r:`, `finish:`.
+- New sort options on collection and location detail: Type, Color (WUBRG order), Mana Cost.
+- Location detail now has search + sort controls (previously unsorted, no search).
+- Deck detail search upgraded from plain substring to full Scryfall-style syntax.
+- Unified card display via `_macros.html` `inventory_card` macro — collection, location detail, deck detail all render from one place.
+- Import resort is now a background daemon thread (non-blocking); explicit "Apply Drawer Sorter" stays synchronous.
+- Pre-commit hook at `.githooks/pre-commit` mirrors CI lint checks. New developers run `git config core.hooksPath .githooks`.
+- Token tracking on set detail: "Show Tokens" toggle fetches `t{set_code}` token set; tokens tracked ownership-only (no USD price).
+
 ## Roadmap
 
-- v3.7: Import-to-deck, decks list redesign, full UI/UX consistency pass (all templates), admin page with user CRUD, user account/password change — in dev
+- v3.7: Import-to-deck, decks list redesign, full UI/UX consistency pass, admin CRUD, account page — **shipped**
+- v3.8: Card attrs (colors/cmc/mana_cost), async resort, extended search, unified card macro, token tracking, pre-commit hook — **shipped**
+- v3.9: Legality sort/filter (needs schema design), advanced deck analytics
 - v4.0: PostgreSQL migration
