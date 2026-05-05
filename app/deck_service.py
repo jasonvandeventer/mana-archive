@@ -360,6 +360,17 @@ def compute_deck_health(rows: list) -> dict:
     }
 
 
+def compute_deck_combos(all_rows: list) -> dict:
+    """Fetch win conditions and near-combos from CommanderSpellbook for this deck."""
+    from app.spellbook import fetch_deck_combos
+
+    commander_names = [r.card.name for r in all_rows if r.card and r.role == "commander"]
+    main_names = [r.card.name for r in all_rows if r.card and r.role != "commander"]
+    if not main_names and not commander_names:
+        return {"included": [], "almost": []}
+    return fetch_deck_combos(main_names, commander_names)
+
+
 def create_deck(
     session: Session,
     user_id: int,

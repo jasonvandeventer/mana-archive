@@ -28,6 +28,7 @@ from app.deck_service import (
     CARD_ROLE_TAGS,
     compute_consistency,
     compute_deck_analytics,
+    compute_deck_combos,
     compute_deck_health,
     compute_deck_tokens,
     create_deck,
@@ -1438,6 +1439,7 @@ def deck_detail_page(
     health = None
     consistency = None
     tokens: list = []
+    combos: dict = {"included": [], "almost": []}
     if deck and deck.storage_location_id:
         all_deck_rows = (
             session.query(InventoryRow)
@@ -1454,6 +1456,7 @@ def deck_detail_page(
             health = compute_deck_health(all_deck_rows)
             consistency = compute_consistency(all_deck_rows)
             tokens = compute_deck_tokens(all_deck_rows)
+            combos = compute_deck_combos(all_deck_rows)
 
     # Apply health filter before splitting into commanders/deck_cards
     if health and health_filter in _VALID_HEALTH_FILTERS:
@@ -1491,6 +1494,7 @@ def deck_detail_page(
             "consistency": consistency,
             "health_filter": health_filter if health_filter in _VALID_HEALTH_FILTERS else "",
             "tokens": tokens,
+            "combos": combos,
             "current_user": current_user,
             "use_drawer_sorter": use_drawer_sorter,
             "locations": list_locations(session, user_id=current_user.id),

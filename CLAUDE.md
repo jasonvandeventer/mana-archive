@@ -1,6 +1,6 @@
 # Mana Archive — Claude Context
 
-## Current version: v3.10.9
+## Current version: v3.11.0
 
 ## Stack: FastAPI + Jinja2 + SQLite + K3s/ArgoCD
 
@@ -248,6 +248,16 @@ Templates updated in v3.7: `decks.html`, `import.html`, `import_preview.html`, `
 - `location_detail.html` calls `inventory_card` with `show_collection_actions=true` — gives full per-card actions (Move, Add to Deck, Remove, Sell, Trade, Delete, Refresh).
 - **Bulk Move panel** — collapsible `<details>` above the card grid; shows a scrollable checkbox list of all cards in the location + a destination picker. "Select all" toggle via inline `onclick`. Submits to `POST /locations/{id}/bulk-move` which loops `move_inventory_row_to_location()` for each selected `row_id`.
 
+### Win condition detection (v3.11.0)
+
+- `app/spellbook.py` — `fetch_deck_combos(main_names, commander_names)` POSTs to `https://backend.commanderspellbook.com/find-my-combos/` with `{"commanders": [{"card": name}], "main": [{"card": name}]}`. Returns `{included, almost}`.
+- `included` = combos where all pieces are in the deck. `almost` = combos missing exactly 1 card (filtered from `almostIncluded`), sorted by popularity, capped at 10.
+- 1-hour in-memory cache keyed on `(_COMBO_CACHE_VERSION, frozenset(all_names))`. Bump `_COMBO_CACHE_VERSION` in `spellbook.py` to invalidate.
+- `compute_deck_combos(all_rows)` in `deck_service.py` — extracts commander vs main card names from `row.role`, calls `fetch_deck_combos`. Called from `deck_detail_page` on the unfiltered `all_deck_rows`.
+- Each combo dict: `id, card_names, owned, missing, description, results, prerequisites, mana_needed, popularity`.
+- **Win Conditions panel** in `deck_detail.html` — "Complete combos in this deck" section + "One card away" section. Each combo shows card pills (missing card styled in amber), result badges (green), expandable "How it works" with step-by-step description and setup prerequisites.
+- CSS classes: `.combo-panel`, `.combo-section-label`, `.combo-item`, `.combo-item-almost`, `.combo-cards`, `.combo-card-name`, `.combo-card-missing`, `.combo-results`, `.combo-result-badge`, `.combo-details`, `.combo-summary`, `.combo-description`, `.combo-prereq`.
+
 ## Deployment and versioning
 
 - CI builds and pushes to GHCR on any tag matching `v*.*.*`. Untagged commits run lint only.
@@ -286,6 +296,7 @@ Templates updated in v3.7: `decks.html`, `import.html`, `import_preview.html`, `
 - v3.10.7: Move cards feature on deck detail — per-card Move to Location dropdown + Bulk Move panel — **shipped**
 - v3.10.8: Move destination dropdowns include other decks; Storage Locations / Decks optgroups — **shipped**
 - v3.10.9: Fix partner commander color identity — union all commanders' `color_identity` (not `.first()` + `colors`); affects both decks list and deck detail header — **shipped**
+- v3.11.0: Win condition detection — CommanderSpellbook API integration; `app/spellbook.py` POSTs deck card list to `/find-my-combos/`; shows complete combos in deck + "one card away" near-combos (missing exactly 1 card, top 10 by popularity); 1-hour in-memory cache keyed on card set; combo panel in `deck_detail.html` with card pills, result badges, and expandable step-by-step description — **shipped**
 
 ### Mana pip SVG notes
 
@@ -295,8 +306,7 @@ Templates updated in v3.7: `decks.html`, `import.html`, `import_preview.html`, `
 - Colorless (C) pip still served from Scryfall CDN in `mana_pips` macro in `_macros.html`.
 - To update: re-download from Scryfall CDN; the B symbol uses `fill-rule="evenodd"` for skull detail holes.
 
-- v3.11: Win condition detection — CommanderSpellbook API integration for combo detection; synergy cluster identification; "cards contributing to win" vs "cards that do nothing alone" panel
-- v3.11: Commander synergy score — % of deck that directly synergizes, indirectly supports, or is unrelated to the commander; uses role tags + CommanderSpellbook data
+- v3.11.1: Commander synergy score — % of deck that directly synergizes, indirectly supports, or is unrelated to the commander; uses role tags + CommanderSpellbook data
 - v3.12: Dead card detection — flag cards requiring existing board state to function, no synergy with commander, or "win-more" cards; depends on role tags and synergy data
 - v3.13: Average turn impact — estimate when cards are typically playable and when they matter; "deck peaks at turn X" summary
 - v3.14: Game tracker — life totals, 2–8 players, deck selection per seat, game results tied to deck records

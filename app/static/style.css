@@ -1435,3 +1435,88 @@ td {
   font-weight: 600;
   margin-bottom: 0.2rem;
 }
+
+/* Win Conditions / Combo panel */
+.combo-section-label {
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--text-muted);
+  margin-bottom: 0.6rem;
+}
+.combo-section-label-gap {
+  margin-top: 1.5rem;
+}
+.combo-item {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0.75rem 1rem;
+  margin-bottom: 0.6rem;
+  background: var(--surface2);
+}
+.combo-item-almost {
+  border-color: rgba(86, 113, 160, 0.3);
+  opacity: 0.9;
+}
+.combo-cards {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-bottom: 0.45rem;
+}
+.combo-card-name {
+  background: var(--surface3);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.2rem 0.55rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+.combo-card-missing {
+  background: rgba(180, 83, 9, 0.12);
+  border-color: rgba(180, 83, 9, 0.4);
+  color: #c97c38;
+}
+.combo-results {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin-bottom: 0.4rem;
+}
+.combo-result-badge {
+  background: rgba(34, 197, 94, 0.12);
+  border: 1px solid rgba(34, 197, 94, 0.35);
+  color: #86efac;
+  border-radius: 999px;
+  padding: 0.15rem 0.6rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+.combo-details {
+  margin-top: 0.4rem;
+}
+.combo-summary {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  cursor: pointer;
+  user-select: none;
+}
+.combo-summary:hover {
+  color: var(--text);
+}
+.combo-description {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  margin-top: 0.4rem;
+  line-height: 1.55;
+  padding-left: 0.5rem;
+  border-left: 2px solid var(--border);
+}
+.combo-prereq {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  margin-top: 0.4rem;
+  padding-left: 0.5rem;
+  border-left: 2px solid var(--border);
+}

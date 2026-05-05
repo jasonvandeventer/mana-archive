@@ -386,6 +386,62 @@
         </section>
       {% endif %}
     {% endif %}
+    {% if combos and (combos.included or combos.almost) %}
+      <section class="panel combo-panel">
+        <h3 class="panel-title">Win Conditions</h3>
+        {% if combos.included %}
+          <div class="combo-section-label">Complete combos in this deck</div>
+          {% for combo in combos.included %}
+            <div class="combo-item">
+              <div class="combo-cards">
+                {% for name in combo.card_names %}
+                  <span class="combo-card-name">{{ name }}</span>
+                {% endfor %}
+              </div>
+              <div class="combo-results">
+                {% for r in combo.results %}<span class="combo-result-badge">{{ r }}</span>{% endfor %}
+              </div>
+              {% if combo.description %}
+                <details class="combo-details">
+                  <summary class="combo-summary">How it works</summary>
+                  <div class="combo-description">{{ combo.description | replace('\n', '<br>') | safe }}</div>
+                  {% if combo.prerequisites %}
+                    <div class="combo-prereq"><strong>Setup:</strong> {{ combo.prerequisites }}</div>
+                  {% endif %}
+                </details>
+              {% endif %}
+            </div>
+          {% endfor %}
+        {% endif %}
+        {% if combos.almost %}
+          <div class="combo-section-label {% if combos.included %}combo-section-label-gap{% endif %}">One card away</div>
+          {% for combo in combos.almost %}
+            <div class="combo-item combo-item-almost">
+              <div class="combo-cards">
+                {% for name in combo.owned %}
+                  <span class="combo-card-name">{{ name }}</span>
+                {% endfor %}
+                {% for name in combo.missing %}
+                  <span class="combo-card-name combo-card-missing">+ {{ name }}</span>
+                {% endfor %}
+              </div>
+              <div class="combo-results">
+                {% for r in combo.results %}<span class="combo-result-badge">{{ r }}</span>{% endfor %}
+              </div>
+              {% if combo.description %}
+                <details class="combo-details">
+                  <summary class="combo-summary">How it works</summary>
+                  <div class="combo-description">{{ combo.description | replace('\n', '<br>') | safe }}</div>
+                  {% if combo.prerequisites %}
+                    <div class="combo-prereq"><strong>Setup:</strong> {{ combo.prerequisites }}</div>
+                  {% endif %}
+                </details>
+              {% endif %}
+            </div>
+          {% endfor %}
+        {% endif %}
+      </section>
+    {% endif %}
     {% if tokens %}
       <section class="panel">
         <h3 class="panel-title">Tokens</h3>
