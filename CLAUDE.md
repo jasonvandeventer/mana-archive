@@ -1,6 +1,6 @@
 # Mana Archive — Claude Context
 
-## Current version: v3.11.12
+## Current version: v3.11.13
 
 ## Stack: FastAPI + Jinja2 + SQLite + K3s/ArgoCD
 
@@ -349,6 +349,7 @@ Templates updated in v3.7: `decks.html`, `import.html`, `import_preview.html`, `
 - v3.11.8: Bracket 1 reason + deck export — Bracket 1 now shows a reason ("no tutors, fast mana…") in its popout; `GET /decks/{id}/export` returns a plain-text download in standard `N CardName (SET) #collector` format with Commander/Deck sections; Export button in deck detail hero — **shipped**
 - v3.11.9: Health score on decks list — `list_decks()` also computes `compute_consistency()`; Health column shows the 0-100 badge (same `.consistency-badge.cs-*` classes) with label as tooltip — **shipped**
 - v3.11.10: Commander synergy score — `compute_deck_synergy(all_rows, combos)` classifies each non-commander card as Direct (combo piece, Combo/Payoff tag, or shares commander creature subtype), Supporting (engine tags or land), or Unrelated; stacked bar + three expandable stat blocks in deck detail between Health and Combos panels — **shipped**
+- v3.11.13: Fix theme extraction for compound noun structures — `each` pattern now handles modifier words (`each non-Equipment artifact`); conjunction patterns now handle `and` as well as `or` (`artifact and non-Aura enchantment`); both fixes required for Bello-style oracle text — **shipped**
 - v3.11.12: Fix theme extraction missing "X or Y" card types — add `{t} or \w+` and `\w+ or {t}` patterns so "enchantment or artifact" correctly detects both types — **shipped**
 - v3.11.11: Commander theme extraction — `extract_commander_themes()` parses commander oracle text for card types cared about (positive pattern matching, removal context excluded), CMC gates (mana value N or greater/less), non-X subtype exclusions, mechanics (counters/tokens/graveyard/sacrifice/discard), and tribal subtypes (only when mentioned in oracle text); `card_matches_theme()` applies themes to classify deck cards; `compute_deck_synergy()` now uses these instead of ad-hoc subtype matching; "Detected:" note in synergy panel shows extracted signals — **shipped**
 - v3.12: Dead card detection — flag cards requiring existing board state to function, no synergy with commander, or "win-more" cards; depends on role tags and synergy data

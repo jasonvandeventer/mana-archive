@@ -374,13 +374,13 @@ def compute_deck_combos(all_rows: list) -> dict:
 _CARE_ABOUT_PATTERNS = [
     r"whenever you cast (?:\w+[-\w]* )*{t}",
     r"{t}s? you control",
-    r"each {t}",
+    r"each (?:\w+[-\w]* )*{t}",  # handles "each non-Equipment artifact"
     r"{t} spells?",
     r"your {t}s?",
     r"other {t}s?",
     r"noncreature {t}",
-    r"{t} or \w+",
-    r"\w+ or {t}",
+    r"{t} (?:and|or) \w+",  # handles "artifact and non-Aura enchantment"
+    r"\w+ (?:and|or) {t}",
 ]
 _REMOVAL_PREFIX_RE = re.compile(
     r"(?:destroy|exile|counter|return) target (?:\w+ )*$", re.IGNORECASE
