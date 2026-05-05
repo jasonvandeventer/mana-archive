@@ -620,7 +620,8 @@ def list_decks(session: Session, user_id: int) -> list[Deck]:
             )
             .all()
         )
-        deck.bracket = compute_deck_bracket(all_rows, {"included": []})
+        combos = compute_deck_combos(all_rows)
+        deck.bracket = compute_deck_bracket(all_rows, combos)
 
     return decks
 

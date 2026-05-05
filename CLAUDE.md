@@ -1,6 +1,6 @@
 # Mana Archive — Claude Context
 
-## Current version: v3.11.6
+## Current version: v3.11.7
 
 ## Stack: FastAPI + Jinja2 + SQLite + K3s/ArgoCD
 
@@ -323,8 +323,9 @@ Templates updated in v3.7: `decks.html`, `import.html`, `import_preview.html`, `
 - v3.11.3: Fix resort_collection and list_pending_rows including deck cards — both functions now outerjoin StorageLocation and exclude rows where type="deck"; deck cards no longer appear in Pending Placement; migration `v3_11_3_clear_deck_pending` clears is_pending on any deck rows already incorrectly flagged — **shipped**
 - v3.11.4: Tag current HEAD to trigger CI build including recovery script and linter-reformatted templates; no functional changes — **shipped**
 - v3.11.5: Commander Bracket estimation — floor-based 1-5 bracket estimator using fast mana, free interaction, combos, tutors, mass land denial, extra turns; bracket badge with color-coded popout reasons in deck detail hero — **shipped**
-- v3.11.6: Bracket badge on decks list — `list_decks()` computes lite bracket (card signals only, no Spellbook API) per deck; Bracket column added to decks table — **shipped**
-- v3.11.7: Commander synergy score — % of deck that directly synergizes, indirectly supports, or is unrelated to the commander; uses role tags + CommanderSpellbook data
+- v3.11.6: Bracket badge on decks list — `list_decks()` computes bracket per deck (full Spellbook combo data via cache); Bracket column added to decks table — **shipped**
+- v3.11.7: Decks list bracket uses full combo data (same as deck detail) — `list_decks()` calls `compute_deck_combos` + `compute_deck_bracket`; Spellbook in-memory cache means warm loads add zero API calls — **shipped**
+- v3.11.8: Commander synergy score — % of deck that directly synergizes, indirectly supports, or is unrelated to the commander; uses role tags + CommanderSpellbook data
 - v3.12: Dead card detection — flag cards requiring existing board state to function, no synergy with commander, or "win-more" cards; depends on role tags and synergy data
 - v3.13: Average turn impact — estimate when cards are typically playable and when they matter; "deck peaks at turn X" summary
 - v3.14: Game tracker — life totals, 2–8 players, deck selection per seat, game results tied to deck records
