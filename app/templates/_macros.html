@@ -196,7 +196,11 @@
           <div class="card-actions-body">
             <details class="tag-editor-details">
               <summary class="tag-editor-summary">
-                {% if row_tags %}Edit Tags{% else %}Add Tags{% endif %}
+                {% if row_tags %}
+                  Edit Tags
+                {% else %}
+                  Add Tags
+                {% endif %}
               </summary>
               <form action="/decks/rows/{{ item.id }}/tags"
                     method="post"
@@ -226,7 +230,11 @@
               <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
               <input type="hidden" name="deck_id" value="{{ deck.id }}">
               <button type="submit">
-                {% if item.role == 'commander' %}Remove Commander{% else %}Mark as Commander{% endif %}
+                {% if item.role == 'commander' %}
+                  Remove Commander
+                {% else %}
+                  Mark as Commander
+                {% endif %}
               </button>
             </form>
             <form action="/decks/return" method="post" class="return-form">
@@ -259,16 +267,12 @@
                   <select name="location_id" required>
                     {% if storage_locs %}
                       <optgroup label="Storage Locations">
-                        {% for loc in storage_locs %}
-                          <option value="{{ loc.id }}">{{ loc.name }} ({{ loc.type }})</option>
-                        {% endfor %}
+                        {% for loc in storage_locs %}<option value="{{ loc.id }}">{{ loc.name }} ({{ loc.type }})</option>{% endfor %}
                       </optgroup>
                     {% endif %}
                     {% if deck_locs %}
                       <optgroup label="Decks">
-                        {% for loc in deck_locs %}
-                          <option value="{{ loc.id }}">{{ loc.name }}</option>
-                        {% endfor %}
+                        {% for loc in deck_locs %}<option value="{{ loc.id }}">{{ loc.name }}</option>{% endfor %}
                       </optgroup>
                     {% endif %}
                   </select>

@@ -319,23 +319,38 @@
     {% if items and (bulk_storage or bulk_decks) %}
       <section class="panel">
         <details>
-          <summary style="cursor: pointer; user-select: none; font-weight: 600; list-style: none; padding: 0.2rem 0;">
-            ▸ Bulk Move
-          </summary>
+          <summary style="cursor: pointer;
+                          user-select: none;
+                          font-weight: 600;
+                          list-style: none;
+                          padding: 0.2rem 0">▸ Bulk Move</summary>
           <form action="/decks/{{ deck.id }}/bulk-move"
                 method="post"
                 style="margin-top: 0.75rem">
             <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-            <div style="display: flex; flex-direction: column; gap: 0.3rem; margin-bottom: 0.75rem; max-height: 260px; overflow-y: auto;">
+            <div style="display: flex;
+                        flex-direction: column;
+                        gap: 0.3rem;
+                        margin-bottom: 0.75rem;
+                        max-height: 260px;
+                        overflow-y: auto">
               <label style="font-size: 0.8rem; color: #94a3b8; cursor: pointer;">
                 <input type="checkbox"
                        onclick="document.querySelectorAll('.deck-bulk-cb').forEach(cb => cb.checked = this.checked)">
                 Select all
               </label>
               {% for item in items %}
-                <label style="display: flex; align-items: center; gap: 0.4rem; font-size: 0.875rem; cursor: pointer;">
-                  <input type="checkbox" name="row_ids" value="{{ item.id }}" class="deck-bulk-cb">
-                  {{ item.card.name }}{% if item.finish != 'normal' %} <span class="finish-badge">{{ item.finish }}</span>{% endif %}
+                <label style="display: flex;
+                              align-items: center;
+                              gap: 0.4rem;
+                              font-size: 0.875rem;
+                              cursor: pointer">
+                  <input type="checkbox"
+                         name="row_ids"
+                         value="{{ item.id }}"
+                         class="deck-bulk-cb">
+                  {{ item.card.name }}
+                  {% if item.finish != 'normal' %}<span class="finish-badge">{{ item.finish }}</span>{% endif %}
                 </label>
               {% endfor %}
             </div>
@@ -344,16 +359,12 @@
                 <option value="">— Destination —</option>
                 {% if bulk_storage %}
                   <optgroup label="Storage Locations">
-                    {% for loc in bulk_storage %}
-                      <option value="{{ loc.id }}">{{ loc.name }} ({{ loc.type }})</option>
-                    {% endfor %}
+                    {% for loc in bulk_storage %}<option value="{{ loc.id }}">{{ loc.name }} ({{ loc.type }})</option>{% endfor %}
                   </optgroup>
                 {% endif %}
                 {% if bulk_decks %}
                   <optgroup label="Decks">
-                    {% for loc in bulk_decks %}
-                      <option value="{{ loc.id }}">{{ loc.name }}</option>
-                    {% endfor %}
+                    {% for loc in bulk_decks %}<option value="{{ loc.id }}">{{ loc.name }}</option>{% endfor %}
                   </optgroup>
                 {% endif %}
               </select>
@@ -392,9 +403,7 @@
         {% for combo in combos.included %}
           <div class="combo-item">
             <div class="combo-cards">
-              {% for name in combo.card_names %}
-                <span class="combo-card-name">{{ name }}</span>
-              {% endfor %}
+              {% for name in combo.card_names %}<span class="combo-card-name">{{ name }}</span>{% endfor %}
             </div>
             <div class="combo-results">
               {% for r in combo.results %}<span class="combo-result-badge">{{ r }}</span>{% endfor %}
@@ -402,9 +411,13 @@
             {% if combo.description %}
               <details class="combo-details">
                 <summary class="combo-summary">How it works</summary>
-                <div class="combo-description">{{ combo.description | replace('\n', '<br>') | safe }}</div>
+                <div class="combo-description">
+                  {{ combo.description | replace('\n', '<br>') | safe }}
+                </div>
                 {% if combo.prerequisites %}
-                  <div class="combo-prereq"><strong>Setup:</strong> {{ combo.prerequisites }}</div>
+                  <div class="combo-prereq">
+                    <strong>Setup:</strong> {{ combo.prerequisites }}
+                  </div>
                 {% endif %}
               </details>
             {% endif %}

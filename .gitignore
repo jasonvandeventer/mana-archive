@@ -1,11 +1,12 @@
 __pycache__/
 *.pyc
 *.db
+*.sqlite
 .env
 logs/
 node_modules/
 data/
 dev-data/
 backups/
-*.db
-*.sqlite
+.claude/scheduled_tasks.lock
+memory/
