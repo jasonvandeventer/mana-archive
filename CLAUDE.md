@@ -1,6 +1,6 @@
 # Mana Archive — Claude Context
 
-## Current version: v3.11.10
+## Current version: v3.11.11
 
 ## Stack: FastAPI + Jinja2 + SQLite + K3s/ArgoCD
 
@@ -258,6 +258,17 @@ Templates updated in v3.7: `decks.html`, `import.html`, `import_preview.html`, `
 - **Win Conditions panel** in `deck_detail.html` — "Complete combos in this deck" section + "One card away" section. Each combo shows card pills (missing card styled in amber), result badges (green), expandable "How it works" with step-by-step description and setup prerequisites.
 - CSS classes: `.combo-panel`, `.combo-section-label`, `.combo-item`, `.combo-item-almost`, `.combo-cards`, `.combo-card-name`, `.combo-card-missing`, `.combo-results`, `.combo-result-badge`, `.combo-details`, `.combo-summary`, `.combo-description`, `.combo-prereq`.
 
+### Commander theme extraction (v3.11.11)
+
+- `extract_commander_themes(commander_rows)` in `deck_service.py` — parses all commander oracle texts and returns a structured theme dict consumed by synergy, and in future by recommendations and health calibration.
+- **Card types**: detected via positive patterns (`"whenever you cast a/an {type}"`, `"{type}s you control"`, `"{type} spells"`, etc.). Removal context (`"destroy/exile/counter target … {type}"`) is excluded to avoid false positives.
+- **CMC gate**: `_CMC_MIN_RE` / `_CMC_MAX_RE` extract numeric thresholds from `"mana value N or greater/less"` phrases (e.g. Bello → `{"min": 4}`).
+- **Non-X exclusions**: `_NON_SUBTYPE_RE` captures `"non-Aura"`, `"non-Human"` etc. → `excluded_subtypes` set applied when matching deck cards.
+- **Mechanics**: counters, tokens, graveyard, sacrifice, discard detected from oracle text patterns.
+- **Tribal subtypes**: extracted from commander type line but only included if the subtype also appears in oracle text (e.g. Edgar Markov mentions "Vampire" → tribal; Bello does not mention "Halfling" → no tribal).
+- `card_matches_theme(card, themes)` — checks tribal, card type (with exclusions + CMC gate), and mechanics; used in `compute_deck_synergy()`.
+- `extract_commander_themes` is the shared foundation for v3.12 owned recommendations and future health calibration.
+
 ### Commander Synergy score (v3.11.10)
 
 - `compute_deck_synergy(all_rows, combos)` in `deck_service.py` — classifies each non-commander card into three buckets and returns counts, percentages, and card lists.
@@ -338,6 +349,7 @@ Templates updated in v3.7: `decks.html`, `import.html`, `import_preview.html`, `
 - v3.11.8: Bracket 1 reason + deck export — Bracket 1 now shows a reason ("no tutors, fast mana…") in its popout; `GET /decks/{id}/export` returns a plain-text download in standard `N CardName (SET) #collector` format with Commander/Deck sections; Export button in deck detail hero — **shipped**
 - v3.11.9: Health score on decks list — `list_decks()` also computes `compute_consistency()`; Health column shows the 0-100 badge (same `.consistency-badge.cs-*` classes) with label as tooltip — **shipped**
 - v3.11.10: Commander synergy score — `compute_deck_synergy(all_rows, combos)` classifies each non-commander card as Direct (combo piece, Combo/Payoff tag, or shares commander creature subtype), Supporting (engine tags or land), or Unrelated; stacked bar + three expandable stat blocks in deck detail between Health and Combos panels — **shipped**
+- v3.11.11: Commander theme extraction — `extract_commander_themes()` parses commander oracle text for card types cared about (positive pattern matching, removal context excluded), CMC gates (mana value N or greater/less), non-X subtype exclusions, mechanics (counters/tokens/graveyard/sacrifice/discard), and tribal subtypes (only when mentioned in oracle text); `card_matches_theme()` applies themes to classify deck cards; `compute_deck_synergy()` now uses these instead of ad-hoc subtype matching; "Detected:" note in synergy panel shows extracted signals — **shipped**
 - v3.12: Dead card detection — flag cards requiring existing board state to function, no synergy with commander, or "win-more" cards; depends on role tags and synergy data
 - v3.13: Average turn impact — estimate when cards are typically playable and when they matter; "deck peaks at turn X" summary
 - v3.14: Game tracker — life totals, 2–8 players, deck selection per seat, game results tied to deck records

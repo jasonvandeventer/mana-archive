@@ -371,6 +371,147 @@ def compute_deck_combos(all_rows: list) -> dict:
     return fetch_deck_combos(main_names, commander_names)
 
 
+_CARE_ABOUT_PATTERNS = [
+    r"whenever you cast (?:\w+[-\w]* )*{t}",
+    r"{t}s? you control",
+    r"each {t}",
+    r"{t} spells?",
+    r"your {t}s?",
+    r"other {t}s?",
+    r"noncreature {t}",
+]
+_REMOVAL_PREFIX_RE = re.compile(
+    r"(?:destroy|exile|counter|return) target (?:\w+ )*$", re.IGNORECASE
+)
+_CARD_TYPES_TO_DETECT = [
+    "enchantment",
+    "artifact",
+    "creature",
+    "instant",
+    "sorcery",
+    "planeswalker",
+]
+_CMC_MIN_RE = re.compile(r"mana value (?:of )?(\d+) or greater")
+_CMC_MAX_RE = re.compile(r"mana value (?:of )?(\d+) or less")
+_NON_SUBTYPE_RE = re.compile(r"\bnon-([A-Z][a-z]+)")
+
+
+def extract_commander_themes(commander_rows: list) -> dict:
+    """Parse commander oracle text to extract what the deck is built to care about."""
+    card_types: set[str] = set()
+    excluded_subtypes: set[str] = set()
+    cmc_gate: dict = {}
+    mechanics: set[str] = set()
+    subtypes: set[str] = set()
+    signals: list[str] = []
+
+    for row in commander_rows:
+        card = row.card
+        if not card:
+            continue
+        oracle_raw = card.oracle_text or ""
+        oracle = oracle_raw.lower()
+        tl = card.type_line or ""
+
+        # Tribal: only add subtypes that also appear in oracle text (commander cares about them)
+        if "—" in tl:
+            for word in tl.split("—", 1)[1].split():
+                word = word.strip(".,/")
+                if word and word[0].isupper() and word.lower() in oracle:
+                    subtypes.add(word)
+                    signals.append(f"tribal: {word}")
+
+        # Card types the commander cares about (positive patterns only)
+        for ct in _CARD_TYPES_TO_DETECT:
+            for pat in _CARE_ABOUT_PATTERNS:
+                m = re.search(pat.format(t=ct), oracle)
+                if m:
+                    # Reject if "destroy/exile/counter target" immediately precedes the match
+                    prefix = oracle[: m.start()]
+                    if not _REMOVAL_PREFIX_RE.search(prefix[-40:]):
+                        card_types.add(ct)
+                        signals.append(f"cares about {ct}s")
+                        break
+
+        # Non-X exclusions: "non-Aura enchantment" → Auras excluded from theme
+        for match in _NON_SUBTYPE_RE.finditer(oracle_raw):
+            excluded_subtypes.add(match.group(1))
+
+        # CMC gates
+        m_min = _CMC_MIN_RE.search(oracle)
+        if m_min:
+            cmc_gate["min"] = int(m_min.group(1))
+            signals.append(f"mana value ≥{m_min.group(1)}")
+        m_max = _CMC_MAX_RE.search(oracle)
+        if m_max:
+            cmc_gate["max"] = int(m_max.group(1))
+            signals.append(f"mana value ≤{m_max.group(1)}")
+
+        # Mechanics
+        if "+1/+1 counter" in oracle:
+            mechanics.add("counters")
+            signals.append("counters")
+        if "create" in oracle and "token" in oracle:
+            mechanics.add("tokens")
+            signals.append("tokens")
+        if "your graveyard" in oracle or "from a graveyard" in oracle:
+            mechanics.add("graveyard")
+            signals.append("graveyard")
+        if "sacrifice" in oracle:
+            mechanics.add("sacrifice")
+            signals.append("sacrifice")
+        if "discard" in oracle:
+            mechanics.add("discard")
+            signals.append("discard")
+
+    return {
+        "card_types": card_types,
+        "excluded_subtypes": excluded_subtypes,
+        "cmc_gate": cmc_gate,
+        "mechanics": mechanics,
+        "subtypes": subtypes,
+        "signals": sorted(set(signals)),
+    }
+
+
+def card_matches_theme(card, themes: dict) -> bool:
+    """Return True if a card matches the commander's extracted themes."""
+    tl = card.type_line or ""
+    oracle = (card.oracle_text or "").lower()
+    cmc = card.cmc or 0
+    tl_words = set(tl.split())
+
+    # Tribal subtype match
+    if any(st in tl_words for st in themes["subtypes"]):
+        return True
+
+    # Card type match with exclusion + CMC gate checks
+    for ct in themes["card_types"]:
+        if ct.lower() not in tl.lower():
+            continue
+        if any(ex in tl_words for ex in themes["excluded_subtypes"]):
+            continue
+        if "min" in themes["cmc_gate"] and cmc < themes["cmc_gate"]["min"]:
+            continue
+        if "max" in themes["cmc_gate"] and cmc > themes["cmc_gate"]["max"]:
+            continue
+        return True
+
+    # Mechanic matches
+    if "counters" in themes["mechanics"] and "+1/+1 counter" in oracle:
+        return True
+    if "tokens" in themes["mechanics"] and "create" in oracle and "token" in oracle:
+        return True
+    if "graveyard" in themes["mechanics"] and "graveyard" in oracle:
+        return True
+    if "sacrifice" in themes["mechanics"] and "sacrifice" in oracle:
+        return True
+    if "discard" in themes["mechanics"] and "discard" in oracle:
+        return True
+
+    return False
+
+
 def compute_deck_synergy(all_rows: list, combos: dict) -> dict | None:
     """Classify each non-commander card as direct synergy, supporting, or unrelated."""
     commander_rows = [r for r in all_rows if r.role == "commander"]
@@ -379,15 +520,7 @@ def compute_deck_synergy(all_rows: list, combos: dict) -> dict | None:
     if not commander_rows or not main_rows:
         return None
 
-    # Extract creature subtypes from all commanders (e.g. Vampire, Elf, Dragon)
-    commander_subtypes: set[str] = set()
-    for row in commander_rows:
-        tl = row.card.type_line or ""
-        if "—" in tl:
-            for word in tl.split("—", 1)[1].split():
-                word = word.strip(".,/")
-                if word and word[0].isupper():
-                    commander_subtypes.add(word)
+    themes = extract_commander_themes(commander_rows)
 
     # All card names that appear in complete combos
     combo_card_names: set[str] = set()
@@ -411,7 +544,7 @@ def compute_deck_synergy(all_rows: list, combos: dict) -> dict | None:
             name in combo_card_names
             or "Combo" in tags
             or "Payoff" in tags
-            or bool(commander_subtypes and any(st in tl.split() for st in commander_subtypes))
+            or card_matches_theme(card, themes)
         )
         is_supporting = not is_direct and (
             bool(set(tags) & {"Ramp", "Draw", "Removal", "Wipe", "Tutor", "Protection"})
@@ -441,7 +574,7 @@ def compute_deck_synergy(all_rows: list, combos: dict) -> dict | None:
         "direct_cards": sorted(direct_cards),
         "supporting_cards": sorted(supporting_cards),
         "unrelated_cards": sorted(unrelated_cards),
-        "commander_subtypes": sorted(commander_subtypes),
+        "themes": themes,
     }
 
 

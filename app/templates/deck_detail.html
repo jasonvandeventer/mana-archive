@@ -417,8 +417,8 @@
     {% if synergy %}
       <section class="panel synergy-panel">
         <h3 class="panel-title">Commander Synergy</h3>
-        {% if synergy.commander_subtypes %}
-          <p class="synergy-subtype-note">Tribal match: {{ synergy.commander_subtypes | join(", ") }}</p>
+        {% if synergy.themes.signals %}
+          <p class="synergy-subtype-note">Detected: {{ synergy.themes.signals | join(" · ") }}</p>
         {% endif %}
         <div class="synergy-bar">
           {% if synergy.direct_pct > 0 %}
