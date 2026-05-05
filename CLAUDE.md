@@ -1,6 +1,6 @@
 # Mana Archive — Claude Context
 
-## Current version: v3.11.1
+## Current version: v3.11.2
 
 ## Stack: FastAPI + Jinja2 + SQLite + K3s/ArgoCD
 
@@ -251,7 +251,7 @@ Templates updated in v3.7: `decks.html`, `import.html`, `import_preview.html`, `
 ### Win condition detection (v3.11.0)
 
 - `app/spellbook.py` — `fetch_deck_combos(main_names, commander_names)` POSTs to `https://backend.commanderspellbook.com/find-my-combos/` with `{"commanders": [{"card": name}], "main": [{"card": name}]}`. Returns `{included, almost}`.
-- `included` = combos where all pieces are in the deck. `almost` = combos missing exactly 1 card (filtered from `almostIncluded`), sorted by popularity, capped at 10.
+- `included` = combos where all pieces are in the deck. `almostIncluded` from the API response is ignored.
 - 1-hour in-memory cache keyed on `(_COMBO_CACHE_VERSION, frozenset(all_names))`. Bump `_COMBO_CACHE_VERSION` in `spellbook.py` to invalidate.
 - `compute_deck_combos(all_rows)` in `deck_service.py` — extracts commander vs main card names from `row.role`, calls `fetch_deck_combos`. Called from `deck_detail_page` on the unfiltered `all_deck_rows`.
 - Each combo dict: `id, card_names, owned, missing, description, results, prerequisites, mana_needed, popularity`.
@@ -307,7 +307,8 @@ Templates updated in v3.7: `decks.html`, `import.html`, `import_preview.html`, `
 - To update: re-download from Scryfall CDN; the B symbol uses `fill-rule="evenodd"` for skull detail holes.
 
 - v3.11.1: Collapse deck card actions behind "Actions" toggle — wraps tag editor, Mark/Remove Commander, Remove from Deck, and Move to Location inside `<details class="card-actions-drawer">` to match collection card behavior; tag role badges remain always visible — **shipped**
-- v3.11.2: Commander synergy score — % of deck that directly synergizes, indirectly supports, or is unrelated to the commander; uses role tags + CommanderSpellbook data
+- v3.11.2: Remove "one card away" near-combos from Win Conditions panel — show only complete combos present in the deck; trim almostIncluded processing from spellbook.py — **shipped**
+- v3.11.3: Commander synergy score — % of deck that directly synergizes, indirectly supports, or is unrelated to the commander; uses role tags + CommanderSpellbook data
 - v3.12: Dead card detection — flag cards requiring existing board state to function, no synergy with commander, or "win-more" cards; depends on role tags and synergy data
 - v3.13: Average turn impact — estimate when cards are typically playable and when they matter; "deck peaks at turn X" summary
 - v3.14: Game tracker — life totals, 2–8 players, deck selection per seat, game results tied to deck records

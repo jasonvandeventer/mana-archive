@@ -33,19 +33,7 @@ def fetch_deck_combos(main_names: list[str], commander_names: list[str]) -> dict
 
     included = [_parse_combo(c, deck_set) for c in results.get("included", [])]
 
-    almost = []
-    for combo in results.get("almostIncluded", []):
-        uses_names = [u["card"]["name"] for u in combo.get("uses", [])]
-        missing = [n for n in uses_names if n not in deck_set]
-        if len(missing) == 1:
-            parsed = _parse_combo(combo, deck_set)
-            parsed["missing"] = missing
-            almost.append(parsed)
-
-    almost.sort(key=lambda c: c.get("popularity", 0), reverse=True)
-    almost = almost[:10]
-
-    data = {"included": included, "almost": almost}
+    data = {"included": included}
     _CACHE[cache_key] = {"ts": time.time(), "data": data}
     return data
 
