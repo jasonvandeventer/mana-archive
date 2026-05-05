@@ -257,17 +257,29 @@
             {% endif %}
           </form>
           {% if locations %}
-            {% set movable = locations | selectattr("type", "ne", "root") | selectattr("type", "ne", "deck") | list %}
-            {% if movable %}
+            {% set storage_locs = locations | selectattr("type", "ne", "root") | rejectattr("type", "equalto", "deck") | list %}
+            {% set deck_locs = locations | selectattr("type", "equalto", "deck") | rejectattr("id", "equalto", deck.storage_location_id) | list %}
+            {% if storage_locs or deck_locs %}
               <form action="/inventory/rows/{{ item.id }}/move"
                     method="post"
                     class="inline-form"
                     style="flex-wrap: wrap">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                 <select name="location_id" required>
-                  {% for loc in movable %}
-                    <option value="{{ loc.id }}">{{ loc.name }} ({{ loc.type }})</option>
-                  {% endfor %}
+                  {% if storage_locs %}
+                    <optgroup label="Storage Locations">
+                      {% for loc in storage_locs %}
+                        <option value="{{ loc.id }}">{{ loc.name }} ({{ loc.type }})</option>
+                      {% endfor %}
+                    </optgroup>
+                  {% endif %}
+                  {% if deck_locs %}
+                    <optgroup label="Decks">
+                      {% for loc in deck_locs %}
+                        <option value="{{ loc.id }}">{{ loc.name }}</option>
+                      {% endfor %}
+                    </optgroup>
+                  {% endif %}
                 </select>
                 <button type="submit">Move to Location</button>
               </form>

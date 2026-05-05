@@ -314,8 +314,9 @@
         </a>
       </form>
     </section>
-    {% set movable_locations = locations | selectattr("type", "ne", "root") | selectattr("type", "ne", "deck") | list %}
-    {% if items and movable_locations %}
+    {% set bulk_storage = locations | selectattr("type", "ne", "root") | rejectattr("type", "equalto", "deck") | list %}
+    {% set bulk_decks = locations | selectattr("type", "equalto", "deck") | rejectattr("id", "equalto", deck.storage_location_id) | list %}
+    {% if items and (bulk_storage or bulk_decks) %}
       <section class="panel">
         <details>
           <summary style="cursor: pointer; user-select: none; font-weight: 600; list-style: none; padding: 0.2rem 0;">
@@ -341,9 +342,20 @@
             <div class="filter-row">
               <select name="target_location_id" required>
                 <option value="">— Destination —</option>
-                {% for loc in movable_locations %}
-                  <option value="{{ loc.id }}">{{ loc.name }} ({{ loc.type }})</option>
-                {% endfor %}
+                {% if bulk_storage %}
+                  <optgroup label="Storage Locations">
+                    {% for loc in bulk_storage %}
+                      <option value="{{ loc.id }}">{{ loc.name }} ({{ loc.type }})</option>
+                    {% endfor %}
+                  </optgroup>
+                {% endif %}
+                {% if bulk_decks %}
+                  <optgroup label="Decks">
+                    {% for loc in bulk_decks %}
+                      <option value="{{ loc.id }}">{{ loc.name }}</option>
+                    {% endfor %}
+                  </optgroup>
+                {% endif %}
               </select>
               <button type="submit">Move Selected</button>
             </div>
