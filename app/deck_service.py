@@ -392,6 +392,50 @@ def create_deck(
     return deck
 
 
+def update_deck(
+    session: Session,
+    deck_id: int,
+    user_id: int,
+    name: str,
+    format_name: str = "",
+    notes: str = "",
+) -> Deck:
+    deck = get_deck(session, deck_id=deck_id, user_id=user_id)
+    if not deck:
+        raise ValueError("Deck not found.")
+
+    name = name.strip()
+    if not name:
+        raise ValueError("Deck name is required.")
+
+    existing = (
+        session.query(Deck)
+        .filter(Deck.user_id == user_id, Deck.name == name, Deck.id != deck_id)
+        .first()
+    )
+    if existing:
+        raise ValueError(f"A deck named '{name}' already exists.")
+
+    deck.name = name
+    deck.format = format_name.strip() or None
+    deck.notes = notes.strip() or None
+
+    if deck.storage_location_id:
+        location = (
+            session.query(StorageLocation)
+            .filter(
+                StorageLocation.id == deck.storage_location_id,
+                StorageLocation.user_id == user_id,
+            )
+            .first()
+        )
+        if location:
+            location.name = name
+
+    session.commit()
+    return deck
+
+
 def list_decks(session: Session, user_id: int) -> list[Deck]:
     decks = (
         session.query(Deck)

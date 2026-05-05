@@ -40,6 +40,7 @@ from app.deck_service import (
     return_card_from_deck,
     set_row_tags,
     suggest_card_roles,
+    update_deck,
 )
 from app.dependencies import (
     DRAWER_SORTER_USERNAMES,
@@ -82,6 +83,7 @@ from app.location_service import (
     get_location,
     get_location_summary,
     list_locations,
+    update_location,
 )
 from app.models import Card, Deck, ImportBatch, InventoryRow, User
 from app.presentation_service import build_pending_view_model
@@ -233,18 +235,37 @@ def home(
 
 @app.post("/register")
 def register(
+    request: Request,
     username: str = Form(...),
     password: str = Form(...),
+    display_name: str = Form(""),
     session: Session = Depends(get_db_session),
     _: None = CsrfRequired,
 ):
-    existing = session.query(User).filter(User.username == username).first()
-    if existing:
-        return RedirectResponse("/login?error=exists", status_code=303)
+    username = username.strip().lower()
+    display_name = display_name.strip()
+
+    if "@" not in username or "." not in username.split("@")[-1]:
+        return render(
+            request,
+            "register.html",
+            {"title": "Register", "error": "Please enter a valid email address."},
+        )
+
+    if not display_name:
+        display_name = username.split("@")[0]
+
+    if session.query(User).filter(User.username == username).first():
+        return render(
+            request,
+            "register.html",
+            {"title": "Register", "error": "An account with that email already exists."},
+        )
 
     user = User(
         username=username,
         password_hash=hash_password(password),
+        display_name=display_name,
         is_active=True,
     )
     session.add(user)
@@ -968,6 +989,53 @@ def delete_location_route(
     return RedirectResponse("/locations", status_code=303)
 
 
+@app.post("/locations/{location_id}/edit")
+def edit_location_route(
+    location_id: int,
+    name: str = Form(...),
+    type: str = Form("other"),
+    parent_id: int | None = Form(None),
+    sort_order: int = Form(0),
+    session: Session = Depends(get_db_session),
+    current_user: User = Depends(get_current_user),
+    _: None = CsrfRequired,
+):
+    if parent_id == 0:
+        parent_id = None
+    try:
+        update_location(
+            session,
+            location_id=location_id,
+            user_id=current_user.id,
+            name=name,
+            type=type,
+            parent_id=parent_id,
+            sort_order=sort_order,
+        )
+    except ValueError:
+        pass
+    return RedirectResponse("/locations", status_code=303)
+
+
+@app.post("/locations/{location_id}/bulk-move")
+def bulk_move_location_cards(
+    location_id: int,
+    row_ids: list[int] = Form(...),
+    target_location_id: int = Form(...),
+    session: Session = Depends(get_db_session),
+    current_user: User = Depends(get_current_user),
+    _: None = CsrfRequired,
+):
+    for row_id in row_ids:
+        try:
+            move_inventory_row_to_location(
+                session, row_id=row_id, user_id=current_user.id, location_id=target_location_id
+            )
+        except ValueError:
+            pass
+    return RedirectResponse(f"/locations/{location_id}", status_code=303)
+
+
 @app.get("/locations/{location_id}")
 def location_detail_page(
     request: Request,
@@ -1035,8 +1103,12 @@ def location_detail_page(
                 "effective_price": price,
                 "total_value": row_total,
                 "is_pending": row.is_pending,
+                "storage_location_id": row.storage_location_id,
             }
         )
+
+    all_locations = list_locations(session, user_id=current_user.id)
+    decks = list_decks(session, user_id=current_user.id)
 
     return render(
         request,
@@ -1051,6 +1123,8 @@ def location_detail_page(
             "sort": sort,
             "direction": direction,
             "current_user": current_user,
+            "locations": all_locations,
+            "decks": decks,
         },
     )
 
@@ -1422,6 +1496,30 @@ def deck_detail_page(
             "use_drawer_sorter": use_drawer_sorter,
         },
     )
+
+
+@app.post("/decks/{deck_id}/edit")
+def decks_edit(
+    deck_id: int,
+    name: str = Form(...),
+    format_name: str = Form(""),
+    notes: str = Form(""),
+    session: Session = Depends(get_db_session),
+    current_user: User = Depends(get_current_user),
+    _: None = CsrfRequired,
+):
+    try:
+        update_deck(
+            session,
+            deck_id=deck_id,
+            user_id=current_user.id,
+            name=name,
+            format_name=format_name,
+            notes=notes,
+        )
+    except ValueError:
+        pass
+    return RedirectResponse(url="/decks", status_code=303)
 
 
 @app.post("/decks/{deck_id}/delete")

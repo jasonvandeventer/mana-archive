@@ -212,6 +212,16 @@ textarea {
 textarea {
   min-height: 90px;
 }
+.stack-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.stack-form label {
+  font-size: 0.875rem;
+  color: #94a3b8;
+  margin-bottom: -0.2rem;
+}
 .inline-form {
   display: inline-flex;
   gap: 0.5rem;
@@ -747,6 +757,39 @@ td {
 }
 .return-details[open] > .return-summary {
   opacity: 0.6;
+}
+
+.btn-like {
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+  display: inline-block;
+  padding: 0.35rem 0.75rem;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-size: 0.88rem;
+  color: var(--text);
+  white-space: nowrap;
+}
+.btn-like::-webkit-details-marker {
+  display: none;
+}
+
+.inline-details {
+  position: relative;
+}
+.inline-details .edit-popout {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 4px);
+  z-index: 200;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 1rem;
+  min-width: 260px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
 }
 
 .card-actions-drawer {

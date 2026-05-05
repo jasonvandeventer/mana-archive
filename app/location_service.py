@@ -120,6 +120,60 @@ def get_location_summary(session: Session, user_id: int) -> list[dict]:
     return summaries
 
 
+def update_location(
+    session: Session,
+    location_id: int,
+    user_id: int,
+    name: str,
+    type: str,
+    parent_id: int | None = None,
+    sort_order: int = 0,
+) -> StorageLocation:
+    location = get_location(session, location_id, user_id)
+    if location is None:
+        raise ValueError("Location not found.")
+    if location.type == "root":
+        raise ValueError("Root location cannot be edited.")
+    if location.type == "deck":
+        raise ValueError("Deck locations are managed through the Decks page.")
+
+    name = name.strip()
+    if not name:
+        raise ValueError("Location name is required.")
+
+    type = type.strip().lower() or "other"
+    if type in ("root", "deck"):
+        raise ValueError(f"Cannot set type to '{type}'.")
+    if type not in VALID_LOCATION_TYPES:
+        raise ValueError(f"Invalid location type: {type}")
+
+    existing = (
+        session.query(StorageLocation)
+        .filter(
+            StorageLocation.user_id == user_id,
+            StorageLocation.name == name,
+            StorageLocation.id != location_id,
+        )
+        .first()
+    )
+    if existing:
+        raise ValueError(f"A location named '{name}' already exists.")
+
+    if parent_id is not None:
+        if parent_id == location_id:
+            raise ValueError("A location cannot be its own parent.")
+        parent = get_location(session, parent_id, user_id)
+        if parent is None:
+            raise ValueError("Parent location does not exist.")
+
+    location.name = name
+    location.type = type
+    location.parent_id = parent_id
+    location.sort_order = sort_order
+    session.commit()
+    return location
+
+
 def delete_location(session: Session, location_id: int, user_id: int) -> None:
     location = get_location(session, location_id=location_id, user_id=user_id)
     if location is None:

@@ -67,8 +67,12 @@
           style="margin-top: 0.5rem">
       <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
       <input type="text"
+             name="display_name"
+             placeholder="Display name"
+             style="max-width: 160px">
+      <input type="email"
              name="username"
-             placeholder="Username"
+             placeholder="Email"
              required
              style="max-width: 200px">
       <input type="password"
@@ -91,7 +95,7 @@
     <table>
       <thead>
         <tr>
-          <th>Username</th>
+          <th>Name / Email</th>
           <th>Status</th>
           <th>Role</th>
           <th>Joined</th>
@@ -105,7 +109,8 @@
         {% for row in user_rows %}
           <tr>
             <td>
-              <strong>{{ row.user.username }}</strong>
+              <strong>{{ row.user.display_name or row.user.username }}</strong>
+              {% if row.user.display_name %}<div class="muted small-text">{{ row.user.username }}</div>{% endif %}
             </td>
             <td>
               {% if row.user.is_active %}

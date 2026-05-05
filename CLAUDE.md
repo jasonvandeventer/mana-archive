@@ -1,6 +1,6 @@
 # Mana Archive — Claude Context
 
-## Current version: v3.10.5
+## Current version: v3.10.6
 
 ## Stack: FastAPI + Jinja2 + SQLite + K3s/ArgoCD
 
@@ -14,7 +14,7 @@
 
 ## Current phase
 
-Active user onboarding. Multi-user support now in place — hardening usability for non-admin users.
+Active user onboarding. Self-service registration in place — users sign up independently with email + display name.
 
 ## Architecture notes
 
@@ -220,6 +220,27 @@ Templates updated in v3.7: `decks.html`, `import.html`, `import_preview.html`, `
 - **Deck Health panel** in `deck_detail.html` — two-column layout: left = Functional Density rows (bar + count/threshold + expandable card list); right = Pip Strain rows (pip symbol + bar + demand/sources/ratio). Color-coded: green (at/above threshold), yellow (≥60%), red (<60%); strained pips shown in red.
 - CSS classes: `.health-grid`, `.health-metrics`, `.health-pips`, `.health-row`, `.health-pip-row`, `.health-bar(-ok|-warn|-low)`, `.health-count(-ok|-warn|-low)`, `.health-cards-details`, `.health-cards-list`, `.pip-sym(-w|-u|-b|-r|-g)`.
 
+### Self-service onboarding and display names (v3.10.6)
+
+- `User.display_name` (String(64), nullable) — friendly name shown in the UI. Migration `v3_11_display_name` adds the column.
+- Login uses `username` field (stored as email for new registrations). All UI shows `display_name or username` as the fallback — existing accounts (e.g. `jason.v`) continue to work unchanged.
+- `POST /register` now requires email format (server-side `@` + domain check), collects Display Name, and auto-derives display name from email prefix if left blank.
+- Login page links to `/register` — no admin involvement needed for new users.
+- Admin Create User form accepts Display Name + Email fields.
+
+### Editable locations and decks (v3.10.6)
+
+- `update_location()` in `location_service.py` — edits name, type, parent_id, sort_order. Blocked on `root` and `deck` types.
+- `update_deck()` in `deck_service.py` — edits name, format, notes. Also renames the linked `StorageLocation` to keep the import destination dropdown in sync.
+- Routes: `POST /locations/{id}/edit`, `POST /decks/{id}/edit`.
+- UI: floating `<details>` popout per row on `locations.html` and `decks.html` — uses `.inline-details` / `.edit-popout` / `.btn-like` CSS classes. The popout uses `position: absolute` so it overlays the table rather than pushing rows.
+
+### Move cards from location detail (v3.10.6)
+
+- `location_detail_page` now fetches and passes `locations` and `decks` to the template.
+- `location_detail.html` calls `inventory_card` with `show_collection_actions=true` — gives full per-card actions (Move, Add to Deck, Remove, Sell, Trade, Delete, Refresh).
+- **Bulk Move panel** — collapsible `<details>` above the card grid; shows a scrollable checkbox list of all cards in the location + a destination picker. "Select all" toggle via inline `onclick`. Submits to `POST /locations/{id}/bulk-move` which loops `move_inventory_row_to_location()` for each selected `row_id`.
+
 ## Deployment and versioning
 
 - CI builds and pushes to GHCR on any tag matching `v*.*.*`. Untagged commits run lint only.
@@ -253,6 +274,8 @@ Templates updated in v3.7: `decks.html`, `import.html`, `import_preview.html`, `
 - v3.9.8: Auto-tag untagged deck rows from oracle text on deck load (Ramp/Draw/Removal/Wipe) — **shipped**
 - v3.9.9: Mana pip size 20→24px, added drop-shadow — **shipped**
 - v3.10.0–v3.10.4: Mana pip SVGs — iterative replacement; final v3.10.4 uses Scryfall card-symbols SVGs directly (`svgs.scryfall.io/card-symbols/{W,U,B,R,G}.svg`). Structure: colored circle background + `#0D0F0F` positive-space symbol path. Colorless (C) still uses Scryfall CDN in `_macros.html` — **shipped**
+- v3.10.5: Fix missing `.stack-form` CSS — labels and inputs were rendering inline in all browsers — **shipped**
+- v3.10.6: Self-service onboarding, fully editable locations/decks, move cards from location detail — **shipped**
 
 ### Mana pip SVG notes
 

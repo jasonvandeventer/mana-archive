@@ -114,12 +114,14 @@ def reset_password(
 def create_user(
     username: str = Form(...),
     password: str = Form(...),
+    display_name: str = Form(""),
     is_admin: str = Form(""),
     session: Session = Depends(get_db_session),
     current_user: User = Depends(require_admin),
     _: None = CsrfRequired,
 ):
-    username = username.strip()
+    username = username.strip().lower()
+    display_name = display_name.strip()
     if not username:
         return RedirectResponse(url="/admin?error=username_required", status_code=303)
     if len(password) < 8:
@@ -130,6 +132,7 @@ def create_user(
     user = User(
         username=username,
         password_hash=hash_password(password),
+        display_name=display_name or None,
         is_active=True,
         is_admin=bool(is_admin),
     )

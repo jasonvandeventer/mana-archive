@@ -2,7 +2,7 @@
 
 Self-hosted web application for managing a physical Magic: The Gathering collection.
 
-**Current version: v3.9.2** · [Platform repo](https://github.com/jasonvandeventer/mana-archive-platform)
+**Current version: v3.10.6** · [Platform repo](https://github.com/jasonvandeventer/mana-archive-platform)
 
 ---
 
@@ -23,7 +23,7 @@ Self-hosted web application for managing a physical Magic: The Gathering collect
 
 ### Decks
 
-- Create and manage Commander (or any format) decks
+- Create and manage Commander (or any format) decks; edit name, format, and notes inline
 - Mark commanders; commander cards appear in a dedicated panel above the deck grid
 - Full Scryfall-style search within a deck
 - **Analytics panel**: mana curve, card type breakdown, color pip counts, avg CMC
@@ -34,8 +34,10 @@ Self-hosted web application for managing a physical Magic: The Gathering collect
 ### Organization
 
 - Drawer/slot system for physical organization (gated per-user)
-- Custom storage locations for non-drawer users
-- Move cards between locations; return cards from decks to pending/collection
+- Custom storage locations: create, edit (name/type/parent/sort order), and delete
+- Move cards between locations from the location detail page
+- **Bulk move**: select multiple cards from a location and move them to another in one action
+- Return cards from decks to pending/collection
 
 ### Pricing & Card Data
 
@@ -45,8 +47,9 @@ Self-hosted web application for managing a physical Magic: The Gathering collect
 
 ### Multi-user
 
-- User accounts with registration and login
+- **Self-service registration** — users sign up with email + display name; no admin involvement required
 - Admin panel: create/delete users, toggle admin/active, reset passwords
+- Display names shown throughout the UI; email used as login identifier
 - Per-user data isolation; drawer sorter is opt-in per username
 
 ### Sets

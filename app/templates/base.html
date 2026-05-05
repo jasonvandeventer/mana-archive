@@ -42,7 +42,9 @@
           {% if current_user %}
             <form method="post" action="/logout" class="nav-logout-form">
               <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-              <button type="submit" class="nav-logout-button">Logout ({{ current_user.username }})</button>
+              <button type="submit" class="nav-logout-button">
+                Logout ({{ current_user.display_name or current_user.username }})
+              </button>
             </form>
           {% endif %}
         </div>
