@@ -11,9 +11,14 @@
           {% if location.parent %}· Parent: {{ location.parent.name }}{% endif %}
         </p>
       </div>
-      <a href="/locations">
-        <button type="button">Back to Locations</button>
-      </a>
+      <div style="display:flex;gap:0.5rem;flex-wrap:wrap">
+        <a href="/locations/{{ location.id }}/export">
+          <button type="button">Export CSV</button>
+        </a>
+        <a href="/locations">
+          <button type="button">Back to Locations</button>
+        </a>
+      </div>
     </div>
     <div class="stat-grid collection-stats-grid">
       <div class="stat-card compact">

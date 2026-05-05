@@ -453,6 +453,9 @@ def extract_commander_themes(commander_rows: list) -> dict:
         if "create" in oracle and "token" in oracle:
             mechanics.add("tokens")
             signals.append("tokens")
+        elif "token" in oracle and re.search(r"\btokens? you control\b", oracle):
+            mechanics.add("tokens")
+            signals.append("tokens (caring)")
         if "your graveyard" in oracle or "from a graveyard" in oracle:
             mechanics.add("graveyard")
             signals.append("graveyard")
@@ -462,6 +465,9 @@ def extract_commander_themes(commander_rows: list) -> dict:
         if "discard" in oracle:
             mechanics.add("discard")
             signals.append("discard")
+        if "dying" in oracle or re.search(r"when(?:ever)?[^.;]*\bdies\b", oracle):
+            mechanics.add("death_triggers")
+            signals.append("death triggers")
 
     return {
         "card_types": card_types,
@@ -506,6 +512,10 @@ def card_matches_theme(card, themes: dict) -> bool:
     if "sacrifice" in themes["mechanics"] and "sacrifice" in oracle:
         return True
     if "discard" in themes["mechanics"] and "discard" in oracle:
+        return True
+    if "death_triggers" in themes["mechanics"] and re.search(
+        r"when(?:ever)?[^.;]*\bdies\b", oracle
+    ):
         return True
 
     return False

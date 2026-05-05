@@ -2,7 +2,7 @@
 
 Self-hosted web application for managing a physical Magic: The Gathering collection.
 
-**Current version: v3.11.15** · [Platform repo](https://github.com/jasonvandeventer/mana-archive-platform)
+**Current version: v3.11.16** · [Platform repo](https://github.com/jasonvandeventer/mana-archive-platform)
 
 ---
 
@@ -38,6 +38,7 @@ Self-hosted web application for managing a physical Magic: The Gathering collect
 - Move cards between locations from the location detail page or deck detail page
 - **Bulk move**: select multiple cards from a location or deck and move them in one action; destination picker includes both storage locations and other decks
 - Return cards from decks to pending/collection
+- **CSV export**: download your full collection or any individual location as a CSV (Name, Set, Collector Number, Finish, Quantity, Location)
 
 ### Pricing & Card Data
 

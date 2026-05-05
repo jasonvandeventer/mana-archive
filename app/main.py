@@ -7,8 +7,10 @@ service layer.
 
 from __future__ import annotations
 
+import csv
 import hashlib
 import html
+import io
 import json
 import math
 import os
@@ -19,7 +21,7 @@ from datetime import datetime, timedelta
 from urllib.parse import urlparse
 
 from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, UploadFile
-from fastapi.responses import HTMLResponse, PlainTextResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, PlainTextResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session, joinedload
 from starlette.middleware.sessions import SessionMiddleware
@@ -768,6 +770,47 @@ def collection_page(
     )
 
 
+@app.get("/collection/export")
+def collection_export(
+    session: Session = Depends(get_db_session),
+    current_user: User = Depends(get_current_user),
+):
+    rows = (
+        session.query(InventoryRow)
+        .options(joinedload(InventoryRow.card), joinedload(InventoryRow.storage_location))
+        .join(Card)
+        .filter(InventoryRow.user_id == current_user.id)
+        .order_by(Card.name.asc())
+        .all()
+    )
+
+    buf = io.StringIO()
+    writer = csv.writer(buf)
+    writer.writerow(["Name", "Set", "Collector Number", "Finish", "Quantity", "Location"])
+    for row in rows:
+        card = row.card
+        loc = row.storage_location
+        writer.writerow(
+            [
+                card.name or "",
+                (card.set_code or "").upper(),
+                card.collector_number or "",
+                row.finish or "normal",
+                row.quantity,
+                loc.name if loc else "",
+            ]
+        )
+
+    display_name = current_user.display_name or current_user.username
+    safe_name = "".join(c if c.isalnum() or c in "-_" else "_" for c in display_name)
+    filename = f"{safe_name}_collection.csv"
+    return Response(
+        content=buf.getvalue(),
+        media_type="text/csv",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
 @app.post("/collection/update-location")
 async def collection_update_location(
     row_id: int = Form(...),
@@ -1135,6 +1178,53 @@ def location_detail_page(
     )
 
 
+@app.get("/locations/{location_id}/export")
+def location_export(
+    location_id: int,
+    session: Session = Depends(get_db_session),
+    current_user: User = Depends(get_current_user),
+):
+    location = get_location(session, location_id=location_id, user_id=current_user.id)
+    if not location:
+        raise HTTPException(status_code=404, detail="Location not found")
+
+    rows = (
+        session.query(InventoryRow)
+        .options(joinedload(InventoryRow.card))
+        .join(Card)
+        .filter(
+            InventoryRow.user_id == current_user.id,
+            InventoryRow.storage_location_id == location_id,
+        )
+        .order_by(Card.name.asc())
+        .all()
+    )
+
+    buf = io.StringIO()
+    writer = csv.writer(buf)
+    writer.writerow(["Name", "Set", "Collector Number", "Finish", "Quantity", "Location"])
+    for row in rows:
+        card = row.card
+        writer.writerow(
+            [
+                card.name or "",
+                (card.set_code or "").upper(),
+                card.collector_number or "",
+                row.finish or "normal",
+                row.quantity,
+                location.name,
+            ]
+        )
+
+    safe_name = "".join(c if c.isalnum() or c in "-_" else "_" for c in location.name)
+    filename = f"{safe_name}.csv"
+    return Response(
+        content=buf.getvalue(),
+        media_type="text/csv",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
 # -----------------------------------------------------------------------------
 # Drawers
 # -----------------------------------------------------------------------------
@@ -1324,7 +1414,7 @@ async def decks_create(
 
 _VALID_HEALTH_FILTERS = {"ramp", "draw", "removal", "wipes"}
 
-_PANELS_CACHE_VERSION = 1
+_PANELS_CACHE_VERSION = 2
 _PANELS_CACHE_DIR = DATA_DIR / "panels_cache"
 _panels_memory: dict[str, dict] = {}  # in-process cache; survives navigation, cleared on reload
 
