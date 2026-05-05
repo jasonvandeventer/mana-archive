@@ -8,6 +8,7 @@ from scripts.migrate_v3_8_8_color_identity import main as migrate_v3_8_8_color_i
 from scripts.migrate_v3_8_card_attrs import main as migrate_v3_8_card_attrs
 from scripts.migrate_v3_9_5_row_tags import main as migrate_v3_9_5_row_tags
 from scripts.migrate_v3_9_6_legalities import main as migrate_v3_9_6_legalities
+from scripts.migrate_v3_11_3_clear_deck_pending import main as migrate_v3_11_3_clear_deck_pending
 from scripts.migrate_v3_11_display_name import main as migrate_v3_11_display_name
 
 
@@ -88,6 +89,13 @@ def run():
         _mark_applied("v3_11_display_name")
     else:
         print("v3.11 display_name already applied, skipping")
+
+    if not _is_applied("v3_11_3_clear_deck_pending"):
+        print("Running v3.11.3 clear deck pending migration...")
+        migrate_v3_11_3_clear_deck_pending()
+        _mark_applied("v3_11_3_clear_deck_pending")
+    else:
+        print("v3.11.3 clear_deck_pending already applied, skipping")
 
     print("Migration runner complete")
 
