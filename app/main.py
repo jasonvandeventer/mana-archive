@@ -406,6 +406,8 @@ async def import_commit(
         )
         loc = get_location(session, location_id=target_location_id, user_id=current_user.id)
         placed_in = loc.name if loc else None
+        if loc and loc.type != "deck" and current_user.username in DRAWER_SORTER_USERNAMES:
+            threading.Thread(target=_bg_resort, args=(current_user.id,), daemon=True).start()
 
     elif row_ids and current_user.username in DRAWER_SORTER_USERNAMES:
         threading.Thread(target=_bg_resort, args=(current_user.id,), daemon=True).start()
@@ -528,6 +530,8 @@ async def manual_import_commit(
         )
         loc = get_location(session, location_id=target_location_id, user_id=current_user.id)
         placed_in = loc.name if loc else None
+        if loc and loc.type != "deck" and current_user.username in DRAWER_SORTER_USERNAMES:
+            threading.Thread(target=_bg_resort, args=(current_user.id,), daemon=True).start()
     elif row_ids and current_user.username in DRAWER_SORTER_USERNAMES:
         threading.Thread(target=_bg_resort, args=(current_user.id,), daemon=True).start()
 
