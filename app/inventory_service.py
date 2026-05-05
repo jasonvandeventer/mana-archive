@@ -838,7 +838,12 @@ def list_pending_rows(session: Session, user_id: int) -> list[InventoryRow]:
     rows = (
         session.query(InventoryRow)
         .options(joinedload(InventoryRow.card), joinedload(InventoryRow.storage_location))
-        .filter(InventoryRow.is_pending.is_(True), InventoryRow.user_id == user_id)
+        .outerjoin(StorageLocation, InventoryRow.storage_location_id == StorageLocation.id)
+        .filter(
+            InventoryRow.is_pending.is_(True),
+            InventoryRow.user_id == user_id,
+            or_(InventoryRow.storage_location_id.is_(None), StorageLocation.type != "deck"),
+        )
         .all()
     )
     rows.sort(key=lambda r: (assign_drawer(r.card, r.finish), drawer_sort_key(r)))
@@ -1153,7 +1158,11 @@ def resort_collection(
     query = (
         session.query(InventoryRow)
         .options(joinedload(InventoryRow.card))
-        .filter(InventoryRow.user_id == user_id)
+        .outerjoin(StorageLocation, InventoryRow.storage_location_id == StorageLocation.id)
+        .filter(
+            InventoryRow.user_id == user_id,
+            or_(InventoryRow.storage_location_id.is_(None), StorageLocation.type != "deck"),
+        )
     )
 
     if row_ids is not None:

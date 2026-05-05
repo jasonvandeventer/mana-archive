@@ -1,6 +1,6 @@
 # Mana Archive — Claude Context
 
-## Current version: v3.11.2
+## Current version: v3.11.3
 
 ## Stack: FastAPI + Jinja2 + SQLite + K3s/ArgoCD
 
@@ -308,7 +308,8 @@ Templates updated in v3.7: `decks.html`, `import.html`, `import_preview.html`, `
 
 - v3.11.1: Collapse deck card actions behind "Actions" toggle — wraps tag editor, Mark/Remove Commander, Remove from Deck, and Move to Location inside `<details class="card-actions-drawer">` to match collection card behavior; tag role badges remain always visible — **shipped**
 - v3.11.2: Remove "one card away" near-combos from Win Conditions panel — show only complete combos present in the deck; trim almostIncluded processing from spellbook.py — **shipped**
-- v3.11.3: Commander synergy score — % of deck that directly synergizes, indirectly supports, or is unrelated to the commander; uses role tags + CommanderSpellbook data
+- v3.11.3: Fix resort_collection and list_pending_rows including deck cards — both functions now outerjoin StorageLocation and exclude rows where type="deck"; deck cards no longer appear in Pending Placement — **shipped**
+- v3.11.4: Commander synergy score — % of deck that directly synergizes, indirectly supports, or is unrelated to the commander; uses role tags + CommanderSpellbook data
 - v3.12: Dead card detection — flag cards requiring existing board state to function, no synergy with commander, or "win-more" cards; depends on role tags and synergy data
 - v3.13: Average turn impact — estimate when cards are typically playable and when they matter; "deck peaks at turn X" summary
 - v3.14: Game tracker — life totals, 2–8 players, deck selection per seat, game results tied to deck records
