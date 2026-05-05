@@ -1,6 +1,6 @@
 # Mana Archive — Claude Context
 
-## Current version: v3.10.6
+## Current version: v3.10.8
 
 ## Stack: FastAPI + Jinja2 + SQLite + K3s/ArgoCD
 
@@ -235,6 +235,13 @@ Templates updated in v3.7: `decks.html`, `import.html`, `import_preview.html`, `
 - Routes: `POST /locations/{id}/edit`, `POST /decks/{id}/edit`.
 - UI: floating `<details>` popout per row on `locations.html` and `decks.html` — uses `.inline-details` / `.edit-popout` / `.btn-like` CSS classes. The popout uses `position: absolute` so it overlays the table rather than pushing rows.
 
+### Move cards from deck detail (v3.10.7–v3.10.8)
+
+- `deck_detail_page` now fetches and passes `locations` to the template.
+- Per-card **Move to Location** dropdown added to deck card actions in `_macros.html` (inside `show_deck_actions` block, after Remove from Deck). Uses `rejectattr("type", "equalto", "deck")` + `rejectattr("id", "equalto", deck.storage_location_id)` to split into Storage Locations / Decks optgroups, excluding the current deck.
+- **Bulk Move** panel on deck detail — collapsible `<details>` above the card grid, same checklist pattern as location detail. Routes to `POST /decks/{id}/bulk-move`.
+- Both dropdowns show `<optgroup label="Storage Locations">` and `<optgroup label="Decks">` with the current deck excluded from the deck group.
+
 ### Move cards from location detail (v3.10.6)
 
 - `location_detail_page` now fetches and passes `locations` and `decks` to the template.
@@ -276,6 +283,8 @@ Templates updated in v3.7: `decks.html`, `import.html`, `import_preview.html`, `
 - v3.10.0–v3.10.4: Mana pip SVGs — iterative replacement; final v3.10.4 uses Scryfall card-symbols SVGs directly (`svgs.scryfall.io/card-symbols/{W,U,B,R,G}.svg`). Structure: colored circle background + `#0D0F0F` positive-space symbol path. Colorless (C) still uses Scryfall CDN in `_macros.html` — **shipped**
 - v3.10.5: Fix missing `.stack-form` CSS — labels and inputs were rendering inline in all browsers — **shipped**
 - v3.10.6: Self-service onboarding, fully editable locations/decks, move cards from location detail — **shipped**
+- v3.10.7: Move cards feature on deck detail — per-card Move to Location dropdown + Bulk Move panel — **shipped**
+- v3.10.8: Move destination dropdowns include other decks; Storage Locations / Decks optgroups — **shipped**
 
 ### Mana pip SVG notes
 

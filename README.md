@@ -2,7 +2,7 @@
 
 Self-hosted web application for managing a physical Magic: The Gathering collection.
 
-**Current version: v3.10.6** · [Platform repo](https://github.com/jasonvandeventer/mana-archive-platform)
+**Current version: v3.10.8** · [Platform repo](https://github.com/jasonvandeventer/mana-archive-platform)
 
 ---
 
@@ -35,8 +35,8 @@ Self-hosted web application for managing a physical Magic: The Gathering collect
 
 - Drawer/slot system for physical organization (gated per-user)
 - Custom storage locations: create, edit (name/type/parent/sort order), and delete
-- Move cards between locations from the location detail page
-- **Bulk move**: select multiple cards from a location and move them to another in one action
+- Move cards between locations from the location detail page or deck detail page
+- **Bulk move**: select multiple cards from a location or deck and move them in one action; destination picker includes both storage locations and other decks
 - Return cards from decks to pending/collection
 
 ### Pricing & Card Data
