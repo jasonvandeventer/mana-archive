@@ -1,6 +1,6 @@
 # Mana Archive — Claude Context
 
-## Current version: v3.11.0
+## Current version: v3.11.1
 
 ## Stack: FastAPI + Jinja2 + SQLite + K3s/ArgoCD
 
@@ -306,7 +306,8 @@ Templates updated in v3.7: `decks.html`, `import.html`, `import_preview.html`, `
 - Colorless (C) pip still served from Scryfall CDN in `mana_pips` macro in `_macros.html`.
 - To update: re-download from Scryfall CDN; the B symbol uses `fill-rule="evenodd"` for skull detail holes.
 
-- v3.11.1: Commander synergy score — % of deck that directly synergizes, indirectly supports, or is unrelated to the commander; uses role tags + CommanderSpellbook data
+- v3.11.1: Collapse deck card actions behind "Actions" toggle — wraps tag editor, Mark/Remove Commander, Remove from Deck, and Move to Location inside `<details class="card-actions-drawer">` to match collection card behavior; tag role badges remain always visible — **shipped**
+- v3.11.2: Commander synergy score — % of deck that directly synergizes, indirectly supports, or is unrelated to the commander; uses role tags + CommanderSpellbook data
 - v3.12: Dead card detection — flag cards requiring existing board state to function, no synergy with commander, or "win-more" cards; depends on role tags and synergy data
 - v3.13: Average turn impact — estimate when cards are typically playable and when they matter; "deck peaks at turn X" summary
 - v3.14: Game tracker — life totals, 2–8 players, deck selection per seat, game results tied to deck records

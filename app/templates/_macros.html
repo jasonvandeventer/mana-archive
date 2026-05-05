@@ -191,101 +191,93 @@
             {% for tag in row_tags %}<span class="card-tag card-tag-{{ tag|lower }}">{{ tag }}</span>{% endfor %}
           </div>
         {% endif %}
-        <details class="tag-editor-details">
-          <summary class="tag-editor-summary">
-            {% if row_tags %}
-              Edit Tags
-            {% else %}
-              Add Tags
-            {% endif %}
-          </summary>
-          <form action="/decks/rows/{{ item.id }}/tags"
-                method="post"
-                class="tag-editor-form">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-            <input type="hidden" name="deck_id" value="{{ deck.id }}">
-            <div class="tag-editor-grid">
-              {% for tag in card_role_tags %}
-                {% set checked = tag in row_tags %}
-                {% set suggested = tag in suggestions and not checked %}
-                <label class="tag-checkbox{% if suggested %} tag-suggested{% endif %}">
-                  <input type="checkbox"
-                         name="tags"
-                         value="{{ tag }}"
-                         {% if checked %}checked{% endif %}>
-                  {{ tag }}
-                  {% if suggested %}✦{% endif %}
-                </label>
-              {% endfor %}
-            </div>
-            <button type="submit" class="tag-save-btn">Save</button>
-          </form>
-        </details>
-        <div style="display: flex;
-                    flex-direction: column;
-                    gap: 0.4rem;
-                    margin-top: 0.3rem">
-          <form action="/decks/rows/{{ item.id }}/toggle-commander"
-                method="post"
-                class="inline-form">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-            <input type="hidden" name="deck_id" value="{{ deck.id }}">
-            <button type="submit">
-              {% if item.role == 'commander' %}
-                Remove Commander
-              {% else %}
-                Mark as Commander
-              {% endif %}
-            </button>
-          </form>
-          <form action="/decks/return" method="post" class="return-form">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-            <input type="hidden" name="deck_id" value="{{ deck.id }}">
-            <input type="hidden" name="deck_row_id" value="{{ item.id }}">
-            {% if use_drawer_sorter and item.role != 'commander' %}
-              <details class="return-details">
-                <summary class="return-summary">Remove from Deck</summary>
-                <div class="deck-item-actions" style="margin-top: 0.45rem">
-                  <input type="text" name="drawer" placeholder="Drawer override">
-                  <input type="text" name="slot" placeholder="Slot override">
-                  <button type="submit">Confirm Remove</button>
-                </div>
-                <p class="muted small-text" style="margin: 0.2rem 0 0">Leave blank to send to Pending.</p>
-              </details>
-            {% else %}
-              <button type="submit">Remove from Deck</button>
-            {% endif %}
-          </form>
-          {% if locations %}
-            {% set storage_locs = locations | selectattr("type", "ne", "root") | rejectattr("type", "equalto", "deck") | list %}
-            {% set deck_locs = locations | selectattr("type", "equalto", "deck") | rejectattr("id", "equalto", deck.storage_location_id) | list %}
-            {% if storage_locs or deck_locs %}
-              <form action="/inventory/rows/{{ item.id }}/move"
+        <details class="card-actions-drawer">
+          <summary>Actions</summary>
+          <div class="card-actions-body">
+            <details class="tag-editor-details">
+              <summary class="tag-editor-summary">
+                {% if row_tags %}Edit Tags{% else %}Add Tags{% endif %}
+              </summary>
+              <form action="/decks/rows/{{ item.id }}/tags"
                     method="post"
-                    class="inline-form"
-                    style="flex-wrap: wrap">
+                    class="tag-editor-form">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-                <select name="location_id" required>
-                  {% if storage_locs %}
-                    <optgroup label="Storage Locations">
-                      {% for loc in storage_locs %}
-                        <option value="{{ loc.id }}">{{ loc.name }} ({{ loc.type }})</option>
-                      {% endfor %}
-                    </optgroup>
-                  {% endif %}
-                  {% if deck_locs %}
-                    <optgroup label="Decks">
-                      {% for loc in deck_locs %}
-                        <option value="{{ loc.id }}">{{ loc.name }}</option>
-                      {% endfor %}
-                    </optgroup>
-                  {% endif %}
-                </select>
-                <button type="submit">Move to Location</button>
+                <input type="hidden" name="deck_id" value="{{ deck.id }}">
+                <div class="tag-editor-grid">
+                  {% for tag in card_role_tags %}
+                    {% set checked = tag in row_tags %}
+                    {% set suggested = tag in suggestions and not checked %}
+                    <label class="tag-checkbox{% if suggested %} tag-suggested{% endif %}">
+                      <input type="checkbox"
+                             name="tags"
+                             value="{{ tag }}"
+                             {% if checked %}checked{% endif %}>
+                      {{ tag }}
+                      {% if suggested %}✦{% endif %}
+                    </label>
+                  {% endfor %}
+                </div>
+                <button type="submit" class="tag-save-btn">Save</button>
               </form>
+            </details>
+            <form action="/decks/rows/{{ item.id }}/toggle-commander"
+                  method="post"
+                  class="inline-form">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+              <input type="hidden" name="deck_id" value="{{ deck.id }}">
+              <button type="submit">
+                {% if item.role == 'commander' %}Remove Commander{% else %}Mark as Commander{% endif %}
+              </button>
+            </form>
+            <form action="/decks/return" method="post" class="return-form">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+              <input type="hidden" name="deck_id" value="{{ deck.id }}">
+              <input type="hidden" name="deck_row_id" value="{{ item.id }}">
+              {% if use_drawer_sorter and item.role != 'commander' %}
+                <details class="return-details">
+                  <summary class="return-summary">Remove from Deck</summary>
+                  <div class="deck-item-actions" style="margin-top: 0.45rem">
+                    <input type="text" name="drawer" placeholder="Drawer override">
+                    <input type="text" name="slot" placeholder="Slot override">
+                    <button type="submit">Confirm Remove</button>
+                  </div>
+                  <p class="muted small-text" style="margin: 0.2rem 0 0">Leave blank to send to Pending.</p>
+                </details>
+              {% else %}
+                <button type="submit">Remove from Deck</button>
+              {% endif %}
+            </form>
+            {% if locations %}
+              {% set storage_locs = locations | selectattr("type", "ne", "root") | rejectattr("type", "equalto", "deck") | list %}
+              {% set deck_locs = locations | selectattr("type", "equalto", "deck") | rejectattr("id", "equalto", deck.storage_location_id) | list %}
+              {% if storage_locs or deck_locs %}
+                <form action="/inventory/rows/{{ item.id }}/move"
+                      method="post"
+                      class="inline-form"
+                      style="flex-wrap: wrap">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                  <select name="location_id" required>
+                    {% if storage_locs %}
+                      <optgroup label="Storage Locations">
+                        {% for loc in storage_locs %}
+                          <option value="{{ loc.id }}">{{ loc.name }} ({{ loc.type }})</option>
+                        {% endfor %}
+                      </optgroup>
+                    {% endif %}
+                    {% if deck_locs %}
+                      <optgroup label="Decks">
+                        {% for loc in deck_locs %}
+                          <option value="{{ loc.id }}">{{ loc.name }}</option>
+                        {% endfor %}
+                      </optgroup>
+                    {% endif %}
+                  </select>
+                  <button type="submit">Move to Location</button>
+                </form>
+              {% endif %}
             {% endif %}
-          {% endif %}
-        </div>
+          </div>
+        </details>
       {% endif %}
     </div>
   </article>
