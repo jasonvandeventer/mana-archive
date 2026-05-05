@@ -388,7 +388,6 @@ _REMOVAL_PREFIX_RE = re.compile(
 _CARD_TYPES_TO_DETECT = [
     "enchantment",
     "artifact",
-    "creature",
     "instant",
     "sorcery",
     "planeswalker",
