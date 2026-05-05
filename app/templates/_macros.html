@@ -256,6 +256,23 @@
               <button type="submit">Remove from Deck</button>
             {% endif %}
           </form>
+          {% if locations %}
+            {% set movable = locations | selectattr("type", "ne", "root") | selectattr("type", "ne", "deck") | list %}
+            {% if movable %}
+              <form action="/inventory/rows/{{ item.id }}/move"
+                    method="post"
+                    class="inline-form"
+                    style="flex-wrap: wrap">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                <select name="location_id" required>
+                  {% for loc in movable %}
+                    <option value="{{ loc.id }}">{{ loc.name }} ({{ loc.type }})</option>
+                  {% endfor %}
+                </select>
+                <button type="submit">Move to Location</button>
+              </form>
+            {% endif %}
+          {% endif %}
         </div>
       {% endif %}
     </div>

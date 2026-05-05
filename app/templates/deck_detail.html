@@ -276,7 +276,8 @@
             {{ inventory_card(item, csrf_token,
                         show_deck_actions=true,
                         deck=deck,
-                        use_drawer_sorter=use_drawer_sorter) }}
+                        use_drawer_sorter=use_drawer_sorter,
+                        locations=locations) }}
           {% endfor %}
         </div>
       </section>
@@ -313,6 +314,43 @@
         </a>
       </form>
     </section>
+    {% set movable_locations = locations | selectattr("type", "ne", "root") | selectattr("type", "ne", "deck") | list %}
+    {% if items and movable_locations %}
+      <section class="panel">
+        <details>
+          <summary style="cursor: pointer; user-select: none; font-weight: 600; list-style: none; padding: 0.2rem 0;">
+            ▸ Bulk Move
+          </summary>
+          <form action="/decks/{{ deck.id }}/bulk-move"
+                method="post"
+                style="margin-top: 0.75rem">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <div style="display: flex; flex-direction: column; gap: 0.3rem; margin-bottom: 0.75rem; max-height: 260px; overflow-y: auto;">
+              <label style="font-size: 0.8rem; color: #94a3b8; cursor: pointer;">
+                <input type="checkbox"
+                       onclick="document.querySelectorAll('.deck-bulk-cb').forEach(cb => cb.checked = this.checked)">
+                Select all
+              </label>
+              {% for item in items %}
+                <label style="display: flex; align-items: center; gap: 0.4rem; font-size: 0.875rem; cursor: pointer;">
+                  <input type="checkbox" name="row_ids" value="{{ item.id }}" class="deck-bulk-cb">
+                  {{ item.card.name }}{% if item.finish != 'normal' %} <span class="finish-badge">{{ item.finish }}</span>{% endif %}
+                </label>
+              {% endfor %}
+            </div>
+            <div class="filter-row">
+              <select name="target_location_id" required>
+                <option value="">— Destination —</option>
+                {% for loc in movable_locations %}
+                  <option value="{{ loc.id }}">{{ loc.name }} ({{ loc.type }})</option>
+                {% endfor %}
+              </select>
+              <button type="submit">Move Selected</button>
+            </div>
+          </form>
+        </details>
+      </section>
+    {% endif %}
     {% if items %}
       <section class="card-grid-section">
         <div class="inventory-grid">
@@ -320,7 +358,8 @@
             {{ inventory_card(item, csrf_token,
                         show_deck_actions=true,
                         deck=deck,
-                        use_drawer_sorter=use_drawer_sorter) }}
+                        use_drawer_sorter=use_drawer_sorter,
+                        locations=locations) }}
           {% endfor %}
         </div>
       </section>
