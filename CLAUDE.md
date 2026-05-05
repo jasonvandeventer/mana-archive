@@ -1,6 +1,6 @@
 # Mana Archive — Claude Context
 
-## Current version: v3.10.8
+## Current version: v3.10.9
 
 ## Stack: FastAPI + Jinja2 + SQLite + K3s/ArgoCD
 
@@ -285,6 +285,7 @@ Templates updated in v3.7: `decks.html`, `import.html`, `import_preview.html`, `
 - v3.10.6: Self-service onboarding, fully editable locations/decks, move cards from location detail — **shipped**
 - v3.10.7: Move cards feature on deck detail — per-card Move to Location dropdown + Bulk Move panel — **shipped**
 - v3.10.8: Move destination dropdowns include other decks; Storage Locations / Decks optgroups — **shipped**
+- v3.10.9: Fix partner commander color identity — union all commanders' `color_identity` (not `.first()` + `colors`); affects both decks list and deck detail header — **shipped**
 
 ### Mana pip SVG notes
 
