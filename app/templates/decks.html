@@ -45,6 +45,7 @@
             <th>Name</th>
             <th>Format</th>
             <th>Cards</th>
+            <th>Bracket</th>
             <th></th>
           </tr>
         </thead>
@@ -57,6 +58,23 @@
               </td>
               <td>{{ deck.format or '—' }}</td>
               <td>{{ deck.card_count or 0 }}</td>
+              <td>
+                {% if deck.bracket %}
+                  <details class="bracket-details">
+                    <summary class="bracket-badge bracket-{{ deck.bracket.bracket }}">Bracket {{ deck.bracket.bracket }}</summary>
+                    {% if deck.bracket.reasons %}
+                      <div class="bracket-popout">
+                        <div class="bracket-popout-title">Why Bracket {{ deck.bracket.bracket }}</div>
+                        <ul class="bracket-reasons">
+                          {% for r in deck.bracket.reasons %}<li>{{ r }}</li>{% endfor %}
+                        </ul>
+                      </div>
+                    {% endif %}
+                  </details>
+                {% else %}
+                  —
+                {% endif %}
+              </td>
               <td style="text-align: right; white-space: nowrap;">
                 <details class="inline-details"
                          style="display: inline-block;

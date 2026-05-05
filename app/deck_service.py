@@ -611,6 +611,17 @@ def list_decks(session: Session, user_id: int) -> list[Deck]:
                 seen.add(letter)
         deck.color_identity = " ".join(p for p in ["W", "U", "B", "R", "G"] if p in seen)
 
+        all_rows = (
+            session.query(InventoryRow)
+            .join(Card)
+            .filter(
+                InventoryRow.user_id == user_id,
+                InventoryRow.storage_location_id == deck.storage_location_id,
+            )
+            .all()
+        )
+        deck.bracket = compute_deck_bracket(all_rows, {"included": []})
+
     return decks
 
 
