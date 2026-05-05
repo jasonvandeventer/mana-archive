@@ -1,4 +1,4 @@
-# Mana Archive
+![Mana Archive](app/static/icons/wordmark-512.png)
 
 Self-hosted web application for managing a physical Magic: The Gathering collection.
 
