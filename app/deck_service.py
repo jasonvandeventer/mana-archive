@@ -371,6 +371,130 @@ def compute_deck_combos(all_rows: list) -> dict:
     return fetch_deck_combos(main_names, commander_names)
 
 
+_FAST_MANA = frozenset(
+    [
+        "Mana Crypt",
+        "Mox Diamond",
+        "Chrome Mox",
+        "Mox Opal",
+        "Jeweled Lotus",
+        "Grim Monolith",
+        "Mana Vault",
+        "Lotus Petal",
+        "Ancient Tomb",
+    ]
+)
+
+_FREE_INTERACTION = frozenset(
+    [
+        "Force of Will",
+        "Force of Negation",
+        "Mana Drain",
+        "Fierce Guardianship",
+        "Deflecting Swat",
+        "Flusterstorm",
+        "Mental Misstep",
+        "Pact of Negation",
+        "Commandeer",
+    ]
+)
+
+_MASS_LAND_DENIAL = frozenset(
+    [
+        "Armageddon",
+        "Ravages of War",
+        "Jokulhaups",
+        "Devastation",
+        "Obliterate",
+        "Decree of Annihilation",
+        "Catastrophe",
+        "Ruination",
+        "Boom // Bust",
+    ]
+)
+
+
+def compute_deck_bracket(all_rows: list, combos: dict) -> dict:
+    """Estimate Commander bracket (1-5) from deck signals."""
+    fast_mana: list[str] = []
+    free_interaction: list[str] = []
+    mass_land_denial: list[str] = []
+    extra_turns: list[str] = []
+    tutors: list[str] = []
+
+    for row in all_rows:
+        card = row.card
+        if not card:
+            continue
+        name = card.name or ""
+        oracle = (card.oracle_text or "").lower()
+
+        if name in _FAST_MANA:
+            fast_mana.append(name)
+        if name in _FREE_INTERACTION:
+            free_interaction.append(name)
+        if name in _MASS_LAND_DENIAL:
+            mass_land_denial.append(name)
+        if "take an extra turn" in oracle:
+            extra_turns.append(name)
+        if (
+            "search your library for a card" in oracle
+            and "land" not in oracle.split("search your library for a card")[0][-20:]
+        ):
+            tutors.append(name)
+
+    combo_count = len(combos.get("included", []))
+
+    bracket = 1
+    reasons: list[str] = []
+
+    # Bracket 2 floor
+    if tutors:
+        bracket = max(bracket, 2)
+        reasons.append(f"{len(tutors)} tutor{'s' if len(tutors) != 1 else ''}")
+
+    # Bracket 3 floors
+    if combo_count >= 1:
+        bracket = max(bracket, 3)
+        reasons.append(f"{combo_count} infinite combo{'s' if combo_count != 1 else ''}")
+    if mass_land_denial:
+        bracket = max(bracket, 3)
+        reasons.append(f"mass land denial ({mass_land_denial[0]})")
+    if extra_turns:
+        bracket = max(bracket, 3)
+        reasons.append(f"extra turn spells ({extra_turns[0]})")
+    if len(tutors) >= 3:
+        bracket = max(bracket, 3)
+
+    # Bracket 4 floors
+    if fast_mana:
+        bracket = max(bracket, 4)
+        reasons.append(f"fast mana ({', '.join(fast_mana[:3])})")
+    if free_interaction:
+        bracket = max(bracket, 4)
+        reasons.append(f"free interaction ({', '.join(free_interaction[:2])})")
+    if combo_count >= 3:
+        bracket = max(bracket, 4)
+
+    # Bracket 5: multiple cEDH signals together
+    if len(fast_mana) >= 2 and free_interaction and combo_count >= 2:
+        bracket = 5
+        reasons.append("multiple cEDH staples")
+
+    return {
+        "bracket": bracket,
+        "reasons": reasons,
+        "signals": {
+            "fast_mana": fast_mana,
+            "free_interaction": free_interaction,
+            "mass_land_denial": mass_land_denial,
+            "extra_turns": extra_turns,
+            "tutors": tutors,
+            "combo_count": combo_count,
+        },
+    }
+
+
 def create_deck(
     session: Session,
     user_id: int,

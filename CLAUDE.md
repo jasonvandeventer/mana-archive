@@ -1,6 +1,6 @@
 # Mana Archive — Claude Context
 
-## Current version: v3.11.4
+## Current version: v3.11.5
 
 ## Stack: FastAPI + Jinja2 + SQLite + K3s/ArgoCD
 
@@ -258,6 +258,18 @@ Templates updated in v3.7: `decks.html`, `import.html`, `import_preview.html`, `
 - **Win Conditions panel** in `deck_detail.html` — "Complete combos in this deck" section + "One card away" section. Each combo shows card pills (missing card styled in amber), result badges (green), expandable "How it works" with step-by-step description and setup prerequisites.
 - CSS classes: `.combo-panel`, `.combo-section-label`, `.combo-item`, `.combo-item-almost`, `.combo-cards`, `.combo-card-name`, `.combo-card-missing`, `.combo-results`, `.combo-result-badge`, `.combo-details`, `.combo-summary`, `.combo-description`, `.combo-prereq`.
 
+### Commander Bracket estimation (v3.11.5)
+
+- `compute_deck_bracket(all_rows, combos)` in `deck_service.py` — floor-based bracket estimator using multiple deck signals; returns `{bracket: 1-5, reasons: [...], signals: {...}}`.
+- **Signal frozensets**: `_FAST_MANA` (Mana Crypt, Mox Diamond, Chrome Mox, Mox Opal, Jeweled Lotus, Grim Monolith, Mana Vault, Lotus Petal, Ancient Tomb), `_FREE_INTERACTION` (Force of Will, Force of Negation, Mana Drain, Fierce Guardianship, Deflecting Swat, Flusterstorm, Mental Misstep, Pact of Negation, Commandeer), `_MASS_LAND_DENIAL` (Armageddon, Ravages of War, Jokulhaups, Devastation, Obliterate, Decree of Annihilation, Catastrophe, Ruination, Boom // Bust).
+- **Floor logic** (signals raise the minimum bracket):
+  - Tutors (non-basic-land search) → floor 2
+  - 1+ complete combo, 1+ mass land denial, or 1+ extra turn card → floor 3
+  - Any fast mana or free interaction → floor 4
+  - 2+ fast mana + 1+ free interaction + 2+ combos → bracket 5
+- **Bracket badge** in deck detail hero stats — `<details class="bracket-details">` with `<summary class="bracket-badge bracket-N">` colored per bracket (1=green, 2=blue, 3=yellow, 4=orange, 5=red); click/open shows `.bracket-popout` with reasons list.
+- CSS classes: `.bracket-details`, `.bracket-badge`, `.bracket-1` through `.bracket-5`, `.bracket-popout`, `.bracket-popout-title`, `.bracket-reasons`.
+
 ## Deployment and versioning
 
 - CI builds and pushes to GHCR on any tag matching `v*.*.*`. Untagged commits run lint only.
@@ -310,7 +322,8 @@ Templates updated in v3.7: `decks.html`, `import.html`, `import_preview.html`, `
 - v3.11.2: Remove "one card away" near-combos from Win Conditions panel — show only complete combos present in the deck; trim almostIncluded processing from spellbook.py — **shipped**
 - v3.11.3: Fix resort_collection and list_pending_rows including deck cards — both functions now outerjoin StorageLocation and exclude rows where type="deck"; deck cards no longer appear in Pending Placement; migration `v3_11_3_clear_deck_pending` clears is_pending on any deck rows already incorrectly flagged — **shipped**
 - v3.11.4: Tag current HEAD to trigger CI build including recovery script and linter-reformatted templates; no functional changes — **shipped**
-- v3.11.5: Commander synergy score — % of deck that directly synergizes, indirectly supports, or is unrelated to the commander; uses role tags + CommanderSpellbook data
+- v3.11.5: Commander Bracket estimation — floor-based 1-5 bracket estimator using fast mana, free interaction, combos, tutors, mass land denial, extra turns; bracket badge with color-coded popout reasons in deck detail hero — **shipped**
+- v3.11.6: Commander synergy score — % of deck that directly synergizes, indirectly supports, or is unrelated to the commander; uses role tags + CommanderSpellbook data
 - v3.12: Dead card detection — flag cards requiring existing board state to function, no synergy with commander, or "win-more" cards; depends on role tags and synergy data
 - v3.13: Average turn impact — estimate when cards are typically playable and when they matter; "deck peaks at turn X" summary
 - v3.14: Game tracker — life totals, 2–8 players, deck selection per seat, game results tied to deck records

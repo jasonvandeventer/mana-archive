@@ -26,6 +26,19 @@
           <span>{{ (commanders|length) + (items|length) }} entries</span>
           <span>{{ deck_total_cards }} copies</span>
           <span>${{ '%.2f'|format(deck_total_value) }}</span>
+          {% if bracket %}
+            <details class="bracket-details">
+              <summary class="bracket-badge bracket-{{ bracket.bracket }}">Bracket {{ bracket.bracket }}</summary>
+              {% if bracket.reasons %}
+                <div class="bracket-popout">
+                  <div class="bracket-popout-title">Why Bracket {{ bracket.bracket }}</div>
+                  <ul class="bracket-reasons">
+                    {% for r in bracket.reasons %}<li>{{ r }}</li>{% endfor %}
+                  </ul>
+                </div>
+              {% endif %}
+            </details>
+          {% endif %}
         </div>
       </div>
     {% else %}
