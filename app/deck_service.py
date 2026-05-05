@@ -627,6 +627,7 @@ def list_decks(session: Session, user_id: int) -> list[Deck]:
         )
         combos = compute_deck_combos(all_rows)
         deck.bracket = compute_deck_bracket(all_rows, combos)
+        deck.consistency = compute_consistency(all_rows) if all_rows else None
 
     return decks
 
