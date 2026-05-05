@@ -5,7 +5,7 @@ from collections.abc import Iterable
 from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import Float as SAFloat
-from sqlalchemy import and_, cast, func, not_, or_
+from sqlalchemy import and_, cast, func, not_, or_, text
 from sqlalchemy.orm import Session, joinedload
 
 from app.audit_service import log_transaction
@@ -1164,88 +1164,99 @@ def resort_collection(
             or_(InventoryRow.storage_location_id.is_(None), StorageLocation.type != "deck"),
         )
     )
-
     if row_ids is not None:
         query = query.filter(InventoryRow.id.in_(list(row_ids)))
-
     rows = query.all()
-
     if not rows:
         return 0
 
-    rows.sort(key=lambda r: (assign_drawer(r.card, r.finish), drawer_sort_key(r)))
+    # Pre-load all drawer StorageLocations in one query instead of 6 separate ones.
+    drawer_loc_ids: dict[int, int | None] = {i: None for i in range(1, 7)}
+    for loc in session.query(StorageLocation).filter(
+        StorageLocation.user_id == user_id,
+        StorageLocation.type == "drawer",
+    ):
+        try:
+            n = int(loc.name.replace("Drawer", "").strip())
+            if 1 <= n <= 6:
+                drawer_loc_ids[n] = loc.id
+        except ValueError:
+            pass
+
+    # Compute target drawer once per row and sort.
+    row_target_drawer: dict[int, int] = {
+        row.id: assign_drawer(row.card, row.finish) for row in rows
+    }
+    rows.sort(key=lambda r: (row_target_drawer[r.id], drawer_sort_key(r)))
 
     grouped: dict[int, list[InventoryRow]] = {i: [] for i in range(1, 7)}
     for row in rows:
-        grouped[assign_drawer(row.card, row.finish)].append(row)
+        grouped[row_target_drawer[row.id]].append(row)
 
-    updated = 0
     now = datetime.utcnow()
+    bulk_updates: list[dict] = []
+    audit_logs: list[dict] = []
 
     for drawer_number, drawer_rows in grouped.items():
-        location = (
-            session.query(StorageLocation)
-            .filter(
-                StorageLocation.user_id == user_id,
-                StorageLocation.name == f"Drawer {drawer_number}",
-                StorageLocation.type == "drawer",
-            )
-            .one_or_none()
-        )
-
+        loc_id = drawer_loc_ids[drawer_number]
         for index, row in enumerate(drawer_rows, start=1):
             target_drawer = str(drawer_number)
             target_slot = str(index)
+            if row.drawer == target_drawer and row.slot == target_slot:
+                continue
 
-            if row.drawer != target_drawer or row.slot != target_slot:
-                old_drawer = row.drawer
-                old_slot = row.slot
-                old_is_pending = row.is_pending
-                old_location = (
-                    "pending"
-                    if old_is_pending
-                    else f"drawer={old_drawer or '-'} slot={old_slot or '-'}"
+            old_drawer = row.drawer
+            old_is_pending = row.is_pending
+            new_is_pending = bool(old_is_pending or old_drawer != target_drawer)
+
+            bulk_updates.append(
+                {
+                    "id": row.id,
+                    "user_id": user_id,
+                    "drawer": target_drawer,
+                    "slot": target_slot,
+                    "storage_location_id": loc_id,
+                    "is_pending": new_is_pending,
+                    "updated_at": now,
+                }
+            )
+
+            # Only audit physical cross-drawer moves — slot renumbering within the
+            # same drawer produces no actionable entry and would flood the log on
+            # large imports.
+            if not old_is_pending and old_drawer is not None and old_drawer != target_drawer:
+                audit_logs.append(
+                    {
+                        "user_id": user_id,
+                        "event_type": "resort",
+                        "card_id": row.card_id,
+                        "finish": row.finish,
+                        "quantity_delta": 0,
+                        "source_location": f"drawer={old_drawer} slot={row.slot or '-'}",
+                        "destination_location": f"drawer={target_drawer} slot={target_slot}",
+                        "inventory_row_id": row.id,
+                        "note": "Auto-sorted collection row; moved to a new drawer and marked pending for physical relocation",
+                        "batch_id": None,
+                    }
                 )
 
-                moved_between_drawers = (
-                    not old_is_pending and old_drawer is not None and old_drawer != target_drawer
-                )
+    if not bulk_updates:
+        return 0
 
-                row.drawer = target_drawer
-                row.slot = target_slot
-                row.storage_location_id = location.id if location else None
-
-                if old_is_pending:
-                    row.is_pending = True
-                elif old_drawer != target_drawer:
-                    row.is_pending = True
-                else:
-                    row.is_pending = False
-
-                row.updated_at = now
-
-                log_transaction(
-                    session=session,
-                    user_id=user_id,
-                    event_type="resort",
-                    card_id=row.card_id,
-                    finish=row.finish,
-                    quantity_delta=0,
-                    source_location=old_location,
-                    destination_location=f"drawer={target_drawer} slot={target_slot}",
-                    inventory_row_id=row.id,
-                    note=(
-                        "Auto-sorted collection row; moved to a new drawer and marked pending "
-                        "for physical relocation"
-                        if moved_between_drawers
-                        else "Auto-sorted collection row by placement rules"
-                    ),
-                    flush=False,
-                )
-                updated += 1
+    session.execute(
+        text(
+            "UPDATE inventory_rows"
+            " SET drawer=:drawer, slot=:slot, storage_location_id=:storage_location_id,"
+            "     is_pending=:is_pending, updated_at=:updated_at"
+            " WHERE id=:id AND user_id=:user_id"
+        ),
+        bulk_updates,
+    )
+    if audit_logs:
+        session.bulk_insert_mappings(TransactionLog, audit_logs)
 
     session.commit()
-    return updated
+    return len(bulk_updates)
 
 
 def get_owned_cards_by_set(session: Session, set_code: str, user_id: int) -> dict[str, int]:
