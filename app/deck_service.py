@@ -372,19 +372,17 @@ def compute_deck_combos(all_rows: list) -> dict:
 
 
 _CARE_ABOUT_PATTERNS = [
-    r"whenever you cast (?:\w+[-\w]* )*{t}",
-    r"{t}s? you control",
-    r"each (?:\w+[-\w]* )*{t}",  # handles "each non-Equipment artifact"
-    r"{t} spells?",
+    r"whenever you cast [^.;]*\b{t}",
+    r"\b{t}s? you control",
+    r"\beach [^.;]*\b{t}",
+    r"\b{t} spells?",
     r"your {t}s?",
     r"other {t}s?",
     r"noncreature {t}",
-    r"{t} (?:and|or) \w+",  # handles "artifact and non-Aura enchantment"
-    r"\w+ (?:and|or) {t}",
+    r"\b{t}s? (?:and|or) \w+",
+    r"\w+ (?:and|or) {t}s?\b",
 ]
-_REMOVAL_PREFIX_RE = re.compile(
-    r"(?:destroy|exile|counter|return) target (?:\w+ )*$", re.IGNORECASE
-)
+_REMOVAL_PREFIX_RE = re.compile(r"(?:destroy|exile|counter|return) target [^.;]*$", re.IGNORECASE)
 _CARD_TYPES_TO_DETECT = [
     "enchantment",
     "artifact",

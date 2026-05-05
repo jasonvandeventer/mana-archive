@@ -1,0 +1,142 @@
+{# HTML fragment — returned by GET /decks/{id}/panels; not a full page #}
+<div id="deck-bracket-fragment">
+  {% if bracket %}
+    <details class="bracket-details">
+      <summary class="bracket-badge bracket-{{ bracket.bracket }}">Bracket {{ bracket.bracket }}</summary>
+      {% if bracket.reasons %}
+        <div class="bracket-popout">
+          <div class="bracket-popout-title">Why Bracket {{ bracket.bracket }}</div>
+          <ul class="bracket-reasons">
+            {% for r in bracket.reasons %}<li>{{ r }}</li>{% endfor %}
+          </ul>
+        </div>
+      {% endif %}
+    </details>
+  {% endif %}
+</div>
+<div id="deck-lazy-panels-content">
+  {% if synergy %}
+    <section class="panel synergy-panel">
+      <h3 class="panel-title">Commander Synergy</h3>
+      {% if synergy.themes.signals %}
+        <p class="synergy-subtype-note">Detected: {{ synergy.themes.signals | join(" · ") }}</p>
+      {% endif %}
+      <div class="synergy-bar">
+        {% if synergy.direct_pct > 0 %}
+          <div class="synergy-seg synergy-seg-direct"
+               style="flex: {{ synergy.direct_pct }}">{{ synergy.direct_pct }}%</div>
+        {% endif %}
+        {% if synergy.supporting_pct > 0 %}
+          <div class="synergy-seg synergy-seg-supporting"
+               style="flex: {{ synergy.supporting_pct }}">{{ synergy.supporting_pct }}%</div>
+        {% endif %}
+        {% if synergy.unrelated_pct > 0 %}
+          <div class="synergy-seg synergy-seg-unrelated"
+               style="flex: {{ synergy.unrelated_pct }}">{{ synergy.unrelated_pct }}%</div>
+        {% endif %}
+      </div>
+      <div class="synergy-stats">
+        <div class="synergy-stat">
+          <details class="synergy-stat-details">
+            <summary>
+              <span class="synergy-dot synergy-dot-direct"></span>
+              <span class="synergy-stat-label">Direct</span>
+              <span class="synergy-stat-count">{{ synergy.direct }} <span class="synergy-stat-pct">({{ synergy.direct_pct }}%)</span></span>
+            </summary>
+            {% if synergy.direct_cards %}
+              <ul class="synergy-card-list">
+                {% for name in synergy.direct_cards %}<li>{{ name }}</li>{% endfor %}
+              </ul>
+            {% endif %}
+          </details>
+        </div>
+        <div class="synergy-stat">
+          <details class="synergy-stat-details">
+            <summary>
+              <span class="synergy-dot synergy-dot-supporting"></span>
+              <span class="synergy-stat-label">Supporting</span>
+              <span class="synergy-stat-count">{{ synergy.supporting }} <span class="synergy-stat-pct">({{ synergy.supporting_pct }}%)</span></span>
+            </summary>
+            {% if synergy.supporting_cards %}
+              <ul class="synergy-card-list">
+                {% for name in synergy.supporting_cards %}<li>{{ name }}</li>{% endfor %}
+              </ul>
+            {% endif %}
+          </details>
+        </div>
+        <div class="synergy-stat">
+          <details class="synergy-stat-details">
+            <summary>
+              <span class="synergy-dot synergy-dot-unrelated"></span>
+              <span class="synergy-stat-label">Unrelated</span>
+              <span class="synergy-stat-count">{{ synergy.unrelated }} <span class="synergy-stat-pct">({{ synergy.unrelated_pct }}%)</span></span>
+            </summary>
+            {% if synergy.unrelated_cards %}
+              <ul class="synergy-card-list">
+                {% for name in synergy.unrelated_cards %}<li>{{ name }}</li>{% endfor %}
+              </ul>
+            {% endif %}
+          </details>
+        </div>
+      </div>
+    </section>
+  {% endif %}
+  {% if combos and combos.included %}
+    <section class="panel combo-panel">
+      <h3 class="panel-title">Combos</h3>
+      {% for combo in combos.included %}
+        <div class="combo-item">
+          <div class="combo-cards">
+            {% for name in combo.card_names %}<span class="combo-card-name">{{ name }}</span>{% endfor %}
+          </div>
+          <div class="combo-results">
+            {% for r in combo.results %}<span class="combo-result-badge">{{ r }}</span>{% endfor %}
+          </div>
+          {% if combo.description %}
+            <details class="combo-details">
+              <summary class="combo-summary">How it works</summary>
+              <div class="combo-description">
+                {{ combo.description | replace('\n', '<br>') | safe }}
+              </div>
+              {% if combo.prerequisites %}
+                <div class="combo-prereq">
+                  <strong>Setup:</strong> {{ combo.prerequisites }}
+                </div>
+              {% endif %}
+            </details>
+          {% endif %}
+        </div>
+      {% endfor %}
+    </section>
+  {% endif %}
+  {% if tokens %}
+    <section class="panel">
+      <h3 class="panel-title">Tokens</h3>
+      <div class="token-image-grid">
+        {% for token in tokens %}
+          {% set scryfall_url = 'https://scryfall.com/card/' ~ token.set_code ~ '/' ~ token.collector_number if token.set_code else '' %}
+          <div class="token-card">
+            <a href="/tokens/{{ token.scryfall_id }}">
+              {% if token.image_url %}
+                <img class="token-card-img"
+                     src="{{ token.image_url }}"
+                     alt="{{ token.name }}"
+                     loading="lazy">
+              {% else %}
+                <div class="token-card-img token-card-placeholder"></div>
+              {% endif %}
+            </a>
+            <div class="token-card-name">
+              {% if scryfall_url %}
+                <a href="{{ scryfall_url }}" target="_blank" rel="noreferrer">{{ token.name }}</a>
+              {% else %}
+                {{ token.name }}
+              {% endif %}
+            </div>
+            <div class="token-card-type">{{ token.type_line }}</div>
+          </div>
+        {% endfor %}
+      </div>
+    </section>
+  {% endif %}
+</div>

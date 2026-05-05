@@ -7,11 +7,14 @@ service layer.
 
 from __future__ import annotations
 
+import hashlib
 import html
+import json
 import math
 import os
 import threading
 import time
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta
 from urllib.parse import urlparse
 
@@ -23,7 +26,7 @@ from starlette.middleware.sessions import SessionMiddleware
 
 from app.audit_service import list_transaction_logs
 from app.auth import hash_password
-from app.db import SessionLocal, init_db
+from app.db import DATA_DIR, SessionLocal, init_db
 from app.deck_service import (
     CARD_ROLE_TAGS,
     compute_consistency,
@@ -1321,6 +1324,63 @@ async def decks_create(
 
 _VALID_HEALTH_FILTERS = {"ramp", "draw", "removal", "wipes"}
 
+_PANELS_CACHE_VERSION = 1
+_PANELS_CACHE_DIR = DATA_DIR / "panels_cache"
+_panels_memory: dict[str, dict] = {}  # in-process cache; survives navigation, cleared on reload
+
+
+def _panels_cache_key(rows: list) -> str:
+    """Stable hash of deck contents — changes when any card or quantity changes."""
+    fingerprint = sorted(
+        f"{r.card.scryfall_id}:{r.quantity}:{r.role or ''}"
+        for r in rows
+        if r.card and r.card.scryfall_id
+    )
+    return hashlib.md5(
+        (f"{_PANELS_CACHE_VERSION}:" + "|".join(fingerprint)).encode(),
+        usedforsecurity=False,
+    ).hexdigest()
+
+
+def _read_panels_cache(deck_id: int, cache_key: str) -> dict | None:
+    # In-process memory cache first — guaranteed to work within same server run
+    entry = _panels_memory.get(cache_key)
+    if entry and time.time() - entry.get("ts", 0) < 86400:
+        print(f"[panels] memory hit deck={deck_id}", flush=True)
+        return entry
+
+    # Fall back to disk cache — survives server restarts
+    path = _PANELS_CACHE_DIR / f"{deck_id}.json"
+    try:
+        data = json.loads(path.read_text())
+        stored_key = data.get("key")
+        age = time.time() - data.get("ts", 0)
+        if stored_key == cache_key and age < 86400:
+            print(f"[panels] disk hit deck={deck_id}", flush=True)
+            _panels_memory[cache_key] = data  # warm memory cache from disk
+            return data
+        print(
+            f"[panels] disk miss deck={deck_id} key_match={stored_key == cache_key} age={age:.0f}s",
+            flush=True,
+        )
+    except FileNotFoundError:
+        print(f"[panels] no disk cache yet deck={deck_id}", flush=True)
+    except Exception as e:
+        print(f"[panels] disk read error deck={deck_id}: {e}", flush=True)
+    return None
+
+
+def _write_panels_cache(deck_id: int, cache_key: str, payload: dict) -> None:
+    entry = {"ts": time.time(), **payload}
+    _panels_memory[cache_key] = entry
+    try:
+        _PANELS_CACHE_DIR.mkdir(parents=True, exist_ok=True)
+        path = _PANELS_CACHE_DIR / f"{deck_id}.json"
+        path.write_text(json.dumps({"key": cache_key, **entry}))
+        print(f"[panels] disk write ok deck={deck_id} path={path}", flush=True)
+    except Exception as e:
+        print(f"[panels] disk write failed deck={deck_id}: {e}", flush=True)
+
 
 @app.get("/decks/{deck_id}")
 def deck_detail_page(
@@ -1440,10 +1500,6 @@ def deck_detail_page(
     analytics = None
     health = None
     consistency = None
-    tokens: list = []
-    combos: dict = {"included": [], "almost": []}
-    bracket: dict | None = None
-    synergy: dict | None = None
     if deck and deck.storage_location_id:
         all_deck_rows = (
             session.query(InventoryRow)
@@ -1459,10 +1515,6 @@ def deck_detail_page(
             analytics = compute_deck_analytics(all_deck_rows)
             health = compute_deck_health(all_deck_rows)
             consistency = compute_consistency(all_deck_rows)
-            tokens = compute_deck_tokens(all_deck_rows)
-            combos = compute_deck_combos(all_deck_rows)
-            bracket = compute_deck_bracket(all_deck_rows, combos)
-            synergy = compute_deck_synergy(all_deck_rows, combos)
 
     # Apply health filter before splitting into commanders/deck_cards
     if health and health_filter in _VALID_HEALTH_FILTERS:
@@ -1499,13 +1551,67 @@ def deck_detail_page(
             "health": health,
             "consistency": consistency,
             "health_filter": health_filter if health_filter in _VALID_HEALTH_FILTERS else "",
-            "tokens": tokens,
-            "combos": combos,
-            "bracket": bracket,
-            "synergy": synergy,
             "current_user": current_user,
             "use_drawer_sorter": use_drawer_sorter,
             "locations": list_locations(session, user_id=current_user.id),
+        },
+    )
+
+
+@app.get("/decks/{deck_id}/panels")
+def deck_panels_fragment(
+    deck_id: int,
+    request: Request,
+    session: Session = Depends(get_db_session),
+    current_user: User = Depends(get_current_user),
+):
+    deck = get_deck(session, deck_id=deck_id, user_id=current_user.id)
+    if not deck:
+        raise HTTPException(status_code=404)
+
+    all_deck_rows = (
+        session.query(InventoryRow)
+        .options(joinedload(InventoryRow.card))
+        .join(Card)
+        .filter(
+            InventoryRow.user_id == current_user.id,
+            InventoryRow.storage_location_id == deck.storage_location_id,
+        )
+        .all()
+    )
+
+    bracket = None
+    synergy = None
+    combos: dict = {"included": [], "almost": []}
+    tokens: list = []
+
+    if all_deck_rows:
+        ck = _panels_cache_key(all_deck_rows)
+        cached = _read_panels_cache(deck_id, ck)
+
+        if cached:
+            tokens = cached.get("tokens", [])
+            combos = cached.get("combos", {"included": [], "almost": []})
+        else:
+            with ThreadPoolExecutor(max_workers=2) as pool:
+                tokens_future = pool.submit(compute_deck_tokens, all_deck_rows)
+                combos_future = pool.submit(compute_deck_combos, all_deck_rows)
+                tokens = tokens_future.result()
+                combos = combos_future.result()
+            _write_panels_cache(deck_id, ck, {"tokens": tokens, "combos": combos})
+
+        bracket = compute_deck_bracket(all_deck_rows, combos)
+        synergy = compute_deck_synergy(all_deck_rows, combos)
+
+    return render(
+        request,
+        "_deck_panels.html",
+        {
+            "deck": deck,
+            "bracket": bracket,
+            "synergy": synergy,
+            "combos": combos,
+            "tokens": tokens,
         },
     )
 
