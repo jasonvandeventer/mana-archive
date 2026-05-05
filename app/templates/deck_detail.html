@@ -12,15 +12,19 @@
           </h2>
           <p class="muted">{{ deck.format or 'Unspecified format' }}</p>
           {% if deck.notes %}<p class="muted">{{ deck.notes }}</p>{% endif %}
-          <form action="/decks/{{ deck.id }}/delete"
-                method="post"
-                style="margin-top: 0.75rem">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-            <button type="submit"
-                    onclick="return confirm('Delete this deck? This will remove all cards in this deck.');">
-              Delete Deck
-            </button>
-          </form>
+          <div style="display: flex;
+                      gap: 0.5rem;
+                      margin-top: 0.75rem;
+                      flex-wrap: wrap">
+            <a href="/decks/{{ deck.id }}/export" class="btn-like">Export</a>
+            <form action="/decks/{{ deck.id }}/delete" method="post">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+              <button type="submit"
+                      onclick="return confirm('Delete this deck? This will remove all cards in this deck.');">
+                Delete Deck
+              </button>
+            </form>
+          </div>
         </div>
         <div class="hero-stats-inline">
           <span>{{ (commanders|length) + (items|length) }} entries</span>

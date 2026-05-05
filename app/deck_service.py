@@ -481,6 +481,11 @@ def compute_deck_bracket(all_rows: list, combos: dict) -> dict:
         bracket = 5
         reasons.append("multiple cEDH staples")
 
+    if not reasons:
+        reasons.append(
+            "no tutors, fast mana, free interaction, combos, mass land denial, or extra turn spells detected"
+        )
+
     return {
         "bracket": bracket,
         "reasons": reasons,

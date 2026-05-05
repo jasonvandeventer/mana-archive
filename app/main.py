@@ -16,7 +16,7 @@ from datetime import datetime, timedelta
 from urllib.parse import urlparse
 
 from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, UploadFile
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, PlainTextResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session, joinedload
 from starlette.middleware.sessions import SessionMiddleware
@@ -1558,6 +1558,55 @@ async def decks_delete(
 ):
     delete_deck(session, deck_id=deck_id, user_id=current_user.id)
     return RedirectResponse(url="/decks", status_code=303)
+
+
+@app.get("/decks/{deck_id}/export")
+def decks_export(
+    deck_id: int,
+    session: Session = Depends(get_db_session),
+    current_user: User = Depends(get_current_user),
+):
+    deck = get_deck(session, deck_id=deck_id, user_id=current_user.id)
+    if not deck:
+        raise HTTPException(status_code=404, detail="Deck not found")
+
+    rows = (
+        session.query(InventoryRow)
+        .join(Card)
+        .filter(
+            InventoryRow.user_id == current_user.id,
+            InventoryRow.storage_location_id == deck.storage_location_id,
+        )
+        .order_by(Card.name.asc())
+        .all()
+    )
+
+    commander_lines: list[str] = []
+    deck_lines: list[str] = []
+    for row in rows:
+        card = row.card
+        set_code = (card.set_code or "???").upper()
+        collector = card.collector_number or "0"
+        line = f"{row.quantity} {card.name} ({set_code}) {collector}"
+        if row.role == "commander":
+            commander_lines.append(line)
+        else:
+            deck_lines.append(line)
+
+    parts: list[str] = []
+    if commander_lines:
+        parts.append("Commander")
+        parts.extend(commander_lines)
+        parts.append("")
+    parts.append("Deck")
+    parts.extend(deck_lines)
+
+    content = "\n".join(parts)
+    filename = f"{deck.name.replace(' ', '_')}.txt"
+    return PlainTextResponse(
+        content=content,
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 @app.post("/decks/pull")

@@ -1,6 +1,6 @@
 # Mana Archive — Claude Context
 
-## Current version: v3.11.7
+## Current version: v3.11.8
 
 ## Stack: FastAPI + Jinja2 + SQLite + K3s/ArgoCD
 
@@ -325,7 +325,8 @@ Templates updated in v3.7: `decks.html`, `import.html`, `import_preview.html`, `
 - v3.11.5: Commander Bracket estimation — floor-based 1-5 bracket estimator using fast mana, free interaction, combos, tutors, mass land denial, extra turns; bracket badge with color-coded popout reasons in deck detail hero — **shipped**
 - v3.11.6: Bracket badge on decks list — `list_decks()` computes bracket per deck (full Spellbook combo data via cache); Bracket column added to decks table — **shipped**
 - v3.11.7: Decks list bracket uses full combo data (same as deck detail) — `list_decks()` calls `compute_deck_combos` + `compute_deck_bracket`; Spellbook in-memory cache means warm loads add zero API calls — **shipped**
-- v3.11.8: Commander synergy score — % of deck that directly synergizes, indirectly supports, or is unrelated to the commander; uses role tags + CommanderSpellbook data
+- v3.11.8: Bracket 1 reason + deck export — Bracket 1 now shows a reason ("no tutors, fast mana…") in its popout; `GET /decks/{id}/export` returns a plain-text download in standard `N CardName (SET) #collector` format with Commander/Deck sections; Export button in deck detail hero — **shipped**
+- v3.11.9: Commander synergy score — % of deck that directly synergizes, indirectly supports, or is unrelated to the commander; uses role tags + CommanderSpellbook data
 - v3.12: Dead card detection — flag cards requiring existing board state to function, no synergy with commander, or "win-more" cards; depends on role tags and synergy data
 - v3.13: Average turn impact — estimate when cards are typically playable and when they matter; "deck peaks at turn X" summary
 - v3.14: Game tracker — life totals, 2–8 players, deck selection per seat, game results tied to deck records
