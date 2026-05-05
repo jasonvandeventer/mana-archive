@@ -460,7 +460,7 @@ def list_decks(session: Session, user_id: int) -> list[Deck]:
             or 0
         )
 
-        commander_row = (
+        commander_rows = (
             session.query(InventoryRow)
             .join(Card)
             .filter(
@@ -468,11 +468,13 @@ def list_decks(session: Session, user_id: int) -> list[Deck]:
                 InventoryRow.storage_location_id == deck.storage_location_id,
                 InventoryRow.role == "commander",
             )
-            .first()
+            .all()
         )
-        deck.color_identity = (
-            commander_row.card.colors if commander_row and commander_row.card.colors else ""
-        )
+        seen: set[str] = set()
+        for row in commander_rows:
+            for letter in (row.card.color_identity or "").split():
+                seen.add(letter)
+        deck.color_identity = " ".join(p for p in ["W", "U", "B", "R", "G"] if p in seen)
 
     return decks
 
