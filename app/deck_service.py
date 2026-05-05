@@ -371,6 +371,80 @@ def compute_deck_combos(all_rows: list) -> dict:
     return fetch_deck_combos(main_names, commander_names)
 
 
+def compute_deck_synergy(all_rows: list, combos: dict) -> dict | None:
+    """Classify each non-commander card as direct synergy, supporting, or unrelated."""
+    commander_rows = [r for r in all_rows if r.role == "commander"]
+    main_rows = [r for r in all_rows if r.role != "commander"]
+
+    if not commander_rows or not main_rows:
+        return None
+
+    # Extract creature subtypes from all commanders (e.g. Vampire, Elf, Dragon)
+    commander_subtypes: set[str] = set()
+    for row in commander_rows:
+        tl = row.card.type_line or ""
+        if "—" in tl:
+            for word in tl.split("—", 1)[1].split():
+                word = word.strip(".,/")
+                if word and word[0].isupper():
+                    commander_subtypes.add(word)
+
+    # All card names that appear in complete combos
+    combo_card_names: set[str] = set()
+    for combo in combos.get("included", []):
+        for name in combo.get("card_names", []):
+            combo_card_names.add(name)
+
+    direct_cards: list[str] = []
+    supporting_cards: list[str] = []
+    unrelated_cards: list[str] = []
+
+    for row in main_rows:
+        card = row.card
+        if not card:
+            continue
+        name = card.name or ""
+        tags = get_row_tags(row)
+        tl = card.type_line or ""
+
+        is_direct = (
+            name in combo_card_names
+            or "Combo" in tags
+            or "Payoff" in tags
+            or bool(commander_subtypes and any(st in tl.split() for st in commander_subtypes))
+        )
+        is_supporting = not is_direct and (
+            bool(set(tags) & {"Ramp", "Draw", "Removal", "Wipe", "Tutor", "Protection"})
+            or "Land" in tl
+        )
+
+        if is_direct:
+            direct_cards.append(name)
+        elif is_supporting:
+            supporting_cards.append(name)
+        else:
+            unrelated_cards.append(name)
+
+    total = len(main_rows)
+    d_pct = round(len(direct_cards) / total * 100)
+    s_pct = round(len(supporting_cards) / total * 100)
+    u_pct = 100 - d_pct - s_pct
+
+    return {
+        "direct": len(direct_cards),
+        "supporting": len(supporting_cards),
+        "unrelated": len(unrelated_cards),
+        "total": total,
+        "direct_pct": d_pct,
+        "supporting_pct": s_pct,
+        "unrelated_pct": u_pct,
+        "direct_cards": sorted(direct_cards),
+        "supporting_cards": sorted(supporting_cards),
+        "unrelated_cards": sorted(unrelated_cards),
+        "commander_subtypes": sorted(commander_subtypes),
+    }
+
+
 _FAST_MANA = frozenset(
     [
         "Mana Crypt",

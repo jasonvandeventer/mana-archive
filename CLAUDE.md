@@ -1,6 +1,6 @@
 # Mana Archive — Claude Context
 
-## Current version: v3.11.9
+## Current version: v3.11.10
 
 ## Stack: FastAPI + Jinja2 + SQLite + K3s/ArgoCD
 
@@ -258,6 +258,16 @@ Templates updated in v3.7: `decks.html`, `import.html`, `import_preview.html`, `
 - **Win Conditions panel** in `deck_detail.html` — "Complete combos in this deck" section + "One card away" section. Each combo shows card pills (missing card styled in amber), result badges (green), expandable "How it works" with step-by-step description and setup prerequisites.
 - CSS classes: `.combo-panel`, `.combo-section-label`, `.combo-item`, `.combo-item-almost`, `.combo-cards`, `.combo-card-name`, `.combo-card-missing`, `.combo-results`, `.combo-result-badge`, `.combo-details`, `.combo-summary`, `.combo-description`, `.combo-prereq`.
 
+### Commander Synergy score (v3.11.10)
+
+- `compute_deck_synergy(all_rows, combos)` in `deck_service.py` — classifies each non-commander card into three buckets and returns counts, percentages, and card lists.
+- **Direct**: card appears in a complete Spellbook combo, tagged Combo or Payoff, or shares a creature subtype with any commander (tribal match). Subtypes extracted from commander type line after "—".
+- **Supporting**: tagged Ramp, Draw, Removal, Wipe, Tutor, or Protection; or is a Land. Direct takes priority if both apply.
+- **Unrelated**: neither of the above.
+- Returns `None` if no commander is tagged or deck is empty.
+- **Synergy panel** in `deck_detail.html` — between Health and Combos panels. Shows a stacked horizontal bar (blue=direct, green=supporting, gray=unrelated) and three expandable stat blocks (dot + label + count/pct + scrollable card list in two columns). Tribal match note shown when commander has creature subtypes.
+- CSS classes: `.synergy-bar`, `.synergy-seg`, `.synergy-seg-direct/supporting/unrelated`, `.synergy-stats`, `.synergy-stat`, `.synergy-stat-details`, `.synergy-dot`, `.synergy-stat-label`, `.synergy-stat-count`, `.synergy-stat-pct`, `.synergy-card-list`, `.synergy-subtype-note`.
+
 ### Commander Bracket estimation (v3.11.5)
 
 - `compute_deck_bracket(all_rows, combos)` in `deck_service.py` — floor-based bracket estimator using multiple deck signals; returns `{bracket: 1-5, reasons: [...], signals: {...}}`.
@@ -327,7 +337,7 @@ Templates updated in v3.7: `decks.html`, `import.html`, `import_preview.html`, `
 - v3.11.7: Decks list bracket uses full combo data (same as deck detail) — `list_decks()` calls `compute_deck_combos` + `compute_deck_bracket`; Spellbook in-memory cache means warm loads add zero API calls — **shipped**
 - v3.11.8: Bracket 1 reason + deck export — Bracket 1 now shows a reason ("no tutors, fast mana…") in its popout; `GET /decks/{id}/export` returns a plain-text download in standard `N CardName (SET) #collector` format with Commander/Deck sections; Export button in deck detail hero — **shipped**
 - v3.11.9: Health score on decks list — `list_decks()` also computes `compute_consistency()`; Health column shows the 0-100 badge (same `.consistency-badge.cs-*` classes) with label as tooltip — **shipped**
-- v3.11.10: Commander synergy score — % of deck that directly synergizes, indirectly supports, or is unrelated to the commander; uses role tags + CommanderSpellbook data
+- v3.11.10: Commander synergy score — `compute_deck_synergy(all_rows, combos)` classifies each non-commander card as Direct (combo piece, Combo/Payoff tag, or shares commander creature subtype), Supporting (engine tags or land), or Unrelated; stacked bar + three expandable stat blocks in deck detail between Health and Combos panels — **shipped**
 - v3.12: Dead card detection — flag cards requiring existing board state to function, no synergy with commander, or "win-more" cards; depends on role tags and synergy data
 - v3.13: Average turn impact — estimate when cards are typically playable and when they matter; "deck peaks at turn X" summary
 - v3.14: Game tracker — life totals, 2–8 players, deck selection per seat, game results tied to deck records

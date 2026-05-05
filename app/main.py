@@ -31,6 +31,7 @@ from app.deck_service import (
     compute_deck_bracket,
     compute_deck_combos,
     compute_deck_health,
+    compute_deck_synergy,
     compute_deck_tokens,
     create_deck,
     delete_deck,
@@ -1442,6 +1443,7 @@ def deck_detail_page(
     tokens: list = []
     combos: dict = {"included": [], "almost": []}
     bracket: dict | None = None
+    synergy: dict | None = None
     if deck and deck.storage_location_id:
         all_deck_rows = (
             session.query(InventoryRow)
@@ -1460,6 +1462,7 @@ def deck_detail_page(
             tokens = compute_deck_tokens(all_deck_rows)
             combos = compute_deck_combos(all_deck_rows)
             bracket = compute_deck_bracket(all_deck_rows, combos)
+            synergy = compute_deck_synergy(all_deck_rows, combos)
 
     # Apply health filter before splitting into commanders/deck_cards
     if health and health_filter in _VALID_HEALTH_FILTERS:
@@ -1499,6 +1502,7 @@ def deck_detail_page(
             "tokens": tokens,
             "combos": combos,
             "bracket": bracket,
+            "synergy": synergy,
             "current_user": current_user,
             "use_drawer_sorter": use_drawer_sorter,
             "locations": list_locations(session, user_id=current_user.id),
