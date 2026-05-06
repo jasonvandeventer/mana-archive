@@ -35,6 +35,7 @@ def create_game(
                 player_name=(seat.get("player_name") or f"Player {i}").strip(),
                 deck_id=seat.get("deck_id") or None,
                 starting_life=int(seat.get("starting_life") or 40),
+                grid_position=seat.get("grid_position") or None,
             )
         )
 

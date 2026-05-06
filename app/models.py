@@ -193,6 +193,7 @@ class GameSeat(Base):
     placement: Mapped[int | None] = mapped_column(Integer, nullable=True)
     starting_life: Mapped[int] = mapped_column(Integer, default=40, nullable=False)
     final_life: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    grid_position: Mapped[str | None] = mapped_column(String(4), nullable=True)
 
     game: Mapped[Game] = relationship(back_populates="seats")
     deck: Mapped[Deck | None] = relationship()

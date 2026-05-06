@@ -8,19 +8,11 @@
       <a href="/games" class="game-topbar-link">← Games</a>
       <span class="game-topbar-sep">|</span>
       {% if not is_ended %}
-        <span class="turn-label">Turn</span>
-        <button type="button" class="tc-ctr-btn" onclick="adjustTurn(-1)">−</button>
-        <span class="turn-val" id="turn-counter">1</span>
-        <button type="button" class="tc-ctr-btn" onclick="adjustTurn(1)">+</button>
-        <span class="game-topbar-sep">|</span>
         <button type="button"
                 class="undo-btn"
                 id="undo-btn"
                 onclick="undoLast()"
                 disabled>↩ Undo</button>
-        <button type="button"
-                class="layout-picker-btn"
-                onclick="toggleLayoutPicker()">⊞ Layout</button>
         <button type="button" class="game-topbar-end-btn" onclick="toggleEndGame()">End Game</button>
       {% else %}
         <span>{{ game.played_at.strftime("%Y-%m-%d") }}</span>
@@ -38,126 +30,126 @@
                 onclick="return confirm('Delete this game record?')">Delete</button>
       </form>
     </div>
-    {# ── Layout picker popover ─────────────────────────────────── #}
-    {% if not is_ended %}
-      <div id="layout-picker" class="layout-picker-popover" style="display:none">
-        <div class="layout-picker-title">Table Layout</div>
-        <div id="layout-options"></div>
-      </div>
-    {% endif %}
-    {# ── Player grid ───────────────────────────────────────────── #}
+    {# ── Player grid — fixed 8-seat topology ───────────────────── #}
+    {# Positions: p1=top-left p2=top-ctr p3=top-right             #}
+    {#            p8=left-end    tc=ctr     p4=right-end           #}
+    {#            p7=bot-left p6=bot-ctr p5=bot-right              #}
     <div class="tracker-grid" id="tracker-grid">
       {% for seat in game.seats %}
         <div class="card-slot" id="slot-{{ seat.id }}">
-        <div class="tracker-card"
-             id="card-{{ seat.id }}"
-             data-seat-id="{{ seat.id }}"
-             data-rotate="0">
-          <div class="tc-header">
-            <div class="tc-names">
-              <div class="tc-player">{{ seat.player_name }}</div>
-              {% if seat.deck %}<div class="tc-deck">{{ seat.deck.name }}</div>{% endif %}
+          <div class="tracker-card"
+               id="card-{{ seat.id }}"
+               data-seat-id="{{ seat.id }}"
+               data-rotate="0">
+            <div class="tc-seat-badge" id="badge-{{ seat.id }}">—</div>
+            <div class="tc-header">
+              <div class="tc-names">
+                <div class="tc-player">{{ seat.player_name }}</div>
+                {% if seat.deck %}<div class="tc-deck">{{ seat.deck.name }}</div>{% endif %}
+              </div>
+              {% if is_ended %}
+                {% if seat.placement %}
+                  <span class="tc-placement placement-{{ seat.placement }}">
+                    {% if seat.placement == 1 %}
+                      🏆 1st
+                    {% elif seat.placement == 2 %}
+                      2nd
+                    {% elif seat.placement == 3 %}
+                      3rd
+                    {% else %}
+                      {{ seat.placement }}th
+                    {% endif %}
+                  </span>
+                {% endif %}
+              {% else %}
+                <button type="button"
+                        class="tc-elim-btn"
+                        onclick="toggleEliminate({{ seat.id }})"
+                        title="Eliminate / revive">☠</button>
+              {% endif %}
+            </div>
+            <div class="tc-life-section">
+              {% if not is_ended %}
+                <div class="tc-life-btn-col">
+                  <button type="button"
+                          class="tc-life-btn tc-life-plus"
+                          onclick="adjustLife({{ seat.id }}, 10)">+10</button>
+                  <button type="button"
+                          class="tc-life-btn tc-life-plus"
+                          onclick="adjustLife({{ seat.id }}, 5)">+5</button>
+                  <button type="button"
+                          class="tc-life-btn tc-life-plus"
+                          onclick="adjustLife({{ seat.id }}, 1)">+1</button>
+                </div>
+              {% endif %}
+              <div class="tc-life" id="life-{{ seat.id }}">
+                {{ seat.final_life if seat.final_life is not none else seat.starting_life }}
+              </div>
+              {% if not is_ended %}
+                <div class="tc-life-btn-col">
+                  <button type="button"
+                          class="tc-life-btn tc-life-minus"
+                          onclick="adjustLife({{ seat.id }}, -1)">−1</button>
+                  <button type="button"
+                          class="tc-life-btn tc-life-minus"
+                          onclick="adjustLife({{ seat.id }}, -5)">−5</button>
+                  <button type="button"
+                          class="tc-life-btn tc-life-minus"
+                          onclick="adjustLife({{ seat.id }}, -10)">−10</button>
+                </div>
+              {% endif %}
             </div>
             {% if is_ended %}
-              {% if seat.placement %}
-                <span class="tc-placement placement-{{ seat.placement }}">
-                  {% if seat.placement == 1 %}
-                    🏆 1st
-                  {% elif seat.placement == 2 %}
-                    2nd
-                  {% elif seat.placement == 3 %}
-                    3rd
-                  {% else %}
-                    {{ seat.placement }}th
-                  {% endif %}
-                </span>
-              {% endif %}
+              {% if seat.final_life is not none %}<div class="tc-final-note">Final life: {{ seat.final_life }}</div>{% endif %}
             {% else %}
-              <button type="button"
-                      class="tc-elim-btn"
-                      onclick="toggleEliminate({{ seat.id }})"
-                      title="Eliminate / revive">☠</button>
-            {% endif %}
-          </div>
-          <div class="tc-life-section">
-            {% if not is_ended %}
-              <div class="tc-life-btn-col">
-                <button type="button"
-                        class="tc-life-btn tc-life-plus"
-                        onclick="adjustLife({{ seat.id }}, 10)">+10</button>
-                <button type="button"
-                        class="tc-life-btn tc-life-plus"
-                        onclick="adjustLife({{ seat.id }}, 5)">+5</button>
-                <button type="button"
-                        class="tc-life-btn tc-life-plus"
-                        onclick="adjustLife({{ seat.id }}, 1)">+1</button>
-              </div>
-            {% endif %}
-            <div class="tc-life" id="life-{{ seat.id }}">
-              {{ seat.final_life if seat.final_life is not none else seat.starting_life }}
-            </div>
-            {% if not is_ended %}
-              <div class="tc-life-btn-col">
-                <button type="button"
-                        class="tc-life-btn tc-life-minus"
-                        onclick="adjustLife({{ seat.id }}, -1)">−1</button>
-                <button type="button"
-                        class="tc-life-btn tc-life-minus"
-                        onclick="adjustLife({{ seat.id }}, -5)">−5</button>
-                <button type="button"
-                        class="tc-life-btn tc-life-minus"
-                        onclick="adjustLife({{ seat.id }}, -10)">−10</button>
-              </div>
-            {% endif %}
-          </div>
-          {% if is_ended %}
-            {% if seat.final_life is not none %}<div class="tc-final-note">Final life: {{ seat.final_life }}</div>{% endif %}
-          {% else %}
-            <div class="tc-counters">
-              <div class="tc-counter" title="Poison counters (10 = eliminated)">
-                <span class="tc-counter-icon">☣</span>
-                <button type="button"
-                        class="tc-ctr-btn"
-                        onclick="adjustPoison({{ seat.id }}, -1)">−</button>
-                <span class="tc-counter-val" id="poison-{{ seat.id }}">0</span>
-                <button type="button"
-                        class="tc-ctr-btn"
-                        onclick="adjustPoison({{ seat.id }}, 1)">+</button>
-              </div>
-              <div class="tc-counter" title="Experience counters">
-                <span class="tc-counter-icon">⚡</span>
-                <button type="button"
-                        class="tc-ctr-btn"
-                        onclick="adjustExp({{ seat.id }}, -1)">−</button>
-                <span class="tc-counter-val" id="exp-{{ seat.id }}">0</span>
-                <button type="button"
-                        class="tc-ctr-btn"
-                        onclick="adjustExp({{ seat.id }}, 1)">+</button>
-              </div>
-            </div>
-            {% if game.seats | length > 1 %}
-              <details class="tc-cmd-details">
-                <summary class="tc-cmd-summary">Commander Damage ▸</summary>
-                <div class="tc-cmd-grid">
-                  {% for other in game.seats if other.id != seat.id %}
-                    <div class="tc-cmd-row">
-                      <span class="tc-cmd-from">from {{ other.player_name }}</span>
-                      <button type="button"
-                              class="tc-ctr-btn"
-                              onclick="adjustCmd({{ seat.id }}, {{ other.id }}, -1)">−</button>
-                      <span class="tc-counter-val" id="cmd-{{ seat.id }}-{{ other.id }}">0</span>
-                      <button type="button"
-                              class="tc-ctr-btn"
-                              onclick="adjustCmd({{ seat.id }}, {{ other.id }}, 1)">+</button>
-                    </div>
-                  {% endfor %}
+              <div class="tc-cpill-row">
+                <div class="tc-cpill tc-cpill-c">
+                  C<span class="tc-cpill-val" id="cmd-total-{{ seat.id }}">0</span>
                 </div>
-              </details>
+                <div class="tc-cpill tc-cpill-p">
+                  P<span class="tc-cpill-val" id="poison-{{ seat.id }}">0</span>
+                </div>
+                <div class="tc-cpill tc-cpill-e">
+                  E<span class="tc-cpill-val" id="exp-{{ seat.id }}">0</span>
+                </div>
+              </div>
+              {% if game.seats | length > 1 %}
+                <details class="tc-cmd-details">
+                  <summary class="tc-cmd-summary">Commander Damage ▸</summary>
+                  <div class="tc-cmd-grid">
+                    {% for other in game.seats if other.id != seat.id %}
+                      <div class="tc-cmd-row">
+                        <span class="tc-cmd-from">from {{ other.player_name }}</span>
+                        <button type="button"
+                                class="tc-ctr-btn"
+                                onclick="adjustCmd({{ seat.id }}, {{ other.id }}, -1)">−</button>
+                        <span class="tc-counter-val" id="cmd-{{ seat.id }}-{{ other.id }}">0</span>
+                        <button type="button"
+                                class="tc-ctr-btn"
+                                onclick="adjustCmd({{ seat.id }}, {{ other.id }}, 1)">+</button>
+                      </div>
+                    {% endfor %}
+                  </div>
+                </details>
+              {% endif %}
             {% endif %}
-          {% endif %}
-        </div>
+          </div>
         </div>
       {% endfor %}
+      {# ── Center cell — turn indicator ──────────────────────── #}
+      <div class="card-slot card-slot-center"
+           id="slot-center"
+           style="grid-area:tc">
+        {% if not is_ended %}
+          <div class="turn-center">
+            <div class="turn-center-round">
+              TURN <span id="turn-counter">1</span>
+            </div>
+            <div class="turn-center-name" id="turn-center-name">—</div>
+            <button type="button" class="turn-next-btn" onclick="nextTurn()">→ Next</button>
+          </div>
+        {% endif %}
+      </div>
     </div>
     {# ── History bar ───────────────────────────────────────────── #}
     {% if not is_ended %}
@@ -223,106 +215,29 @@
 {% endblock %}
 {% block extra_scripts %}
   <script>
-// ── Layout options per player count ──────────────────────────
-// seats[i] = { area, rotate } for the i-th seat (seat 0 = current user by default)
-// rotate: 0=near/bottom, 90=left-side, 180=far/top, 270=right-side
-const LAYOUT_OPTIONS = {
-  2: [
-    { id: 'split', label: 'Split (top/bottom)',
-      areas: '"top" "bot"', cols: '1fr', rows: '1fr 1fr',
-      seats: [{ area: 'bot', rotate: 0 }, { area: 'top', rotate: 180 }] }
-  ],
-  3: [
-    { id: 'two-one', label: '2 near, 1 far',
-      areas: '"top top" "bl br"', cols: '1fr 1fr', rows: '1fr 1fr',
-      seats: [{ area: 'bl', rotate: 0 }, { area: 'br', rotate: 0 }, { area: 'top', rotate: 180 }] },
-    { id: 'sides', label: 'Triangle (1 each side + far)',
-      areas: '"l top r"', cols: '1fr 2fr 1fr', rows: '1fr',
-      seats: [{ area: 'r', rotate: 270 }, { area: 'top', rotate: 180 }, { area: 'l', rotate: 90 }] }
-  ],
-  4: [
-    { id: '2x2', label: '2×2 grid',
-      areas: '"tl tr" "bl br"', cols: '1fr 1fr', rows: '1fr 1fr',
-      seats: [
-        { area: 'bl', rotate: 0 }, { area: 'br', rotate: 0 },
-        { area: 'tl', rotate: 180 }, { area: 'tr', rotate: 180 }
-      ] },
-    { id: 'compass', label: 'Compass (1 per side)',
-      areas: '"l top r" "l bot r"', cols: '1fr 2fr 1fr', rows: '1fr 1fr',
-      seats: [
-        { area: 'bot', rotate: 0 }, { area: 'r', rotate: 270 },
-        { area: 'top', rotate: 180 }, { area: 'l', rotate: 90 }
-      ] }
-  ],
-  5: [
-    { id: '3-2', label: '2 near, 3 far',
-      areas: '"t0 t0 t1 t1 t2 t2" "b0 b0 b0 b1 b1 b1"', cols: 'repeat(6, 1fr)', rows: '1fr 1fr',
-      seats: [
-        { area: 'b0', rotate: 0 }, { area: 'b1', rotate: 0 },
-        { area: 't2', rotate: 180 }, { area: 't1', rotate: 180 }, { area: 't0', rotate: 180 }
-      ] },
-    { id: 'long-5', label: 'Long table (0·2·2·1)',
-      areas: '"l0 r0" "l1 r1" "bot bot"', cols: '1fr 1fr', rows: '2fr 2fr 1fr',
-      seats: [
-        { area: 'bot', rotate: 0 },
-        { area: 'l0', rotate: 90 }, { area: 'l1', rotate: 90 },
-        { area: 'r0', rotate: 270 }, { area: 'r1', rotate: 270 }
-      ] }
-  ],
-  6: [
-    { id: '3-3', label: '3 near, 3 far',
-      areas: '"tl tc tr" "bl bc br"', cols: '1fr 1fr 1fr', rows: '1fr 1fr',
-      seats: [
-        { area: 'bl', rotate: 0 }, { area: 'bc', rotate: 0 }, { area: 'br', rotate: 0 },
-        { area: 'tl', rotate: 180 }, { area: 'tc', rotate: 180 }, { area: 'tr', rotate: 180 }
-      ] },
-    { id: 'long-6', label: 'Long table (1·2·2·1)',
-      areas: '"top top" "l0 r0" "l1 r1" "bot bot"', cols: '1fr 1fr', rows: '1fr 2fr 2fr 1fr',
-      seats: [
-        { area: 'bot', rotate: 0 },
-        { area: 'r0', rotate: 270 }, { area: 'r1', rotate: 270 },
-        { area: 'top', rotate: 180 },
-        { area: 'l0', rotate: 90 }, { area: 'l1', rotate: 90 }
-      ] }
-  ],
-  7: [
-    { id: '4-3', label: '4 near, 3 far',
-      areas: '"t0 t0 t0 t0 t1 t1 t1 t1 t2 t2 t2 t2" "b0 b0 b0 b1 b1 b1 b2 b2 b2 b3 b3 b3"',
-      cols: 'repeat(12, 1fr)', rows: '1fr 1fr',
-      seats: [
-        { area: 'b0', rotate: 0 }, { area: 'b1', rotate: 0 },
-        { area: 'b2', rotate: 0 }, { area: 'b3', rotate: 0 },
-        { area: 't2', rotate: 180 }, { area: 't1', rotate: 180 }, { area: 't0', rotate: 180 }
-      ] },
-    { id: 'long-7', label: 'Long table (0·3·3·1)',
-      areas: '"l0 r0" "l1 r1" "l2 r2" "bot bot"',
-      cols: '1fr 1fr', rows: '2fr 2fr 2fr 1fr',
-      seats: [
-        { area: 'bot', rotate: 0 },
-        { area: 'l0', rotate: 90 }, { area: 'l1', rotate: 90 }, { area: 'l2', rotate: 90 },
-        { area: 'r0', rotate: 270 }, { area: 'r1', rotate: 270 }, { area: 'r2', rotate: 270 }
-      ] }
-  ],
-  8: [
-    { id: '4-4', label: '4 near, 4 far',
-      areas: '"t0 t1 t2 t3" "b0 b1 b2 b3"', cols: '1fr 1fr 1fr 1fr', rows: '1fr 1fr',
-      seats: [
-        { area: 'b0', rotate: 0 }, { area: 'b1', rotate: 0 },
-        { area: 'b2', rotate: 0 }, { area: 'b3', rotate: 0 },
-        { area: 't3', rotate: 180 }, { area: 't2', rotate: 180 },
-        { area: 't1', rotate: 180 }, { area: 't0', rotate: 180 }
-      ] },
-    { id: 'long-8', label: 'Long table (2·2·2·2)',
-      areas: '"t0 t0 t1 t1" "l0 l0 r0 r0" "l1 l1 r1 r1" "b0 b0 b1 b1"',
-      cols: 'repeat(4, 1fr)', rows: '1fr 2fr 2fr 1fr',
-      seats: [
-        { area: 'b0', rotate: 0 }, { area: 'b1', rotate: 0 },
-        { area: 'r0', rotate: 270 }, { area: 'r1', rotate: 270 },
-        { area: 't0', rotate: 180 }, { area: 't1', rotate: 180 },
-        { area: 'l0', rotate: 90 }, { area: 'l1', rotate: 90 }
-      ] }
-  ]
+// ── Fixed 8-seat topology ─────────────────────────────────────
+// Grid:  p1  p2  p3
+//        p8  tc  p4
+//        p7  p6  p5
+// Clockwise order: p1→p2→p3→p4→p5→p6→p7→p8→p1
+// Seat-to-position mapping per player count (design spec):
+const SEAT_POSITIONS = {
+  2: ['p5', 'p2'],
+  3: ['p7', 'p2', 'p4'],
+  4: ['p1', 'p2', 'p4', 'p8'],
+  5: ['p1', 'p2', 'p4', 'p8', 'p5'],
+  6: ['p1', 'p2', 'p3', 'p4', 'p8', 'p5'],
+  7: ['p1', 'p2', 'p3', 'p4', 'p8', 'p5', 'p6'],
+  8: ['p1', 'p2', 'p3', 'p4', 'p5', 'p6', 'p7', 'p8'],
 };
+const POSITION_ROTATE = {
+  p1: 180, p2: 180, p3: 180,
+  p8: 90,
+  p4: 270,
+  p7: 0, p6: 0, p5: 0,
+};
+const CLOCKWISE = ['p1', 'p2', 'p3', 'p4', 'p5', 'p6', 'p7', 'p8'];
+const ALL_POSITIONS = ['p1', 'p2', 'p3', 'p8', 'p4', 'p7', 'p6', 'p5'];
 
 const SEAT_COLORS = ['#3b82f6','#ef4444','#22c55e','#f59e0b','#8b5cf6','#ec4899','#06b6d4','#f97316'];
 const gameId = {{ game.id }};
@@ -330,41 +245,49 @@ const seatDefs = [
   {% for seat in game.seats %}
   { id: {{ seat.id }}, name: {{ seat.player_name | tojson }},
     startingLife: {{ seat.starting_life }},
+    storedPosition: {{ (seat.grid_position or '') | tojson }},
     otherIds: [{% for o in game.seats if o.id != seat.id %}{{ o.id }}{% if not loop.last %},{% endif %}{% endfor %}] },
   {% endfor %}
 ];
 const storageKey = `mana-game-${gameId}`;
-const layoutKey = `mana-layout-${seatDefs.length}`;
 
-// ── Layout management ─────────────────────────────────────────
-const layoutOptions = LAYOUT_OPTIONS[seatDefs.length] || [];
-let currentLayoutId = localStorage.getItem(layoutKey) || (layoutOptions[0]?.id ?? '');
+// ── Assign physical positions ──────────────────────────────────
+// Use stored positions if all seats have them; otherwise auto-map by count.
+const allStored = seatDefs.every(s => s.storedPosition);
+const positions = allStored
+  ? seatDefs.map(s => s.storedPosition)
+  : (SEAT_POSITIONS[seatDefs.length] || CLOCKWISE.slice(0, seatDefs.length));
+seatDefs.forEach((s, i) => {
+  s.position = positions[i];
+  s.rotate = POSITION_ROTATE[positions[i]] ?? 0;
+  s.turnOrder = CLOCKWISE.indexOf(positions[i]);
+});
+// Seats sorted in clockwise order (for turn sequencing and badges)
+const clockwiseSeats = seatDefs.slice().sort((a, b) => a.turnOrder - b.turnOrder);
 
-function getLayout(id) {
-  return layoutOptions.find(l => l.id === id) || layoutOptions[0];
-}
-
-function applyLayout(layout) {
-  if (!layout) return;
-  const grid = document.getElementById('tracker-grid');
-  grid.style.gridTemplateAreas = layout.areas;
-  grid.style.gridTemplateColumns = layout.cols;
-  grid.style.gridTemplateRows = layout.rows;
-  seatDefs.forEach((s, i) => {
-    const slot = layout.seats[i];
-    if (!slot) return;
+function initGrid() {
+  seatDefs.forEach(s => {
     const slotEl = document.getElementById(`slot-${s.id}`);
     const card = document.getElementById(`card-${s.id}`);
     if (!slotEl || !card) return;
-    slotEl.style.gridArea = slot.area;
-    card.dataset.rotate = String(slot.rotate);
-    // Reset JS-applied dimensions so sizeRotatedCards re-measures cleanly
-    card.style.width = '';
-    card.style.height = '';
+    slotEl.style.gridArea = s.position;
+    card.dataset.rotate = String(s.rotate);
+    const badge = document.getElementById(`badge-${s.id}`);
+    if (badge) badge.textContent = clockwiseSeats.findIndex(cs => cs.id === s.id) + 1;
   });
-  currentLayoutId = layout.id;
-  localStorage.setItem(layoutKey, layout.id);
-  renderLayoutPicker();
+
+  // Add empty placeholder cells for unused positions
+  const usedPos = new Set(seatDefs.map(s => s.position));
+  const grid = document.getElementById('tracker-grid');
+  ALL_POSITIONS.forEach(pos => {
+    if (!usedPos.has(pos)) {
+      const ph = document.createElement('div');
+      ph.className = 'card-slot card-slot-empty';
+      ph.style.gridArea = pos;
+      grid.insertBefore(ph, grid.firstChild);
+    }
+  });
+
   requestAnimationFrame(sizeRotatedCards);
 }
 
@@ -377,54 +300,15 @@ function sizeRotatedCards() {
     if (rotate === 90 || rotate === 270) {
       const w = slotEl.offsetWidth;
       const h = slotEl.offsetHeight;
-      if (w > 0 && h > 0) {
-        card.style.width = h + 'px';
-        card.style.height = w + 'px';
-      }
+      if (w > 0 && h > 0) { card.style.width = h + 'px'; card.style.height = w + 'px'; }
     } else {
-      card.style.width = '';
-      card.style.height = '';
+      card.style.width = ''; card.style.height = '';
     }
   });
 }
 
-function renderLayoutPicker() {
-  const container = document.getElementById('layout-options');
-  if (!container) return;
-  container.innerHTML = layoutOptions.map(l =>
-    `<button type="button" class="layout-option-btn${l.id === currentLayoutId ? ' active' : ''}" onclick="pickLayout('${l.id}')">${l.label}</button>`
-  ).join('');
-}
-
-function pickLayout(id) {
-  applyLayout(getLayout(id));
-  closePicker();
-}
-
-let pickerOpen = false;
-function toggleLayoutPicker() {
-  pickerOpen = !pickerOpen;
-  const el = document.getElementById('layout-picker');
-  if (!el) return;
-  el.style.display = pickerOpen ? 'flex' : 'none';
-  if (pickerOpen) renderLayoutPicker();
-}
-function closePicker() {
-  pickerOpen = false;
-  const el = document.getElementById('layout-picker');
-  if (el) el.style.display = 'none';
-}
-
-// Close picker on outside tap
-document.addEventListener('pointerdown', e => {
-  if (pickerOpen && !e.target.closest('#layout-picker') && !e.target.closest('.layout-picker-btn')) {
-    closePicker();
-  }
-});
-
-// Init layout
 document.body.classList.add('game-mode');
-applyLayout(getLayout(currentLayoutId));
+initGrid();
 window.addEventListener('resize', sizeRotatedCards);
 
 {% if not is_ended %}
@@ -437,13 +321,15 @@ function freshState() {
     cmd[s.id] = {};
     s.otherIds.forEach(oid => { cmd[s.id][oid] = 0; });
   });
-  return { lives, poison, exp, eliminated, cmd, history: [], turn: 1 };
+  return { lives, poison, exp, eliminated, cmd, history: [],
+           turn: 1, currentTurnId: clockwiseSeats[0]?.id ?? seatDefs[0]?.id };
 }
 
 let state;
 try {
   const raw = localStorage.getItem(storageKey);
   state = raw ? JSON.parse(raw) : freshState();
+  if (state.currentTurnId === undefined) state.currentTurnId = clockwiseSeats[0]?.id ?? seatDefs[0]?.id;
 } catch(e) { state = freshState(); }
 
 function save() { localStorage.setItem(storageKey, JSON.stringify(state)); }
@@ -477,12 +363,19 @@ function adjustCmd(receiverId, senderId, delta) {
   pushHistory({ type: 'cmd', seatId: receiverId, senderId, delta: actualDelta });
   save(); render();
 }
-function adjustTurn(delta) {
-  state.turn = Math.max(1, (state.turn || 1) + delta);
-  save(); render();
-}
 function toggleEliminate(seatId) {
   state.eliminated[seatId] = !state.eliminated[seatId];
+  save(); render();
+}
+function nextTurn() {
+  const alive = clockwiseSeats.filter(s => !state.eliminated[s.id]);
+  if (!alive.length) return;
+  const curIdx = alive.findIndex(s => s.id === state.currentTurnId);
+  const nextIdx = (curIdx + 1) % alive.length;
+  const prevTurnId = state.currentTurnId;
+  if (nextIdx === 0) state.turn = (state.turn || 1) + 1;
+  state.currentTurnId = alive[nextIdx].id;
+  pushHistory({ type: 'nextTurn', seatId: state.currentTurnId, prevTurnId, delta: 0 });
   save(); render();
 }
 function undoLast() {
@@ -495,8 +388,13 @@ function undoLast() {
   } else if (last.type === 'exp') {
     state.exp[last.seatId] = Math.max(0, (state.exp[last.seatId] || 0) - last.delta);
   } else if (last.type === 'cmd') {
-    state.cmd[last.seatId][last.senderId] = Math.max(0, (state.cmd[last.seatId][last.senderId] || 0) - last.delta);
+    state.cmd[last.seatId][last.senderId] = Math.max(0,
+      (state.cmd[last.seatId][last.senderId] || 0) - last.delta);
     state.lives[last.seatId] += last.delta;
+  } else if (last.type === 'nextTurn') {
+    const nextIdx = clockwiseSeats.findIndex(s => s.id === last.seatId);
+    if (nextIdx === 0) state.turn = Math.max(1, (state.turn || 1) - 1);
+    state.currentTurnId = last.prevTurnId;
   }
   save(); render();
 }
@@ -539,36 +437,57 @@ function render() {
     const card = document.getElementById(`card-${s.id}`);
     if (!card) return;
     card.style.setProperty('--player-color', SEAT_COLORS[i % SEAT_COLORS.length]);
+    card.classList.toggle('tc-active-turn', s.id === state.currentTurnId);
+
     const lifeEl = document.getElementById(`life-${s.id}`);
     if (lifeEl) {
       lifeEl.textContent = state.lives[s.id] ?? s.startingLife;
-      lifeEl.className = 'tc-life' + (state.lives[s.id] <= 0 ? ' tc-life-dead' : '');
+      lifeEl.className = 'tc-life' + ((state.lives[s.id] ?? s.startingLife) <= 0 ? ' tc-life-dead' : '');
     }
+
+    const pv = state.poison[s.id] ?? 0;
     const poisonEl = document.getElementById(`poison-${s.id}`);
     if (poisonEl) {
-      const pv = state.poison[s.id] ?? 0;
       poisonEl.textContent = pv;
-      poisonEl.className = 'tc-counter-val' + (pv >= 10 ? ' tc-counter-danger' : pv >= 7 ? ' tc-counter-warn' : '');
+      poisonEl.className = 'tc-cpill-val' + (pv >= 10 ? ' tc-counter-danger' : pv >= 7 ? ' tc-counter-warn' : '');
     }
     const expEl = document.getElementById(`exp-${s.id}`);
     if (expEl) expEl.textContent = state.exp[s.id] ?? 0;
+
+    const cmdTotal = Object.values(state.cmd[s.id] || {}).reduce((a, b) => a + b, 0);
+    const cmdTotalEl = document.getElementById(`cmd-total-${s.id}`);
+    if (cmdTotalEl) {
+      cmdTotalEl.textContent = cmdTotal;
+      cmdTotalEl.className = 'tc-cpill-val' +
+        (cmdTotal >= 21 ? ' tc-counter-danger' : cmdTotal >= 16 ? ' tc-counter-warn' : '');
+    }
+
     s.otherIds.forEach(oid => {
       const el = document.getElementById(`cmd-${s.id}-${oid}`);
       if (!el) return;
       const val = (state.cmd[s.id] || {})[oid] || 0;
       el.textContent = val;
-      el.className = 'tc-counter-val' + (val >= 21 ? ' tc-counter-danger' : val >= 16 ? ' tc-counter-warn' : '');
+      el.className = 'tc-counter-val' +
+        (val >= 21 ? ' tc-counter-danger' : val >= 16 ? ' tc-counter-warn' : '');
     });
+
     card.classList.toggle('tc-eliminated', !!state.eliminated[s.id]);
   });
 
   const turnEl = document.getElementById('turn-counter');
   if (turnEl) turnEl.textContent = state.turn ?? 1;
 
+  const turnNameEl = document.getElementById('turn-center-name');
+  if (turnNameEl) {
+    const active = seatDefs.find(s => s.id === state.currentTurnId);
+    turnNameEl.textContent = active?.name ?? '—';
+  }
+
   const histEl = document.getElementById('history-list');
   if (histEl) {
     histEl.innerHTML = state.history.slice(-12).reverse().map(h => {
       const name = seatDefs.find(s => s.id === h.seatId)?.name ?? '?';
+      if (h.type === 'nextTurn') return `<span class="history-entry">${name}'s turn</span>`;
       const sign = h.delta > 0 ? '+' : '';
       if (h.type === 'cmd') {
         const from = seatDefs.find(s => s.id === h.senderId)?.name ?? '?';

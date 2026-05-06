@@ -37,6 +37,58 @@
           {% endfor %}
         </div>
       </div>
+      {# Seat topology diagram #}
+      <div class="seat-diagram-wrap">
+        <div class="seat-diagram-label">Table — click a seat to assign a player</div>
+        <div class="seat-diagram" id="seat-diagram">
+          <div class="sd-top-row">
+            <div class="sd-seat" id="sd-p1" data-pos="p1" onclick="assignSeat('p1')">
+              <span class="sd-pos">P1</span><span class="sd-name" id="sdname-p1">—</span>
+            </div>
+            <div class="sd-seat" id="sd-p2" data-pos="p2" onclick="assignSeat('p2')">
+              <span class="sd-pos">P2</span><span class="sd-name" id="sdname-p2">—</span>
+            </div>
+            <div class="sd-seat" id="sd-p3" data-pos="p3" onclick="assignSeat('p3')">
+              <span class="sd-pos">P3</span><span class="sd-name" id="sdname-p3">—</span>
+            </div>
+          </div>
+          <div class="sd-mid-row">
+            <div class="sd-seat sd-seat-end"
+                 id="sd-p8"
+                 data-pos="p8"
+                 onclick="assignSeat('p8')">
+              <span class="sd-pos">P8</span><span class="sd-name" id="sdname-p8">—</span>
+            </div>
+            <div class="sd-center">Screen</div>
+            <div class="sd-seat sd-seat-end"
+                 id="sd-p4"
+                 data-pos="p4"
+                 onclick="assignSeat('p4')">
+              <span class="sd-pos">P4</span><span class="sd-name" id="sdname-p4">—</span>
+            </div>
+          </div>
+          <div class="sd-bot-row">
+            <div class="sd-seat sd-seat-near"
+                 id="sd-p7"
+                 data-pos="p7"
+                 onclick="assignSeat('p7')">
+              <span class="sd-pos">P7</span><span class="sd-name" id="sdname-p7">—</span>
+            </div>
+            <div class="sd-seat sd-seat-near"
+                 id="sd-p6"
+                 data-pos="p6"
+                 onclick="assignSeat('p6')">
+              <span class="sd-pos">P6</span><span class="sd-name" id="sdname-p6">—</span>
+            </div>
+            <div class="sd-seat sd-seat-near"
+                 id="sd-p5"
+                 data-pos="p5"
+                 onclick="assignSeat('p5')">
+              <span class="sd-pos">P5</span><span class="sd-name" id="sdname-p5">—</span>
+            </div>
+          </div>
+        </div>
+      </div>
       <div id="seat-rows" style="margin-top:1.5rem"></div>
       <div style="margin-top:1.5rem">
         <button type="submit">Start Game</button>
@@ -54,77 +106,187 @@ const decksByUser = {{ decks_by_user_json | tojson }};
 const currentUserId = {{ current_user_id }};
 let playerCount = 4;
 
+// Default seat positions per player count (clockwise)
+const DEFAULT_POSITIONS = {
+  2: ['p5', 'p2'],
+  3: ['p7', 'p2', 'p4'],
+  4: ['p1', 'p2', 'p4', 'p8'],
+  5: ['p1', 'p2', 'p4', 'p8', 'p5'],
+  6: ['p1', 'p2', 'p3', 'p4', 'p8', 'p5'],
+  7: ['p1', 'p2', 'p3', 'p4', 'p8', 'p5', 'p6'],
+  8: ['p1', 'p2', 'p3', 'p4', 'p5', 'p6', 'p7', 'p8'],
+};
+const ALL_POSITIONS = ['p1','p2','p3','p4','p5','p6','p7','p8'];
+// Seat index → seat number (1-8 label)
+const POS_LABEL = {p1:'1',p2:'2',p3:'3',p4:'4',p5:'5',p6:'6',p7:'7',p8:'8'};
+
+// seats[i] = { playerName, userId, deckId, position }
+let seats = [];
+let pendingAssignIdx = null; // seat index waiting for position assignment
+
 function setPlayerCount(n, event) {
   playerCount = n;
   document.getElementById('player_count_hidden').value = n;
   document.querySelectorAll('.player-count-btn').forEach(b => b.classList.remove('active'));
   if (event && event.target) event.target.classList.add('active');
-  renderSeats();
+  initSeats();
 }
 
-function onUserChange(seatIndex, selectEl) {
-  const userId = selectEl.value;
-  const deckSel = document.getElementById(`deck-sel-${seatIndex}`);
-  deckSel.innerHTML = '<option value="">— no deck —</option>';
-  const decks = decksByUser[userId] || [];
-  decks.forEach(d => {
-    const opt = document.createElement('option');
-    opt.value = d.id;
-    opt.textContent = d.name;
-    deckSel.appendChild(opt);
-  });
+function initSeats() {
+  const positions = (DEFAULT_POSITIONS[playerCount] || []).slice();
+  seats = [];
+  for (let i = 0; i < playerCount; i++) {
+    const isFirst = i === 0;
+    const userId = isFirst ? currentUserId : null;
+    const userObj = isFirst ? users.find(u => u.id === currentUserId) : null;
+    seats.push({
+      playerName: userObj ? userObj.name : '',
+      userId: userId,
+      deckId: null,
+      position: positions[i] || null,
+    });
+  }
+  renderSeats();
+  renderDiagram();
 }
 
 function renderSeats() {
   const container = document.getElementById('seat-rows');
   container.innerHTML = '';
-  for (let i = 0; i < playerCount; i++) {
-    const isFirst = i === 0;
+
+  seats.forEach((seat, i) => {
     const userOptions = users.map(u =>
-      `<option value="${u.id}"${isFirst && u.id === currentUserId ? ' selected' : ''}>${u.name}</option>`
+      `<option value="${u.id}"${seat.userId === u.id ? ' selected' : ''}>${u.name}</option>`
     ).join('');
+
+    const decks = (seat.userId ? (decksByUser[seat.userId] || []) : []);
+    const deckOptions = decks.map(d =>
+      `<option value="${d.id}"${seat.deckId === d.id ? ' selected' : ''}>${d.name}</option>`
+    ).join('');
+
+    const posLabel = seat.position ? `Seat ${POS_LABEL[seat.position]}` : '— choose seat —';
+    const posClass = seat.position ? 'seat-pos-pill assigned' : 'seat-pos-pill unassigned';
 
     const div = document.createElement('div');
     div.className = 'seat-row';
     div.innerHTML = `
-      <div class="seat-row-label">Seat ${i + 1}</div>
+      <div class="seat-row-label">Player ${i + 1}</div>
       <div class="seat-row-fields">
-        <input type="text" name="player_names" placeholder="Player name" id="name-${i}" style="width:140px">
+        <input type="hidden" name="grid_positions" id="pos-${i}" value="${seat.position || ''}">
+        <button type="button" class="${posClass}" id="posbtn-${i}" onclick="startAssign(${i})">${posLabel}</button>
+        <input type="text" name="player_names" placeholder="Player name" id="name-${i}" style="width:140px" value="${escHtml(seat.playerName)}">
         <select name="user_ids" id="user-sel-${i}" onchange="onUserChange(${i}, this)" style="min-width:160px">
           <option value="">— no user —</option>
           ${userOptions}
         </select>
         <select name="deck_ids" id="deck-sel-${i}" style="min-width:180px">
           <option value="">— no deck —</option>
+          ${deckOptions}
         </select>
       </div>
     `;
     container.appendChild(div);
+  });
+}
 
-    // Pre-populate current user's decks for seat 0
-    if (isFirst) {
-      const userSel = document.getElementById(`user-sel-${i}`);
-      onUserChange(i, userSel);
+function renderDiagram() {
+  ALL_POSITIONS.forEach(pos => {
+    const el = document.getElementById(`sd-${pos}`);
+    const nameEl = document.getElementById(`sdname-${pos}`);
+    if (!el || !nameEl) return;
+    const seatIdx = seats.findIndex(s => s.position === pos);
+    if (seatIdx >= 0) {
+      const name = seats[seatIdx].playerName || `Player ${seatIdx + 1}`;
+      nameEl.textContent = name.length > 10 ? name.slice(0, 9) + '…' : name;
+      el.classList.add('sd-seat-filled');
+      el.classList.remove('sd-seat-pending', 'sd-seat-inactive');
+    } else {
+      const isActive = seats.length < 8;
+      nameEl.textContent = '—';
+      el.classList.remove('sd-seat-filled', 'sd-seat-pending');
+      el.classList.toggle('sd-seat-inactive', !isActive);
     }
-
-    // Auto-fill name from user selection
-    document.getElementById(`user-sel-${i}`).addEventListener('change', function() {
-      const nameInput = document.getElementById(`name-${i}`);
-      const selected = users.find(u => String(u.id) === this.value);
-      if (selected && !nameInput.value) {
-        nameInput.value = selected.name;
-      }
-      onUserChange(i, this);
+  });
+  // Highlight pending assignment
+  if (pendingAssignIdx !== null) {
+    ALL_POSITIONS.forEach(pos => {
+      const el = document.getElementById(`sd-${pos}`);
+      if (!el) return;
+      const alreadyTaken = seats.findIndex(s => s.position === pos) >= 0;
+      el.classList.toggle('sd-seat-pending', !alreadyTaken);
     });
-  }
-  // Pre-fill name for seat 0 from current user
-  const firstNameInput = document.getElementById('name-0');
-  const currentUserObj = users.find(u => u.id === currentUserId);
-  if (firstNameInput && currentUserObj && !firstNameInput.value) {
-    firstNameInput.value = currentUserObj.name;
   }
 }
 
-renderSeats();
+function startAssign(seatIdx) {
+  pendingAssignIdx = seatIdx;
+  renderDiagram();
+  document.getElementById(`posbtn-${seatIdx}`).textContent = 'Click a seat on the diagram →';
+}
+
+function assignSeat(pos) {
+  if (pendingAssignIdx === null) return;
+  const i = pendingAssignIdx;
+  // Clear this position from any other seat
+  seats.forEach((s, j) => { if (s.position === pos && j !== i) s.position = null; });
+  seats[i].position = pos;
+  pendingAssignIdx = null;
+
+  // Update hidden input + button label
+  const hiddenEl = document.getElementById(`pos-${i}`);
+  if (hiddenEl) hiddenEl.value = pos;
+  const btn = document.getElementById(`posbtn-${i}`);
+  if (btn) {
+    btn.textContent = `Seat ${POS_LABEL[pos]}`;
+    btn.classList.add('assigned');
+    btn.classList.remove('unassigned');
+  }
+  renderDiagram();
+}
+
+function onUserChange(seatIndex, selectEl) {
+  const userId = selectEl.value ? parseInt(selectEl.value) : null;
+  seats[seatIndex].userId = userId;
+  const decks = userId ? (decksByUser[userId] || []) : [];
+  const deckSel = document.getElementById(`deck-sel-${seatIndex}`);
+  deckSel.innerHTML = '<option value="">— no deck —</option>';
+  decks.forEach(d => {
+    const opt = document.createElement('option');
+    opt.value = d.id;
+    opt.textContent = d.name;
+    deckSel.appendChild(opt);
+  });
+  // Auto-fill name
+  const nameInput = document.getElementById(`name-${seatIndex}`);
+  const userObj = users.find(u => u.id === userId);
+  if (userObj && nameInput && !nameInput.value) nameInput.value = userObj.name;
+  renderDiagram();
+}
+
+function escHtml(s) {
+  return (s || '').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
+}
+
+// Dismiss pending assign on outside click
+document.addEventListener('click', e => {
+  if (pendingAssignIdx !== null &&
+      !e.target.closest('#seat-diagram') &&
+      !e.target.classList.contains('seat-pos-pill')) {
+    pendingAssignIdx = null;
+    renderDiagram();
+  }
+});
+
+// Sync name input changes to diagram in real time
+document.addEventListener('input', e => {
+  if (!e.target.id || !e.target.id.startsWith('name-')) return;
+  const i = parseInt(e.target.id.split('-')[1]);
+  if (!isNaN(i) && seats[i]) {
+    seats[i].playerName = e.target.value;
+    renderDiagram();
+  }
+});
+
+initSeats();
   </script>
 {% endblock %}

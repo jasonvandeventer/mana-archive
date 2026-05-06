@@ -2149,6 +2149,7 @@ def game_create(
     format: str = Form(""),
     player_names: list[str] = Form(...),
     deck_ids: list[str] = Form(...),
+    grid_positions: list[str] = Form(default=[]),
     starting_life: int = Form(40),
     session: Session = Depends(get_db_session),
     current_user: User = Depends(get_current_user),
@@ -2162,11 +2163,13 @@ def game_create(
             deck_id = int(did_raw) if did_raw else None
         except ValueError:
             deck_id = None
+        pos_raw = grid_positions[i].strip() if i < len(grid_positions) else ""
         seats.append(
             {
                 "player_name": name or f"Player {i + 1}",
                 "deck_id": deck_id,
                 "starting_life": starting_life,
+                "grid_position": pos_raw or None,
             }
         )
 
