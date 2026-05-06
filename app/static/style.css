@@ -1769,12 +1769,17 @@ body.game-mode {
   overflow: hidden;
 }
 
-/* Full-screen app container */
+/* Full-screen app container — dark felt table */
 .game-app {
   position: fixed;
   inset: 0;
   z-index: 500;
-  background: #080a10;
+  background-color: #0b0f06;
+  background-image:
+    radial-gradient(ellipse at 50% 50%, #131a0c 0%, #0b0f06 100%),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='4' height='4'%3E%3Ccircle cx='1' cy='1' r='0.6' fill='rgba(255,255,255,0.025)'/%3E%3C/svg%3E");
+  background-blend-mode: normal, overlay;
+  background-size: 100% 100%, 4px 4px;
 }
 
 /* Floating control bar at top center */
@@ -1849,10 +1854,21 @@ body.game-mode {
   z-index: 500;
 }
 
-/* Individual player card */
+/* Player grid gap = table felt showing between cards */
+.tracker-grid {
+  background: #0b0f06;
+}
+
+/* Individual player card — playmat style */
 .tracker-card {
   --player-color: #3b82f6;
-  background: var(--bg-card);
+  background:
+    radial-gradient(
+      ellipse at 30% 50%,
+      color-mix(in srgb, var(--player-color) 10%, transparent) 0%,
+      transparent 65%
+    ),
+    #13180f;
   border: none;
   border-top: 4px solid var(--player-color);
   padding: 0.75rem 1rem;
@@ -1865,10 +1881,10 @@ body.game-mode {
   transition: opacity 0.2s;
 }
 .tracker-card.tc-eliminated {
-  opacity: 0.3;
+  opacity: 0.25;
 }
 
-/* Rotated cards (far side of table): flip content for readability */
+/* Rotations — 180° (far side): flip content for readability */
 .tracker-card[data-rotate="180"] {
   transform: rotate(180deg);
   border-top: none;
@@ -1882,6 +1898,80 @@ body.game-mode {
 }
 .tracker-card[data-rotate="180"] .tc-life-btn-col {
   flex-direction: column-reverse;
+}
+
+/* 90° (left-side player looking right): mirror so + is at their top */
+.tracker-card[data-rotate="90"] {
+  transform: rotate(90deg);
+  transform-origin: center;
+  border-top: none;
+  border-right: 4px solid var(--player-color);
+}
+.tracker-card[data-rotate="90"] .tc-header {
+  flex-direction: row-reverse;
+}
+.tracker-card[data-rotate="90"] .tc-life-section {
+  flex-direction: row-reverse;
+}
+
+/* 270° (right-side player looking left): + naturally lands at their top */
+.tracker-card[data-rotate="270"] {
+  transform: rotate(270deg);
+  transform-origin: center;
+  border-top: none;
+  border-left: 4px solid var(--player-color);
+}
+
+/* Layout picker popover */
+.layout-picker-btn {
+  font-size: 0.78rem;
+  padding: 0.2rem 0.55rem;
+  background: #ffffff10;
+  border-color: var(--border);
+  color: var(--text-muted);
+}
+.layout-picker-btn:hover {
+  color: var(--text);
+  background: #ffffff18;
+}
+.layout-picker-popover {
+  position: fixed;
+  top: 2.6rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 700;
+  background: rgba(12, 14, 22, 0.98);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0.75rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.7);
+  min-width: 200px;
+}
+.layout-picker-title {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 0.1rem;
+}
+.layout-option-btn {
+  padding: 0.45rem 0.9rem;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+  font-size: 0.85rem;
+  text-align: left;
+}
+.layout-option-btn:hover,
+.layout-option-btn.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
 }
 
 /* Card header */
@@ -1951,36 +2041,45 @@ body.game-mode {
 }
 .tc-life-btn {
   min-width: 58px;
-  min-height: 48px;
+  min-height: 52px;
   border-radius: 8px;
   border: 1px solid var(--border);
   cursor: pointer;
   font-size: 0.9rem;
   font-weight: 700;
   text-align: center;
-  background: var(--bg-card);
+  background: rgba(255, 255, 255, 0.04);
   color: var(--text);
   display: flex;
   align-items: center;
   justify-content: center;
   user-select: none;
   -webkit-user-select: none;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 0.08s, background 0.1s;
 }
 .tc-life-plus {
-  color: #22c55e;
-  border-color: #22c55e50;
+  color: #4ade80;
+  border-color: #22c55e40;
 }
-.tc-life-plus:hover,
+.tc-life-plus:hover {
+  background: #22c55e18;
+}
 .tc-life-plus:active {
-  background: #22c55e20;
+  background: #22c55e35;
+  transform: scale(0.93);
 }
 .tc-life-minus {
-  color: #ef4444;
-  border-color: #ef444450;
+  color: #f87171;
+  border-color: #ef444440;
 }
-.tc-life-minus:hover,
+.tc-life-minus:hover {
+  background: #ef444418;
+}
 .tc-life-minus:active {
-  background: #ef444420;
+  background: #ef444435;
+  transform: scale(0.93);
 }
 .tc-life {
   font-size: clamp(2.5rem, 8vh, 7rem);
@@ -2014,21 +2113,28 @@ body.game-mode {
   font-size: 0.95rem;
 }
 .tc-ctr-btn {
-  width: 26px;
-  height: 26px;
-  border-radius: 4px;
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
   border: 1px solid var(--border);
   cursor: pointer;
-  background: var(--bg-card);
+  background: rgba(255, 255, 255, 0.05);
   color: var(--text);
-  font-size: 0.9rem;
+  font-size: 1rem;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 0;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
 }
 .tc-ctr-btn:hover {
-  background: var(--border);
+  background: rgba(255, 255, 255, 0.1);
+}
+.tc-ctr-btn:active {
+  background: rgba(255, 255, 255, 0.18);
+  transform: scale(0.9);
 }
 .tc-counter-val {
   min-width: 22px;
