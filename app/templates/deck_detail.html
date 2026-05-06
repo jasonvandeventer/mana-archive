@@ -30,7 +30,9 @@
           <span>{{ (commanders|length) + (items|length) }} entries</span>
           <span>{{ deck_total_cards }} copies</span>
           <span>${{ '%.2f'|format(deck_total_value) }}</span>
-          <span id="deck-bracket-placeholder" class="bracket-loading" aria-live="polite"></span>
+          <span id="deck-bracket-placeholder"
+                class="bracket-loading"
+                aria-live="polite"></span>
         </div>
       </div>
     {% else %}

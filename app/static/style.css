@@ -1676,7 +1676,9 @@ td {
   border-bottom: 1px solid var(--border);
   user-select: none;
 }
-.synergy-stat-details > summary::-webkit-details-marker { display: none; }
+.synergy-stat-details > summary::-webkit-details-marker {
+  display: none;
+}
 .synergy-stat-details > summary:hover .synergy-stat-label {
   color: var(--text);
 }
@@ -1686,9 +1688,15 @@ td {
   border-radius: 50%;
   flex-shrink: 0;
 }
-.synergy-dot-direct { background: #3b82f6; }
-.synergy-dot-supporting { background: #22c55e; }
-.synergy-dot-unrelated { background: #64748b; }
+.synergy-dot-direct {
+  background: #3b82f6;
+}
+.synergy-dot-supporting {
+  background: #22c55e;
+}
+.synergy-dot-unrelated {
+  background: #64748b;
+}
 .synergy-stat-label {
   font-size: 0.9rem;
   font-weight: 600;
