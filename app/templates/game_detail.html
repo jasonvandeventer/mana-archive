@@ -2,225 +2,267 @@
 {% block content %}
   {% set is_ended = game.seats | selectattr('placement', 'ne', none) | list | length > 0 %}
   {% set winner = game.seats | selectattr('placement', 'eq', 1) | first | default(none) %}
-  <section class="panel page-hero compact-hero">
-    <div>
-      <div class="eyebrow">
-        Game · {{ game.played_at.strftime("%Y-%m-%d") }}
-        {% if game.format %}· {{ game.format }}{% endif %}
-      </div>
-      <h2 class="panel-title" id="game-title">
-        {% if winner %}
-          🏆 {{ winner.player_name }} wins
-        {% else %}
-          Game in Progress
-        {% endif %}
-      </h2>
-      {% if game.turn_count %}<p class="muted">{{ game.turn_count }} turns</p>{% endif %}
-    </div>
-    <div class="game-hero-actions">
+  <div class="game-app" id="game-app">
+    {# ── Floating top bar ──────────────────────────────────────── #}
+    <div class="game-topbar" id="game-topbar">
+      <a href="/games" class="game-topbar-link">← Games</a>
+      <span class="game-topbar-sep">|</span>
       {% if not is_ended %}
+        <span class="turn-label">Turn</span>
+        <button type="button" class="tc-ctr-btn" onclick="adjustTurn(-1)">−</button>
+        <span class="turn-val" id="turn-counter">1</span>
+        <button type="button" class="tc-ctr-btn" onclick="adjustTurn(1)">+</button>
+        <span class="game-topbar-sep">|</span>
         <button type="button"
                 class="undo-btn"
                 id="undo-btn"
                 onclick="undoLast()"
                 disabled>↩ Undo</button>
-        <button type="button" onclick="toggleEndGame()">End Game</button>
+        <button type="button" class="game-topbar-end-btn" onclick="toggleEndGame()">End Game</button>
+      {% else %}
+        <span>{{ game.played_at.strftime("%Y-%m-%d") }}</span>
+        {% if game.format %}<span class="game-topbar-sep">·</span><span>{{ game.format }}</span>{% endif %}
+        {% if game.turn_count %}<span class="game-topbar-sep">·</span><span>{{ game.turn_count }} turns</span>{% endif %}
+        {% if winner %}<span class="game-topbar-sep">·</span><span>🏆 {{ winner.player_name }}</span>{% endif %}
       {% endif %}
-      <a href="/games">
-        <button type="button">← History</button>
-      </a>
       <form method="post"
             action="/games/{{ game.id }}/delete"
-            style="display:inline">
+            style="display:inline;
+                   margin-left:0.25rem">
         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
         <button type="submit"
                 class="btn-danger-small"
                 onclick="return confirm('Delete this game record?')">Delete</button>
       </form>
     </div>
-  </section>
-  {# Turn counter bar (active games only) #}
-  {% if not is_ended %}
-    <div class="tracker-turn-bar">
-      <span class="turn-label">Turn</span>
-      <button type="button" class="tc-ctr-btn" onclick="adjustTurn(-1)">−</button>
-      <span class="turn-val" id="turn-counter">1</span>
-      <button type="button" class="tc-ctr-btn" onclick="adjustTurn(1)">+</button>
-      <span class="history-label" style="margin-left:1rem">Recent:</span>
-      <span id="history-list" class="history-entries"></span>
-    </div>
-  {% endif %}
-  {# Player grid #}
-  <div class="tracker-grid" id="tracker-grid">
-    {% for seat in game.seats %}
-      <div class="tracker-card"
-           id="card-{{ seat.id }}"
-           data-seat-id="{{ seat.id }}">
-        <div class="tc-header">
-          <div class="tc-names">
-            <div class="tc-player">{{ seat.player_name }}</div>
-            {% if seat.deck %}<div class="tc-deck">{{ seat.deck.name }}</div>{% endif %}
+    {# ── Player grid ───────────────────────────────────────────── #}
+    <div class="tracker-grid" id="tracker-grid">
+      {% for seat in game.seats %}
+        <div class="tracker-card"
+             id="card-{{ seat.id }}"
+             data-seat-id="{{ seat.id }}"
+             data-rotate="0">
+          <div class="tc-header">
+            <div class="tc-names">
+              <div class="tc-player">{{ seat.player_name }}</div>
+              {% if seat.deck %}<div class="tc-deck">{{ seat.deck.name }}</div>{% endif %}
+            </div>
+            {% if is_ended %}
+              {% if seat.placement %}
+                <span class="tc-placement placement-{{ seat.placement }}">
+                  {% if seat.placement == 1 %}
+                    🏆 1st
+                  {% elif seat.placement == 2 %}
+                    2nd
+                  {% elif seat.placement == 3 %}
+                    3rd
+                  {% else %}
+                    {{ seat.placement }}th
+                  {% endif %}
+                </span>
+              {% endif %}
+            {% else %}
+              <button type="button"
+                      class="tc-elim-btn"
+                      onclick="toggleEliminate({{ seat.id }})"
+                      title="Eliminate / revive">☠</button>
+            {% endif %}
+          </div>
+          <div class="tc-life-section">
+            {% if not is_ended %}
+              <div class="tc-life-btn-col">
+                <button type="button"
+                        class="tc-life-btn tc-life-plus"
+                        onclick="adjustLife({{ seat.id }}, 10)">+10</button>
+                <button type="button"
+                        class="tc-life-btn tc-life-plus"
+                        onclick="adjustLife({{ seat.id }}, 5)">+5</button>
+                <button type="button"
+                        class="tc-life-btn tc-life-plus"
+                        onclick="adjustLife({{ seat.id }}, 1)">+1</button>
+              </div>
+            {% endif %}
+            <div class="tc-life" id="life-{{ seat.id }}">
+              {{ seat.final_life if seat.final_life is not none else seat.starting_life }}
+            </div>
+            {% if not is_ended %}
+              <div class="tc-life-btn-col">
+                <button type="button"
+                        class="tc-life-btn tc-life-minus"
+                        onclick="adjustLife({{ seat.id }}, -1)">−1</button>
+                <button type="button"
+                        class="tc-life-btn tc-life-minus"
+                        onclick="adjustLife({{ seat.id }}, -5)">−5</button>
+                <button type="button"
+                        class="tc-life-btn tc-life-minus"
+                        onclick="adjustLife({{ seat.id }}, -10)">−10</button>
+              </div>
+            {% endif %}
           </div>
           {% if is_ended %}
-            {% if seat.placement %}
-              <span class="tc-placement placement-{{ seat.placement }}">
-                {% if seat.placement == 1 %}
-                  🏆 1st
-                {% elif seat.placement == 2 %}
-                  2nd
-                {% elif seat.placement == 3 %}
-                  3rd
-                {% else %}
-                  {{ seat.placement }}th
-                {% endif %}
-              </span>
-            {% endif %}
+            {% if seat.final_life is not none %}<div class="tc-final-note">Final life: {{ seat.final_life }}</div>{% endif %}
           {% else %}
-            <button type="button"
-                    class="tc-elim-btn"
-                    onclick="toggleEliminate({{ seat.id }})"
-                    title="Eliminate / revive">☠</button>
-          {% endif %}
-        </div>
-        <div class="tc-life-section">
-          {% if not is_ended %}
-            <div class="tc-life-btn-col">
-              <button type="button"
-                      class="tc-life-btn tc-life-plus"
-                      onclick="adjustLife({{ seat.id }}, 10)">+10</button>
-              <button type="button"
-                      class="tc-life-btn tc-life-plus"
-                      onclick="adjustLife({{ seat.id }}, 5)">+5</button>
-              <button type="button"
-                      class="tc-life-btn tc-life-plus"
-                      onclick="adjustLife({{ seat.id }}, 1)">+1</button>
-            </div>
-          {% endif %}
-          <div class="tc-life" id="life-{{ seat.id }}">
-            {{ seat.final_life if seat.final_life is not none else seat.starting_life }}
-          </div>
-          {% if not is_ended %}
-            <div class="tc-life-btn-col">
-              <button type="button"
-                      class="tc-life-btn tc-life-minus"
-                      onclick="adjustLife({{ seat.id }}, -1)">−1</button>
-              <button type="button"
-                      class="tc-life-btn tc-life-minus"
-                      onclick="adjustLife({{ seat.id }}, -5)">−5</button>
-              <button type="button"
-                      class="tc-life-btn tc-life-minus"
-                      onclick="adjustLife({{ seat.id }}, -10)">−10</button>
-            </div>
-          {% endif %}
-        </div>
-        {% if is_ended %}
-          {% if seat.final_life is not none %}<div class="tc-final-note">Final life: {{ seat.final_life }}</div>{% endif %}
-        {% else %}
-          <div class="tc-counters">
-            <div class="tc-counter" title="Poison counters (10 = dead)">
-              <span class="tc-counter-icon">☣</span>
-              <button type="button"
-                      class="tc-ctr-btn"
-                      onclick="adjustPoison({{ seat.id }}, -1)">−</button>
-              <span class="tc-counter-val" id="poison-{{ seat.id }}">0</span>
-              <button type="button"
-                      class="tc-ctr-btn"
-                      onclick="adjustPoison({{ seat.id }}, 1)">+</button>
-            </div>
-            <div class="tc-counter" title="Experience counters">
-              <span class="tc-counter-icon">⚡</span>
-              <button type="button"
-                      class="tc-ctr-btn"
-                      onclick="adjustExp({{ seat.id }}, -1)">−</button>
-              <span class="tc-counter-val" id="exp-{{ seat.id }}">0</span>
-              <button type="button"
-                      class="tc-ctr-btn"
-                      onclick="adjustExp({{ seat.id }}, 1)">+</button>
-            </div>
-          </div>
-          {% if game.seats | length > 1 %}
-            <details class="tc-cmd-details">
-              <summary class="tc-cmd-summary">Commander Damage ▸</summary>
-              <div class="tc-cmd-grid">
-                {% for other in game.seats if other.id != seat.id %}
-                  <div class="tc-cmd-row">
-                    <span class="tc-cmd-from">from {{ other.player_name }}</span>
-                    <button type="button"
-                            class="tc-ctr-btn"
-                            onclick="adjustCmd({{ seat.id }}, {{ other.id }}, -1)">−</button>
-                    <span class="tc-counter-val" id="cmd-{{ seat.id }}-{{ other.id }}">0</span>
-                    <button type="button"
-                            class="tc-ctr-btn"
-                            onclick="adjustCmd({{ seat.id }}, {{ other.id }}, 1)">+</button>
-                  </div>
-                {% endfor %}
+            <div class="tc-counters">
+              <div class="tc-counter" title="Poison counters (10 = eliminated)">
+                <span class="tc-counter-icon">☣</span>
+                <button type="button"
+                        class="tc-ctr-btn"
+                        onclick="adjustPoison({{ seat.id }}, -1)">−</button>
+                <span class="tc-counter-val" id="poison-{{ seat.id }}">0</span>
+                <button type="button"
+                        class="tc-ctr-btn"
+                        onclick="adjustPoison({{ seat.id }}, 1)">+</button>
               </div>
-            </details>
-          {% endif %}
-        {% endif %}
-      </div>
-    {% endfor %}
-  </div>
-  {# End game form — hidden until toggled #}
-  {% if not is_ended %}
-    <div id="end-game-panel" class="end-game-panel" style="display:none">
-      <section class="panel">
-        <h3 class="panel-title">Record Result</h3>
-        <form method="post" action="/games/{{ game.id }}/end">
-          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-          <div class="stack-form">
-            {% for seat in game.seats %}
-              <div class="end-game-row">
-                <span class="end-game-player">{{ seat.player_name }}</span>
-                <select name="placement_{{ seat.id }}" id="placement-{{ seat.id }}">
-                  <option value="">— placement —</option>
-                  {% for p in range(1, game.seats|length + 1) %}
-                    <option value="{{ p }}">
-                      {% if p == 1 %}
-                        1st (Winner)
-                      {% elif p == 2 %}
-                        2nd
-                      {% elif p == 3 %}
-                        3rd
-                      {% else %}
-                        {{ p }}th
-                      {% endif %}
-                    </option>
+              <div class="tc-counter" title="Experience counters">
+                <span class="tc-counter-icon">⚡</span>
+                <button type="button"
+                        class="tc-ctr-btn"
+                        onclick="adjustExp({{ seat.id }}, -1)">−</button>
+                <span class="tc-counter-val" id="exp-{{ seat.id }}">0</span>
+                <button type="button"
+                        class="tc-ctr-btn"
+                        onclick="adjustExp({{ seat.id }}, 1)">+</button>
+              </div>
+            </div>
+            {% if game.seats | length > 1 %}
+              <details class="tc-cmd-details">
+                <summary class="tc-cmd-summary">Commander Damage ▸</summary>
+                <div class="tc-cmd-grid">
+                  {% for other in game.seats if other.id != seat.id %}
+                    <div class="tc-cmd-row">
+                      <span class="tc-cmd-from">from {{ other.player_name }}</span>
+                      <button type="button"
+                              class="tc-ctr-btn"
+                              onclick="adjustCmd({{ seat.id }}, {{ other.id }}, -1)">−</button>
+                      <span class="tc-counter-val" id="cmd-{{ seat.id }}-{{ other.id }}">0</span>
+                      <button type="button"
+                              class="tc-ctr-btn"
+                              onclick="adjustCmd({{ seat.id }}, {{ other.id }}, 1)">+</button>
+                    </div>
                   {% endfor %}
-                </select>
-                <input type="number"
-                       name="final_life_{{ seat.id }}"
-                       id="submit-life-{{ seat.id }}"
-                       placeholder="Final life"
-                       style="width:100px">
-              </div>
-            {% endfor %}
-            <label>Turns Played</label>
-            <input type="number"
-                   name="turn_count"
-                   id="submit-turns"
-                   placeholder="e.g. 12"
-                   style="width:120px"
-                   min="1">
-            <label>Notes</label>
-            <textarea name="notes"
-                      rows="2"
-                      style="width:100%;
-                             max-width:520px"
-                      placeholder="How did it go?"></textarea>
-          </div>
-          <div style="margin-top:1rem;display:flex;gap:0.5rem">
-            <button type="submit">Save Result</button>
-            <button type="button" onclick="toggleEndGame()">Cancel</button>
-          </div>
-        </form>
-      </section>
+                </div>
+              </details>
+            {% endif %}
+          {% endif %}
+        </div>
+      {% endfor %}
     </div>
-  {% endif %}
+    {# ── History bar ───────────────────────────────────────────── #}
+    {% if not is_ended %}
+      <div class="game-histbar" id="game-histbar">
+        <span id="history-list" class="history-entries"></span>
+      </div>
+      {# ── End game modal ──────────────────────────────────────── #}
+      <div id="end-game-modal" class="end-game-modal" style="display:none">
+        <div class="end-game-inner">
+          <h3 style="margin:0 0 1rem">Record Result</h3>
+          <form method="post" action="/games/{{ game.id }}/end">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <div class="stack-form">
+              {% for seat in game.seats %}
+                <div class="end-game-row">
+                  <span class="end-game-player">{{ seat.player_name }}</span>
+                  <select name="placement_{{ seat.id }}" id="placement-{{ seat.id }}">
+                    <option value="">— placement —</option>
+                    {% for p in range(1, game.seats|length + 1) %}
+                      <option value="{{ p }}">
+                        {% if p == 1 %}
+                          1st (Winner)
+                        {% elif p == 2 %}
+                          2nd
+                        {% elif p == 3 %}
+                          3rd
+                        {% else %}
+                          {{ p }}th
+                        {% endif %}
+                      </option>
+                    {% endfor %}
+                  </select>
+                  <input type="number"
+                         name="final_life_{{ seat.id }}"
+                         id="submit-life-{{ seat.id }}"
+                         placeholder="Final life"
+                         style="width:100px">
+                </div>
+              {% endfor %}
+              <label>Turns Played</label>
+              <input type="number"
+                     name="turn_count"
+                     id="submit-turns"
+                     placeholder="e.g. 12"
+                     style="width:120px"
+                     min="1">
+              <label>Notes</label>
+              <textarea name="notes"
+                        rows="2"
+                        style="width:100%;
+                               max-width:520px"
+                        placeholder="How did it go?"></textarea>
+            </div>
+            <div style="margin-top:1rem;display:flex;gap:0.5rem">
+              <button type="submit">Save Result</button>
+              <button type="button" onclick="toggleEndGame()">Cancel</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    {% endif %}
+  </div>
 {% endblock %}
 {% block extra_scripts %}
-  {% if not is_ended %}
-    <script>
+  <script>
+// ── Layout configs per player count ──────────────────────────
+const LAYOUTS = {
+  2: {
+    areas: '"top" "bot"', cols: '1fr', rows: '1fr 1fr',
+    seats: [{ area: 'bot', rotate: 0 }, { area: 'top', rotate: 180 }]
+  },
+  3: {
+    areas: '"top top" "bl br"', cols: '1fr 1fr', rows: '1fr 1fr',
+    seats: [{ area: 'bl', rotate: 0 }, { area: 'br', rotate: 0 }, { area: 'top', rotate: 180 }]
+  },
+  4: {
+    areas: '"tl tr" "bl br"', cols: '1fr 1fr', rows: '1fr 1fr',
+    seats: [
+      { area: 'bl', rotate: 0 }, { area: 'br', rotate: 0 },
+      { area: 'tl', rotate: 180 }, { area: 'tr', rotate: 180 }
+    ]
+  },
+  5: {
+    areas: '"t0 t0 t1 t1 t2 t2" "b0 b0 b0 b1 b1 b1"',
+    cols: 'repeat(6, 1fr)', rows: '1fr 1fr',
+    seats: [
+      { area: 'b0', rotate: 0 }, { area: 'b1', rotate: 0 },
+      { area: 't2', rotate: 180 }, { area: 't1', rotate: 180 }, { area: 't0', rotate: 180 }
+    ]
+  },
+  6: {
+    areas: '"tl tc tr" "bl bc br"', cols: '1fr 1fr 1fr', rows: '1fr 1fr',
+    seats: [
+      { area: 'bl', rotate: 0 }, { area: 'bc', rotate: 0 }, { area: 'br', rotate: 0 },
+      { area: 'tl', rotate: 180 }, { area: 'tc', rotate: 180 }, { area: 'tr', rotate: 180 }
+    ]
+  },
+  7: {
+    areas: '"t0 t0 t0 t0 t1 t1 t1 t1 t2 t2 t2 t2" "b0 b0 b0 b1 b1 b1 b2 b2 b2 b3 b3 b3"',
+    cols: 'repeat(12, 1fr)', rows: '1fr 1fr',
+    seats: [
+      { area: 'b0', rotate: 0 }, { area: 'b1', rotate: 0 },
+      { area: 'b2', rotate: 0 }, { area: 'b3', rotate: 0 },
+      { area: 't2', rotate: 180 }, { area: 't1', rotate: 180 }, { area: 't0', rotate: 180 }
+    ]
+  },
+  8: {
+    areas: '"t0 t1 t2 t3" "b0 b1 b2 b3"', cols: '1fr 1fr 1fr 1fr', rows: '1fr 1fr',
+    seats: [
+      { area: 'b0', rotate: 0 }, { area: 'b1', rotate: 0 },
+      { area: 'b2', rotate: 0 }, { area: 'b3', rotate: 0 },
+      { area: 't3', rotate: 180 }, { area: 't2', rotate: 180 },
+      { area: 't1', rotate: 180 }, { area: 't0', rotate: 180 }
+    ]
+  }
+};
+
 const SEAT_COLORS = ['#3b82f6','#ef4444','#22c55e','#f59e0b','#8b5cf6','#ec4899','#06b6d4','#f97316'];
 const gameId = {{ game.id }};
 const seatDefs = [
@@ -232,6 +274,30 @@ const seatDefs = [
 ];
 const storageKey = `mana-game-${gameId}`;
 
+// ── Apply grid layout ─────────────────────────────────────────
+function applyLayout() {
+  const n = seatDefs.length;
+  const layout = LAYOUTS[n];
+  if (!layout) return;
+  const grid = document.getElementById('tracker-grid');
+  grid.style.gridTemplateAreas = layout.areas;
+  grid.style.gridTemplateColumns = layout.cols;
+  grid.style.gridTemplateRows = layout.rows;
+  seatDefs.forEach((s, i) => {
+    const slot = layout.seats[i];
+    if (!slot) return;
+    const card = document.getElementById(`card-${s.id}`);
+    if (!card) return;
+    card.style.gridArea = slot.area;
+    card.dataset.rotate = slot.rotate;
+  });
+}
+
+document.body.classList.add('game-mode');
+applyLayout();
+
+{% if not is_ended %}
+// ── State ─────────────────────────────────────────────────────
 function freshState() {
   const lives = {}, poison = {}, exp = {}, eliminated = {}, cmd = {};
   seatDefs.forEach(s => {
@@ -258,6 +324,7 @@ function pushHistory(entry) {
   if (state.history.length > 60) state.history.shift();
 }
 
+// ── Actions ───────────────────────────────────────────────────
 function adjustLife(seatId, delta) {
   state.lives[seatId] = (state.lives[seatId] || 0) + delta;
   pushHistory({ type: 'life', seatId, delta });
@@ -313,10 +380,10 @@ function undoLast() {
 }
 
 function toggleEndGame() {
-  const panel = document.getElementById('end-game-panel');
-  if (!panel) return;
-  const showing = panel.style.display !== 'none';
-  panel.style.display = showing ? 'none' : 'block';
+  const modal = document.getElementById('end-game-modal');
+  if (!modal) return;
+  const showing = modal.style.display !== 'none';
+  modal.style.display = showing ? 'none' : 'flex';
   if (!showing) {
     seatDefs.forEach(s => {
       const el = document.getElementById(`submit-life-${s.id}`);
@@ -324,10 +391,10 @@ function toggleEndGame() {
     });
     const tc = document.getElementById('submit-turns');
     if (tc) tc.value = state.turn;
-    panel.scrollIntoView({ behavior: 'smooth' });
   }
 }
 
+// ── Auto-win detection ────────────────────────────────────────
 let autoWinTriggered = false;
 function checkWinCondition() {
   if (autoWinTriggered || seatDefs.length < 2) return;
@@ -335,9 +402,6 @@ function checkWinCondition() {
   if (alive.length !== 1) return;
   autoWinTriggered = true;
   const winner = alive[0];
-  const titleEl = document.getElementById('game-title');
-  if (titleEl) titleEl.textContent = `🏆 ${winner.name} wins!`;
-  // Pre-fill placements
   const placementEl = document.getElementById(`placement-${winner.id}`);
   if (placementEl) placementEl.value = '1';
   seatDefs.filter(s => s.id !== winner.id).forEach((s, i) => {
@@ -347,6 +411,7 @@ function checkWinCondition() {
   toggleEndGame();
 }
 
+// ── Render ────────────────────────────────────────────────────
 function render() {
   seatDefs.forEach((s, i) => {
     const card = document.getElementById(`card-${s.id}`);
@@ -360,8 +425,9 @@ function render() {
     }
     const poisonEl = document.getElementById(`poison-${s.id}`);
     if (poisonEl) {
-      poisonEl.textContent = state.poison[s.id] ?? 0;
-      poisonEl.className = 'tc-counter-val' + ((state.poison[s.id] ?? 0) >= 10 ? ' tc-counter-danger' : (state.poison[s.id] >= 7 ? ' tc-counter-warn' : ''));
+      const pv = state.poison[s.id] ?? 0;
+      poisonEl.textContent = pv;
+      poisonEl.className = 'tc-counter-val' + (pv >= 10 ? ' tc-counter-danger' : pv >= 7 ? ' tc-counter-warn' : '');
     }
     const expEl = document.getElementById(`exp-${s.id}`);
     if (expEl) expEl.textContent = state.exp[s.id] ?? 0;
@@ -377,14 +443,12 @@ function render() {
     card.classList.toggle('tc-eliminated', !!state.eliminated[s.id]);
   });
 
-  // Turn counter
   const turnEl = document.getElementById('turn-counter');
   if (turnEl) turnEl.textContent = state.turn ?? 1;
 
-  // History bar
   const histEl = document.getElementById('history-list');
   if (histEl) {
-    histEl.innerHTML = state.history.slice(-10).reverse().map(h => {
+    histEl.innerHTML = state.history.slice(-12).reverse().map(h => {
       const name = seatDefs.find(s => s.id === h.seatId)?.name ?? '?';
       const sign = h.delta > 0 ? '+' : '';
       if (h.type === 'cmd') {
@@ -396,7 +460,6 @@ function render() {
     }).join('');
   }
 
-  // Undo button
   const undoBtn = document.getElementById('undo-btn');
   if (undoBtn) undoBtn.disabled = !state.history.length;
 
@@ -404,6 +467,12 @@ function render() {
 }
 
 render();
-    </script>
-  {% endif %}
+{% else %}
+// Ended game: apply colors only
+seatDefs.forEach((s, i) => {
+  const card = document.getElementById(`card-${s.id}`);
+  if (card) card.style.setProperty('--player-color', SEAT_COLORS[i % SEAT_COLORS.length]);
+});
+{% endif %}
+  </script>
 {% endblock %}
