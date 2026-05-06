@@ -1859,9 +1859,20 @@ body.game-mode {
   background: #0b0f06;
 }
 
+/* Card slot — grid item wrapper; tracker-card fills it absolutely */
+.card-slot {
+  position: relative;
+  overflow: hidden;
+  min-height: 0;
+  min-width: 0;
+}
+
 /* Individual player card — playmat style */
 .tracker-card {
   --player-color: #3b82f6;
+  position: absolute;
+  inset: 0;
+  margin: auto;
   background:
     radial-gradient(
       ellipse at 30% 50%,
@@ -1876,8 +1887,6 @@ body.game-mode {
   flex-direction: column;
   gap: 0.5rem;
   overflow: hidden;
-  min-height: 0;
-  min-width: 0;
   transition: opacity 0.2s;
 }
 .tracker-card.tc-eliminated {
@@ -1900,10 +1909,9 @@ body.game-mode {
   flex-direction: column-reverse;
 }
 
-/* 90° (left-side player looking right): mirror so + is at their top */
+/* 90° (left-side player): JS sets width=slotH, height=slotW; CSS rotates */
 .tracker-card[data-rotate="90"] {
   transform: rotate(90deg);
-  transform-origin: center;
   border-top: none;
   border-right: 4px solid var(--player-color);
 }
@@ -1914,10 +1922,9 @@ body.game-mode {
   flex-direction: row-reverse;
 }
 
-/* 270° (right-side player looking left): + naturally lands at their top */
+/* 270° (right-side player): JS sets width=slotH, height=slotW; CSS rotates */
 .tracker-card[data-rotate="270"] {
   transform: rotate(270deg);
-  transform-origin: center;
   border-top: none;
   border-left: 4px solid var(--player-color);
 }

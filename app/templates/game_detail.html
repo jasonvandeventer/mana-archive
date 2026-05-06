@@ -48,6 +48,7 @@
     {# ── Player grid ───────────────────────────────────────────── #}
     <div class="tracker-grid" id="tracker-grid">
       {% for seat in game.seats %}
+        <div class="card-slot" id="slot-{{ seat.id }}">
         <div class="tracker-card"
              id="card-{{ seat.id }}"
              data-seat-id="{{ seat.id }}"
@@ -154,6 +155,7 @@
               </details>
             {% endif %}
           {% endif %}
+        </div>
         </div>
       {% endfor %}
     </div>
@@ -351,14 +353,39 @@ function applyLayout(layout) {
   seatDefs.forEach((s, i) => {
     const slot = layout.seats[i];
     if (!slot) return;
+    const slotEl = document.getElementById(`slot-${s.id}`);
     const card = document.getElementById(`card-${s.id}`);
-    if (!card) return;
-    card.style.gridArea = slot.area;
+    if (!slotEl || !card) return;
+    slotEl.style.gridArea = slot.area;
     card.dataset.rotate = String(slot.rotate);
+    // Reset JS-applied dimensions so sizeRotatedCards re-measures cleanly
+    card.style.width = '';
+    card.style.height = '';
   });
   currentLayoutId = layout.id;
   localStorage.setItem(layoutKey, layout.id);
   renderLayoutPicker();
+  requestAnimationFrame(sizeRotatedCards);
+}
+
+function sizeRotatedCards() {
+  seatDefs.forEach(s => {
+    const slotEl = document.getElementById(`slot-${s.id}`);
+    const card = document.getElementById(`card-${s.id}`);
+    if (!slotEl || !card) return;
+    const rotate = parseInt(card.dataset.rotate) || 0;
+    if (rotate === 90 || rotate === 270) {
+      const w = slotEl.offsetWidth;
+      const h = slotEl.offsetHeight;
+      if (w > 0 && h > 0) {
+        card.style.width = h + 'px';
+        card.style.height = w + 'px';
+      }
+    } else {
+      card.style.width = '';
+      card.style.height = '';
+    }
+  });
 }
 
 function renderLayoutPicker() {
@@ -398,6 +425,7 @@ document.addEventListener('pointerdown', e => {
 // Init layout
 document.body.classList.add('game-mode');
 applyLayout(getLayout(currentLayoutId));
+window.addEventListener('resize', sizeRotatedCards);
 
 {% if not is_ended %}
 // ── State ─────────────────────────────────────────────────────
