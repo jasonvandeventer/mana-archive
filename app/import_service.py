@@ -19,7 +19,13 @@ from sqlalchemy.orm import Session
 
 from app.audit_service import create_import_batch, log_transaction
 from app.models import Card, InventoryRow
-from app.scryfall import fetch_card_by_name, fetch_card_by_scryfall_id, fetch_card_by_set_and_number
+from app.scryfall import (
+    bulk_fetch_by_set_number,
+    bulk_refresh_prices,
+    fetch_card_by_name,
+    fetch_card_by_scryfall_id,
+    fetch_card_by_set_and_number,
+)
 
 # Matches the trailing (SET) or [SET] and optional collector number on a list line.
 # SET must be 2–6 alphanumeric chars to distinguish from long parenthetical phrases.
@@ -118,6 +124,8 @@ def parse_scanner_csv(file_bytes: bytes) -> dict[str, Any]:
     valid_rows: list[dict[str, Any]] = []
     invalid_rows: list[dict[str, Any]] = []
 
+    # --- Pass 1: parse rows without touching Scryfall ---
+    pre_rows: list[dict[str, Any]] = []
     for line_number, raw_row in enumerate(reader, start=2):
         row = {normalize_header(k): (v or "").strip() for k, v in raw_row.items()}
         scryfall_id = row.get("scryfall_id", "")
@@ -128,47 +136,79 @@ def parse_scanner_csv(file_bytes: bytes) -> dict[str, Any]:
         quantity_raw = row.get("quantity", "1")
         name = row.get("name", "")
         card_type = row.get("type", "")
-
         try:
             quantity = max(1, int(quantity_raw or "1"))
         except ValueError:
             quantity = 1
+        pre_rows.append(
+            {
+                "line_number": line_number,
+                "scryfall_id": scryfall_id,
+                "set_code": set_code,
+                "collector_number": collector_number,
+                "finish": finish,
+                "quantity": quantity,
+                "location": location,
+                "name": name,
+                "type": card_type,
+            }
+        )
 
+    # --- Pass 2: batch-fetch card data ---
+    # Separate rows by identifier type; batch each group.
+    id_rows = [r for r in pre_rows if r["scryfall_id"]]
+    set_rows = [
+        r for r in pre_rows if not r["scryfall_id"] and r["set_code"] and r["collector_number"]
+    ]
+
+    # Batch-fetch by scryfall_id
+    id_map: dict[str, dict[str, Any]] = {}
+    if id_rows:
+        unique_ids = list({r["scryfall_id"] for r in id_rows})
+        id_map = bulk_refresh_prices(unique_ids)
+
+    # Batch-fetch by set+collector
+    set_map: dict[tuple[str, str], dict[str, Any]] = {}
+    if set_rows:
+        pairs = [(r["set_code"], r["collector_number"]) for r in set_rows]
+        set_map = bulk_fetch_by_set_number(pairs)
+
+    # --- Pass 3: build output rows ---
+    for r in pre_rows:
         cleaned = {
-            "line_number": line_number,
-            "scryfall_id": scryfall_id,
-            "set_code": set_code,
-            "collector_number": collector_number,
-            "finish": finish,
-            "quantity": quantity,
-            "location": location,
-            "name": name,
-            "type": card_type,
+            "line_number": r["line_number"],
+            "scryfall_id": r["scryfall_id"],
+            "set_code": r["set_code"],
+            "collector_number": r["collector_number"],
+            "finish": r["finish"],
+            "quantity": r["quantity"],
+            "location": r["location"],
+            "name": r["name"],
+            "type": r["type"],
             "warnings": [],
         }
 
-        if scryfall_id or (set_code and collector_number):
-            card_data: dict[str, Any] | None = None
+        card_data: dict[str, Any] | None = None
+        if r["scryfall_id"]:
+            card_data = id_map.get(r["scryfall_id"])
+            # Fall back to individual fetch for any the batch missed
+            if card_data is None:
+                card_data = fetch_card_by_scryfall_id(r["scryfall_id"])
+        elif r["set_code"] and r["collector_number"]:
+            card_data = set_map.get((r["set_code"], r["collector_number"]))
+            if card_data is None:
+                card_data = fetch_card_by_set_and_number(r["set_code"], r["collector_number"])
+            if card_data and not cleaned["scryfall_id"]:
+                cleaned["scryfall_id"] = card_data.get("scryfall_id", "")
 
-            try:
-                if scryfall_id:
-                    card_data = fetch_card_by_scryfall_id(scryfall_id)
-                elif set_code and collector_number:
-                    card_data = fetch_card_by_set_and_number(set_code, collector_number)
-                    if card_data and not cleaned["scryfall_id"]:
-                        cleaned["scryfall_id"] = card_data.get("scryfall_id", "")
-            except Exception:
-                card_data = None
-
-            cleaned["warnings"] = build_finish_warnings(card_data, finish)
-
+        if r["scryfall_id"] or (r["set_code"] and r["collector_number"]):
+            cleaned["warnings"] = build_finish_warnings(card_data, r["finish"])
             if card_data:
                 cleaned["name"] = card_data.get("name") or cleaned["name"]
                 cleaned["set_code"] = card_data.get("set_code") or cleaned["set_code"]
                 cleaned["collector_number"] = (
                     card_data.get("collector_number") or cleaned["collector_number"]
                 )
-
             valid_rows.append(cleaned)
         else:
             cleaned["reason"] = "Missing Scryfall ID and set/collector fallback fields."
@@ -202,6 +242,21 @@ def persist_import_rows(
     )
     now = datetime.utcnow()
 
+    # Batch-resolve any rows that are missing a scryfall_id (safety net — preview should
+    # have populated these, but handle gracefully if the commit path is called directly)
+    no_id_rows = [
+        r
+        for r in rows
+        if not (r.get("scryfall_id") or "").strip()
+        and r.get("set_code")
+        and r.get("collector_number")
+    ]
+    fallback_set_map: dict[tuple[str, str], dict[str, Any]] = {}
+    if no_id_rows:
+        fallback_set_map = bulk_fetch_by_set_number(
+            [(r["set_code"], r["collector_number"]) for r in no_id_rows]
+        )
+
     candidate_rows: list[dict[str, Any]] = []
     for row in rows:
         scryfall_id = (row.get("scryfall_id") or "").strip()
@@ -210,7 +265,11 @@ def persist_import_rows(
             candidate_rows.append(row)
             continue
 
-        card_data = fetch_card_by_set_and_number(
+        key = (
+            (row.get("set_code") or "").strip().lower(),
+            (row.get("collector_number") or "").strip(),
+        )
+        card_data = fallback_set_map.get(key) or fetch_card_by_set_and_number(
             row.get("set_code", ""), row.get("collector_number", "")
         )
         if not card_data:
@@ -242,35 +301,36 @@ def persist_import_rows(
     existing_cards = session.query(Card).filter(Card.scryfall_id.in_(unique_ids)).all()
     card_map: dict[str, Card] = {card.scryfall_id: card for card in existing_cards}
 
+    # Batch-fetch any cards not yet in the local DB
     new_cards: list[Card] = []
-    for sid in unique_ids:
-        if sid in card_map:
-            continue
+    missing_ids = [sid for sid in unique_ids if sid not in card_map]
+    if missing_ids:
+        # Build from prefetched data first, then batch-fetch the rest
+        prefetch_map: dict[str, dict[str, Any]] = {
+            row["_resolved_scryfall_id"]: row["_prefetched_card_data"]
+            for row in candidate_rows
+            if row.get("_prefetched_card_data") and row.get("_resolved_scryfall_id") in missing_ids
+        }
+        need_fetch = [sid for sid in missing_ids if sid not in prefetch_map]
+        if need_fetch:
+            prefetch_map.update(bulk_refresh_prices(need_fetch))
 
-        payload = None
-        for row in candidate_rows:
-            if row.get("_resolved_scryfall_id") == sid and row.get("_prefetched_card_data"):
-                payload = row["_prefetched_card_data"]
-                break
-
-        if payload is None:
-            payload = fetch_card_by_scryfall_id(sid)
-
-        if not payload:
-            for row in candidate_rows:
-                if row.get("_resolved_scryfall_id") == sid:
-                    row["_failed"] = True
-                    failed_rows.append(
-                        {
-                            "line_number": row.get("line_number"),
-                            "reason": "Card lookup failed by Scryfall ID.",
-                        }
-                    )
-            continue
-
-        card = Card(**payload, updated_at=now)
-        session.add(card)
-        new_cards.append(card)
+        for sid in missing_ids:
+            payload = prefetch_map.get(sid)
+            if not payload:
+                for row in candidate_rows:
+                    if row.get("_resolved_scryfall_id") == sid:
+                        row["_failed"] = True
+                        failed_rows.append(
+                            {
+                                "line_number": row.get("line_number"),
+                                "reason": "Card lookup failed by Scryfall ID.",
+                            }
+                        )
+                continue
+            card = Card(**payload, updated_at=now)
+            session.add(card)
+            new_cards.append(card)
 
     if new_cards:
         session.flush()
@@ -476,23 +536,39 @@ def parse_text_list(text: str) -> dict[str, Any]:
     valid_rows: list[dict[str, Any]] = []
     invalid_rows: list[dict[str, Any]] = []
 
+    # --- Pass 1: parse all lines without touching Scryfall ---
+    pre_lines: list[tuple[int, dict[str, Any]]] = []
     for line_number, raw_line in enumerate(text.splitlines(), start=1):
         stripped = raw_line.strip()
         if not stripped or stripped.startswith("#"):
             continue
         if stripped.lower() in _SECTION_HEADERS:
             continue
-
         parsed = _parse_list_line(stripped)
         if not parsed:
             continue
+        pre_lines.append((line_number, parsed))
 
+    # --- Pass 2: batch-fetch all set+collector pairs at once ---
+    set_map: dict[tuple[str, str], dict[str, Any]] = {}
+    batchable = [
+        (p["set_code"], p["collector_number"])
+        for _, p in pre_lines
+        if p["set_code"] and p["collector_number"]
+    ]
+    if batchable:
+        set_map = bulk_fetch_by_set_number(batchable)
+
+    # --- Pass 3: resolve each line, falling back to name search for misses ---
+    for line_number, parsed in pre_lines:
         card_data: dict[str, Any] | None = None
         try:
             if parsed["set_code"] and parsed["collector_number"]:
-                card_data = fetch_card_by_set_and_number(
-                    parsed["set_code"], parsed["collector_number"]
-                )
+                card_data = set_map.get((parsed["set_code"], parsed["collector_number"]))
+                if card_data is None:
+                    card_data = fetch_card_by_set_and_number(
+                        parsed["set_code"], parsed["collector_number"]
+                    )
             if not card_data:
                 card_data = fetch_card_by_name(parsed["name"], set_code=parsed["set_code"])
         except Exception:

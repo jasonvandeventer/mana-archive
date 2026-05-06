@@ -234,6 +234,40 @@ def bulk_refresh_prices(scryfall_ids: list[str]) -> dict[str, dict[str, Any]]:
     return results
 
 
+def bulk_fetch_by_set_number(
+    pairs: list[tuple[str, str]],
+) -> dict[tuple[str, str], dict[str, Any]]:
+    """Batch-fetch cards by (set_code, collector_number) via /cards/collection.
+
+    Returns a dict keyed by (set_code_lower, collector_number).
+    Makes ceil(N/75) requests instead of N individual requests.
+    """
+    results: dict[tuple[str, str], dict[str, Any]] = {}
+    seen: dict[tuple[str, str], None] = {}
+    for s, c in pairs:
+        key = ((s or "").strip().lower(), (c or "").strip())
+        if key[0] and key[1]:
+            seen[key] = None
+    unique = list(seen.keys())
+
+    for i in range(0, len(unique), _COLLECTION_BATCH_SIZE):
+        batch = unique[i : i + _COLLECTION_BATCH_SIZE]
+        payload = {"identifiers": [{"set": s, "collector_number": c} for s, c in batch]}
+        data = _post_json(f"{SCRYFALL_CARD_URL}/collection", payload)
+        if not data:
+            continue
+        for card in data.get("data", []):
+            normalized = _normalize_card_payload(card)
+            if normalized.get("scryfall_id"):
+                key = (
+                    (normalized.get("set_code") or "").lower(),
+                    normalized.get("collector_number") or "",
+                )
+                results[key] = normalized
+
+    return results
+
+
 @lru_cache(maxsize=8192)
 def _fetch_by_id_cached(scryfall_id: str) -> dict[str, Any] | None:
     scryfall_id = (scryfall_id or "").strip()
