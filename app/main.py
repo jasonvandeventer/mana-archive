@@ -32,6 +32,7 @@ from app.db import DATA_DIR, SessionLocal, init_db
 from app.deck_service import (
     CARD_ROLE_TAGS,
     compute_consistency,
+    compute_dead_cards,
     compute_deck_analytics,
     compute_deck_bracket,
     compute_deck_combos,
@@ -1696,6 +1697,9 @@ def deck_panels_fragment(
 
         bracket = compute_deck_bracket(all_deck_rows, combos)
         synergy = compute_deck_synergy(all_deck_rows, combos)
+        dead_cards = compute_dead_cards(all_deck_rows, synergy)
+    else:
+        dead_cards = None
 
     return render(
         request,
@@ -1706,6 +1710,7 @@ def deck_panels_fragment(
             "synergy": synergy,
             "combos": combos,
             "tokens": tokens,
+            "dead_cards": dead_cards,
         },
     )
 

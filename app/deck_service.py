@@ -587,6 +587,60 @@ def compute_deck_synergy(all_rows: list, combos: dict) -> dict | None:
     }
 
 
+_WIN_MORE_RE = re.compile(
+    r"for each (?:creature|token|permanent) you control",
+    re.IGNORECASE,
+)
+_BOARD_DEPENDENT_RE = re.compile(
+    r"sacrifice (?:a|an|another) (?:creature|artifact|permanent|token)"
+    r"|\btap (?:an? untapped|X untapped) creatures? you control\b"
+    r"|\bconvoke\b",
+    re.IGNORECASE,
+)
+
+
+def compute_dead_cards(all_rows: list, synergy: dict | None) -> list[dict] | None:
+    """Identify upgrade targets: unrelated cards the user hasn't manually tagged.
+
+    A card is a dead card candidate when the synergy engine classifies it as
+    Unrelated (no commander theme match, no engine role, not in a combo, not a
+    land) AND the user has assigned no role tag to it.  Oracle text patterns
+    add a specific sub-reason (win-more or board-state-dependent) when present.
+    """
+    if not synergy:
+        return None
+
+    unrelated_names: set[str] = set(synergy.get("unrelated_cards", []))
+    if not unrelated_names:
+        return []
+
+    results: list[dict] = []
+    for row in all_rows:
+        if row.role == "commander":
+            continue
+        card = row.card
+        if not card or card.name not in unrelated_names:
+            continue
+        if get_row_tags(row):
+            continue
+
+        oracle = (card.oracle_text or "").lower()
+        sub: list[str] = []
+        if _WIN_MORE_RE.search(oracle):
+            sub.append("win-more")
+        if _BOARD_DEPENDENT_RE.search(oracle):
+            sub.append("board-dependent")
+
+        results.append(
+            {
+                "name": card.name,
+                "sub": sub,
+            }
+        )
+
+    return sorted(results, key=lambda x: x["name"])
+
+
 _FAST_MANA = frozenset(
     [
         "Mana Crypt",

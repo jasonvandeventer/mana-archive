@@ -81,6 +81,30 @@
       </div>
     </section>
   {% endif %}
+  {% if dead_cards %}
+    <section class="panel dead-cards-panel">
+      <h3 class="panel-title">Upgrade Targets</h3>
+      <p class="dead-cards-note">
+        {{ dead_cards|length }} card{{ 's' if dead_cards|length != 1 else '' }}
+        with no commander synergy and no assigned role — consider replacing.
+      </p>
+      <details class="dead-cards-details">
+        <summary class="dead-cards-summary">Show {{ dead_cards|length }} card{{ 's' if dead_cards|length != 1 else '' }}</summary>
+        <ul class="dead-cards-list">
+          {% for c in dead_cards %}
+            <li>
+              <span class="dead-card-name">{{ c.name }}</span>
+              {% if c.sub %}
+                {% for s in c.sub %}
+                  <span class="dead-card-tag">{{ s }}</span>
+                {% endfor %}
+              {% endif %}
+            </li>
+          {% endfor %}
+        </ul>
+      </details>
+    </section>
+  {% endif %}
   {% if combos and combos.included %}
     <section class="panel combo-panel">
       <h3 class="panel-title">Combos</h3>
