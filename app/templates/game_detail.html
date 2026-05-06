@@ -235,7 +235,7 @@ const LAYOUT_OPTIONS = {
       areas: '"top top" "bl br"', cols: '1fr 1fr', rows: '1fr 1fr',
       seats: [{ area: 'bl', rotate: 0 }, { area: 'br', rotate: 0 }, { area: 'top', rotate: 180 }] },
     { id: 'sides', label: 'Triangle (1 each side + far)',
-      areas: '". top ." "l . r"', cols: '1fr 2fr 1fr', rows: '1fr 2fr',
+      areas: '"top top" "l r"', cols: '1fr 1fr', rows: '1fr 2fr',
       seats: [{ area: 'r', rotate: 270 }, { area: 'top', rotate: 180 }, { area: 'l', rotate: 90 }] }
   ],
   4: [
@@ -246,7 +246,7 @@ const LAYOUT_OPTIONS = {
         { area: 'tl', rotate: 180 }, { area: 'tr', rotate: 180 }
       ] },
     { id: 'compass', label: 'Compass (1 per side)',
-      areas: '". top ." "l . r" ". bot ."', cols: '1fr 2fr 1fr', rows: '1fr 2fr 1fr',
+      areas: '"top top" "l r" "bot bot"', cols: '1fr 1fr', rows: '1fr 2fr 1fr',
       seats: [
         { area: 'bot', rotate: 0 }, { area: 'r', rotate: 270 },
         { area: 'top', rotate: 180 }, { area: 'l', rotate: 90 }
@@ -259,12 +259,12 @@ const LAYOUT_OPTIONS = {
         { area: 'b0', rotate: 0 }, { area: 'b1', rotate: 0 },
         { area: 't2', rotate: 180 }, { area: 't1', rotate: 180 }, { area: 't0', rotate: 180 }
       ] },
-    { id: 'long-5', label: 'Long table (1·2·2·0)',
-      areas: '"top top" "l0 r0" "l1 r1" ". bot"', cols: '1fr 1fr', rows: '1fr 2fr 2fr 1fr',
+    { id: 'long-5', label: 'Long table (0·2·2·1)',
+      areas: '"l0 r0" "l1 r1" "bot bot"', cols: '1fr 1fr', rows: '2fr 2fr 1fr',
       seats: [
         { area: 'bot', rotate: 0 },
-        { area: 'r0', rotate: 270 }, { area: 'r1', rotate: 270 },
-        { area: 'top', rotate: 180 }, { area: 'l0', rotate: 90 }
+        { area: 'l0', rotate: 90 }, { area: 'l1', rotate: 90 },
+        { area: 'r0', rotate: 270 }, { area: 'r1', rotate: 270 }
       ] }
   ],
   6: [
@@ -292,14 +292,13 @@ const LAYOUT_OPTIONS = {
         { area: 'b2', rotate: 0 }, { area: 'b3', rotate: 0 },
         { area: 't2', rotate: 180 }, { area: 't1', rotate: 180 }, { area: 't0', rotate: 180 }
       ] },
-    { id: 'long-7', label: 'Long table (1·3·3·0)',
-      areas: '"top top" "l0 r0" "l1 r1" "l2 r2" ". bot"',
-      cols: '1fr 1fr', rows: '1fr 2fr 2fr 2fr 1fr',
+    { id: 'long-7', label: 'Long table (0·3·3·1)',
+      areas: '"l0 r0" "l1 r1" "l2 r2" "bot bot"',
+      cols: '1fr 1fr', rows: '2fr 2fr 2fr 1fr',
       seats: [
         { area: 'bot', rotate: 0 },
-        { area: 'r0', rotate: 270 }, { area: 'r1', rotate: 270 }, { area: 'r2', rotate: 270 },
-        { area: 'top', rotate: 180 },
-        { area: 'l0', rotate: 90 }, { area: 'l1', rotate: 90 }
+        { area: 'l0', rotate: 90 }, { area: 'l1', rotate: 90 }, { area: 'l2', rotate: 90 },
+        { area: 'r0', rotate: 270 }, { area: 'r1', rotate: 270 }, { area: 'r2', rotate: 270 }
       ] }
   ],
   8: [
