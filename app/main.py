@@ -2098,10 +2098,16 @@ def games_list_page(
     current_user: User = Depends(get_current_user),
 ):
     games = list_games(session, current_user.id)
+    total_wins = sum(1 for g in games for s in g.seats if s.placement == 1)
     return render(
         request,
         "games.html",
-        {"title": "Game History", "games": games, "current_user": current_user},
+        {
+            "title": "Game History",
+            "games": games,
+            "total_wins": total_wins,
+            "current_user": current_user,
+        },
     )
 
 

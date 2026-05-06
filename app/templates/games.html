@@ -12,10 +12,7 @@
         <div class="stat-label">Games Logged</div>
       </div>
       <div class="stat-card">
-        <div class="stat-value">
-          {% set wins = games | selectattr('seats') | sum(attribute='seats') | list %}
-          {{ games | map(attribute='seats') | sum(start=[]) | selectattr('placement', 'eq', 1) | list | length }}
-        </div>
+        <div class="stat-value">{{ total_wins }}</div>
         <div class="stat-label">Wins</div>
       </div>
     </div>
