@@ -259,8 +259,8 @@ const SEAT_POSITIONS = {
   2: ['p2', 'p6'],
   3: ['p2', 'p4', 'p6'],
   4: ['p1', 'p2', 'p6', 'p5'],
-  5: ['p1', 'p2', 'p4', 'p6', 'p5'],
-  6: ['p1', 'p2', 'p3', 'p7', 'p6', 'p5'],
+  5: ['p1', 'p2', 'p4', 'p6', 'p7'],
+  6: ['p1', 'p2', 'p4', 'p6', 'p7', 'p8'],
   7: ['p1', 'p2', 'p3', 'p4', 'p7', 'p6', 'p5'],
   8: ['p1', 'p2', 'p3', 'p4', 'p5', 'p6', 'p7', 'p8'],
 };
@@ -320,74 +320,78 @@ function buildDynamicGrid() {
   seatDefs.forEach(s => rowSeats[ROW_OF[s.position]].push(s));
   rowSeats.forEach(row => row.sort((a, b) => COL_RANK[a.position] - COL_RANK[b.position]));
 
-  // Active rows: any row with players + always include middle row for tc
-  const activeRows = [0, 1, 2].filter(r => r === 1 || rowSeats[r].length > 0);
+  const p4Seat = rowSeats[1].find(s => s.position === 'p4');
+  const p8Seat = rowSeats[1].find(s => s.position === 'p8');
+  // Side player gets a tall vertical strip when no top/bottom edge conflicts on that side
+  const tallP4 = !!(p4Seat && !rowSeats[0].some(s => s.position === 'p3') && !rowSeats[2].some(s => s.position === 'p5'));
+  const tallP8 = !!(p8Seat && !rowSeats[0].some(s => s.position === 'p1') && !rowSeats[2].some(s => s.position === 'p7'));
+  const shortP4 = p4Seat && !tallP4;
+  const shortP8 = p8Seat && !tallP8;
+
+  // TC is a floating overlay (CSS), not a grid cell — only include middle row
+  // when a short side player needs to live there.
+  const activeRows = [];
+  if (rowSeats[0].length) activeRows.push(0);
+  if (shortP4 || shortP8) activeRows.push(1);
+  if (rowSeats[2].length) activeRows.push(2);
+  if (!activeRows.length) activeRows.push(0);  // safety: always at least one row
   const rowToGrid = {};
   activeRows.forEach((r, i) => { rowToGrid[r] = i + 1; });
 
   const gridEl = document.getElementById('tracker-grid');
   gridEl.style.gridTemplateAreas = 'none';
   gridEl.style.gridTemplateRows = activeRows.map(() => '1fr').join(' ');
-  gridEl.style.gridTemplateColumns = 'repeat(6, 1fr)';
+  gridEl.style.gridTemplateColumns = 'repeat(24, 1fr)';
   gridEl.style.gridAutoRows = '';
   gridEl.style.gridAutoFlow = '';
 
-  // Top (row 0) and bottom (row 2): distribute n seats evenly across 6 columns
-  [0, 2].forEach(logRow => {
-    const seats = rowSeats[logRow];
-    if (!seats.length) return;
-    const gridRow = rowToGrid[logRow];
-    const span = 6 / seats.length;
-    seats.forEach((s, idx) => {
-      const slotEl = document.getElementById(`slot-${s.id}`);
-      if (!slotEl) return;
-      // gridArea is the shorthand for gridRow + gridColumn — clear it FIRST or
-      // it will wipe out the explicit values set after.
-      slotEl.style.gridArea = '';
-      slotEl.style.order = '';
-      slotEl.style.gridRow = String(gridRow);
-      slotEl.style.gridColumn = `${Math.round(idx * span) + 1} / ${Math.round((idx + 1) * span) + 1}`;
-      const card = document.getElementById(`card-${s.id}`);
-      if (card) card.dataset.rotate = String(s.rotate);
-    });
-  });
+  // Tall sides take 4 of 24 cols (~16.7%) — narrow vertical strips
+  const leftBound = tallP8 ? 5 : 1;
+  const rightBound = tallP4 ? 21 : 25;
+  const innerCols = rightBound - leftBound;
 
-  // Middle row: p8 (left), tc (center), p4 (right) — 6-column division
-  const midRow = rowToGrid[1];
-  const p8seat = rowSeats[1].find(s => s.position === 'p8');
-  const p4seat = rowSeats[1].find(s => s.position === 'p4');
-  const tcSlot = document.getElementById('slot-center');
-
-  const setSlot = (seat, colStart, colEnd) => {
+  const writeSlot = (seat, rowSpec, colStart, colEnd) => {
     const el = document.getElementById(`slot-${seat.id}`);
     if (!el) return;
     el.style.gridArea = '';
     el.style.order = '';
-    el.style.gridRow = String(midRow);
+    el.style.gridRow = rowSpec;
     el.style.gridColumn = `${colStart} / ${colEnd}`;
     const card = document.getElementById(`card-${seat.id}`);
     if (card) card.dataset.rotate = String(seat.rotate);
   };
 
-  const placeTc = (row, col) => {
-    if (!tcSlot) return;
-    tcSlot.style.gridArea = '';
-    tcSlot.style.gridRow = String(row);
-    tcSlot.style.gridColumn = col;
+  // Top (row 0) and bottom (row 2): distribute across innerCols
+  [0, 2].forEach(logRow => {
+    const seats = rowSeats[logRow];
+    if (!seats.length) return;
+    const gridRow = String(rowToGrid[logRow]);
+    const span = innerCols / seats.length;
+    seats.forEach((s, idx) => {
+      writeSlot(s, gridRow, Math.round(idx * span) + leftBound, Math.round((idx + 1) * span) + leftBound);
+    });
+  });
+
+  // Tall side players span all active rows
+  const totalRows = activeRows.length;
+  if (tallP4) writeSlot(p4Seat, `1 / ${totalRows + 1}`, rightBound, 25);
+  if (tallP8) writeSlot(p8Seat, `1 / ${totalRows + 1}`, 1, leftBound);
+
+  // Short side players in middle row (8-col strips matching the 3-up/3-down topology)
+  if (shortP4 || shortP8) {
+    const midRow = String(rowToGrid[1]);
+    if (shortP8) writeSlot(p8Seat, midRow, 1, 9);
+    if (shortP4) writeSlot(p4Seat, midRow, 17, 25);
+  }
+
+  // TC is no longer a grid cell — it's a floating center overlay (see CSS).
+  // Clear any leftover inline grid placement / display from earlier states.
+  const tcSlot = document.getElementById('slot-center');
+  if (tcSlot) {
     tcSlot.style.display = '';
-  };
-  if (p8seat && p4seat) {
-    setSlot(p8seat, 1, 3);
-    placeTc(midRow, '3 / 5');
-    setSlot(p4seat, 5, 7);
-  } else if (p8seat) {
-    setSlot(p8seat, 1, 4);
-    placeTc(midRow, '4 / 7');
-  } else if (p4seat) {
-    placeTc(midRow, '1 / 4');
-    setSlot(p4seat, 4, 7);
-  } else {
-    placeTc(midRow, '1 / 7');
+    tcSlot.style.gridArea = '';
+    tcSlot.style.gridRow = '';
+    tcSlot.style.gridColumn = '';
   }
 
   requestAnimationFrame(sizeRotatedCards);
