@@ -256,12 +256,12 @@
 // Clockwise order: p1→p2→p3→p4→p5→p6→p7→p8→p1
 // Seat-to-position mapping per player count (design spec):
 const SEAT_POSITIONS = {
-  2: ['p5', 'p2'],
-  3: ['p7', 'p2', 'p4'],
-  4: ['p1', 'p2', 'p4', 'p8'],
-  5: ['p1', 'p2', 'p4', 'p8', 'p5'],
-  6: ['p1', 'p2', 'p3', 'p4', 'p8', 'p5'],
-  7: ['p1', 'p2', 'p3', 'p4', 'p8', 'p5', 'p6'],
+  2: ['p2', 'p6'],
+  3: ['p2', 'p4', 'p6'],
+  4: ['p1', 'p2', 'p6', 'p5'],
+  5: ['p1', 'p2', 'p4', 'p6', 'p5'],
+  6: ['p1', 'p2', 'p3', 'p7', 'p6', 'p5'],
+  7: ['p1', 'p2', 'p3', 'p4', 'p7', 'p6', 'p5'],
   8: ['p1', 'p2', 'p3', 'p4', 'p5', 'p6', 'p7', 'p8'],
 };
 const POSITION_ROTATE = {
