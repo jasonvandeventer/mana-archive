@@ -89,15 +89,15 @@
         with no commander synergy and no assigned role — consider replacing.
       </p>
       <details class="dead-cards-details">
-        <summary class="dead-cards-summary">Show {{ dead_cards|length }} card{{ 's' if dead_cards|length != 1 else '' }}</summary>
+        <summary class="dead-cards-summary">
+          Show {{ dead_cards|length }} card{{ 's' if dead_cards|length != 1 else '' }}
+        </summary>
         <ul class="dead-cards-list">
           {% for c in dead_cards %}
             <li>
               <span class="dead-card-name">{{ c.name }}</span>
               {% if c.sub %}
-                {% for s in c.sub %}
-                  <span class="dead-card-tag">{{ s }}</span>
-                {% endfor %}
+                {% for s in c.sub %}<span class="dead-card-tag">{{ s }}</span>{% endfor %}
               {% endif %}
             </li>
           {% endfor %}

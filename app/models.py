@@ -161,3 +161,38 @@ class TransactionLog(Base):
     user: Mapped[User] = relationship(back_populates="transaction_logs")
     card: Mapped[Card | None] = relationship(back_populates="transaction_logs")
     batch: Mapped[ImportBatch | None] = relationship(back_populates="transaction_logs")
+
+
+class Game(Base):
+    __tablename__ = "games"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False, index=True)
+    played_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    format: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    turn_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+    seats: Mapped[list[GameSeat]] = relationship(
+        back_populates="game",
+        cascade="all, delete-orphan",
+        order_by="GameSeat.seat_number",
+    )
+    user: Mapped[User] = relationship()
+
+
+class GameSeat(Base):
+    __tablename__ = "game_seats"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    game_id: Mapped[int] = mapped_column(ForeignKey("games.id"), nullable=False, index=True)
+    seat_number: Mapped[int] = mapped_column(Integer, nullable=False)
+    player_name: Mapped[str] = mapped_column(String(128), nullable=False)
+    deck_id: Mapped[int | None] = mapped_column(ForeignKey("decks.id"), nullable=True)
+    placement: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    starting_life: Mapped[int] = mapped_column(Integer, default=40, nullable=False)
+    final_life: Mapped[int | None] = mapped_column(Integer, nullable=True)
+
+    game: Mapped[Game] = relationship(back_populates="seats")
+    deck: Mapped[Deck | None] = relationship()

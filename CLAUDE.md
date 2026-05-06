@@ -1,6 +1,6 @@
 # Mana Archive — Claude Context
 
-## Current version: v3.12.0
+## Current version: v3.13.0
 
 ## Stack: FastAPI + Jinja2 + SQLite + K3s/ArgoCD
 
@@ -361,6 +361,6 @@ Templates updated in v3.7: `decks.html`, `import.html`, `import_preview.html`, `
 - v3.11.11: Commander theme extraction — `extract_commander_themes()` parses commander oracle text for card types cared about (positive pattern matching, removal context excluded), CMC gates (mana value N or greater/less), non-X subtype exclusions, mechanics (counters/tokens/graveyard/sacrifice/discard), and tribal subtypes (only when mentioned in oracle text); `card_matches_theme()` applies themes to classify deck cards; `compute_deck_synergy()` now uses these instead of ad-hoc subtype matching; "Detected:" note in synergy panel shows extracted signals — **shipped**
 - v3.12.0: Dead card detection — `compute_dead_cards(all_rows, synergy)` in `deck_service.py` flags Unrelated cards (per synergy classification) that have no user-assigned role tag; oracle text patterns add sub-reasons: `win-more` (`for each creature/token/permanent you control`) and `board-dependent` (sacrifice a creature, tap untapped creatures, convoke); **Upgrade Targets** panel in `_deck_panels.html` shows count + expandable card list with sub-reason tags; CSS: `.dead-cards-panel`, `.dead-cards-note`, `.dead-cards-details`, `.dead-cards-summary`, `.dead-cards-list`, `.dead-card-name`, `.dead-card-tag` — **committed**
 - v3.13: Average turn impact — estimate when cards are typically playable and when they matter; "deck peaks at turn X" summary
-- v3.13: Game tracker — life totals, 2–8 players, deck selection per seat, game results tied to deck records
+- v3.13.0: Game tracker — `Game` + `GameSeat` models; migration `v3_13_games`; `app/game_service.py` (`create_game`, `get_game`, `list_games`, `end_game`, `delete_game`, `get_deck_record`); routes `GET/POST /games`, `GET /games/new`, `GET/POST /games/{id}`, `POST /games/{id}/end`, `POST /games/{id}/delete`; `games.html` (history table with winner), `game_new.html` (JS seat builder, 2–8 players, deck selection), `game_detail.html` (client-side life tracker with ±1/±5 buttons, End Game form with per-seat placement + final life); W/L record shown in deck detail hero when games exist; Games nav link in `base.html`; CSS: `.life-tracker-grid`, `.life-card`, `.life-total`, `.life-controls`, `.life-btn`, `.end-game-row`, `.seat-row`, `.deck-record` — **committed**
 - v4.0: PostgreSQL migration
 - v4.1: Playgroup meta adjustment — track win/loss vs specific decks, common threats, avg game length; suggest curve/removal/hate adjustments

@@ -1,0 +1,155 @@
+{% extends "base.html" %}
+{% block content %}
+  {% set is_ended = game.seats | selectattr('placement', 'ne', none) | list | length > 0 %}
+  {% set winner = game.seats | selectattr('placement', 'eq', 1) | first | default(none) %}
+  <section class="panel page-hero compact-hero">
+    <div>
+      <div class="eyebrow">
+        Game · {{ game.played_at.strftime("%Y-%m-%d") }}
+        {% if game.format %}· {{ game.format }}{% endif %}
+      </div>
+      <h2 class="panel-title">
+        {% if winner %}
+          {{ winner.player_name }} wins
+        {% else %}
+          Game in Progress
+        {% endif %}
+      </h2>
+      {% if game.turn_count %}<p class="muted">{{ game.turn_count }} turns</p>{% endif %}
+    </div>
+    <div style="display:flex;gap:0.5rem;flex-wrap:wrap;align-items:flex-start">
+      <a href="/games">
+        <button type="button">← History</button>
+      </a>
+      <form method="post"
+            action="/games/{{ game.id }}/delete"
+            style="display:inline">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <button type="submit"
+                class="btn-danger-small"
+                onclick="return confirm('Delete this game record?')">Delete</button>
+      </form>
+    </div>
+  </section>
+  {# Life tracker — client-side only #}
+  <section class="panel">
+    <h3 class="panel-title">Life Totals</h3>
+    <div class="life-tracker-grid" id="life-tracker">
+      {% for seat in game.seats %}
+        <div class="life-card" id="seat-{{ seat.id }}">
+          <div class="life-player-name">{{ seat.player_name }}</div>
+          {% if seat.deck %}<div class="life-deck-name">{{ seat.deck.name }}</div>{% endif %}
+          {% if seat.placement %}
+            <div class="life-placement placement-{{ seat.placement }}">
+              {% if seat.placement == 1 %}
+                🏆 1st
+              {% elif seat.placement == 2 %}
+                2nd
+              {% elif seat.placement == 3 %}
+                3rd
+              {% else %}
+                {{ seat.placement }}th
+              {% endif %}
+            </div>
+          {% endif %}
+          <div class="life-total" id="life-{{ seat.id }}">
+            {{ seat.final_life if seat.final_life is not none else seat.starting_life }}
+          </div>
+          {% if not is_ended %}
+            <div class="life-controls">
+              <button type="button"
+                      class="life-btn"
+                      onclick="adjustLife({{ seat.id }}, -5)">−5</button>
+              <button type="button"
+                      class="life-btn"
+                      onclick="adjustLife({{ seat.id }}, -1)">−1</button>
+              <button type="button"
+                      class="life-btn life-btn-up"
+                      onclick="adjustLife({{ seat.id }}, 1)">+1</button>
+              <button type="button"
+                      class="life-btn life-btn-up"
+                      onclick="adjustLife({{ seat.id }}, 5)">+5</button>
+            </div>
+          {% endif %}
+        </div>
+      {% endfor %}
+    </div>
+  </section>
+  {# End game form #}
+  {% if not is_ended %}
+    <section class="panel">
+      <h3 class="panel-title">End Game</h3>
+      <form method="post" action="/games/{{ game.id }}/end">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <div class="stack-form">
+          {% for seat in game.seats %}
+            <div class="end-game-row">
+              <span class="end-game-player">{{ seat.player_name }}</span>
+              <select name="placement_{{ seat.id }}">
+                <option value="">— placement —</option>
+                {% for p in range(1, game.seats|length + 1) %}
+                  <option value="{{ p }}">
+                    {% if p == 1 %}
+                      1st (Winner)
+                    {% elif p == 2 %}
+                      2nd
+                    {% elif p == 3 %}
+                      3rd
+                    {% else %}
+                      {{ p }}th
+                    {% endif %}
+                  </option>
+                {% endfor %}
+              </select>
+              <input type="number"
+                     name="final_life_{{ seat.id }}"
+                     placeholder="Final life"
+                     id="submit-life-{{ seat.id }}"
+                     style="width:110px">
+            </div>
+          {% endfor %}
+          <label>Turns Played</label>
+          <input type="number"
+                 name="turn_count"
+                 placeholder="e.g. 12"
+                 style="width:120px"
+                 min="1">
+          <label>Notes</label>
+          <textarea name="notes"
+                    rows="2"
+                    style="width:100%;
+                           max-width:480px"
+                    placeholder="How did it go?"></textarea>
+        </div>
+        <div style="margin-top:1rem">
+          <button type="submit">Save Result</button>
+        </div>
+      </form>
+    </section>
+  {% else %}
+    {% if game.notes %}
+      <section class="panel">
+        <h3 class="panel-title">Notes</h3>
+        <p>{{ game.notes }}</p>
+      </section>
+    {% endif %}
+  {% endif %}
+{% endblock %}
+{% block extra_scripts %}
+  <script>
+const lifeTotals = {
+  {% for seat in game.seats %}
+    {{ seat.id }}: {{ seat.final_life if seat.final_life is not none else seat.starting_life }}{% if not loop.last %},{% endif %}
+  {% endfor %}
+};
+
+function adjustLife(seatId, delta) {
+  lifeTotals[seatId] = (lifeTotals[seatId] || 0) + delta;
+  const el = document.getElementById('life-' + seatId);
+  if (el) el.textContent = lifeTotals[seatId];
+  // Mirror into the End Game form if it exists
+  const submitEl = document.getElementById('submit-life-' + seatId);
+  if (submitEl) submitEl.value = lifeTotals[seatId];
+}
+  </script>
+{% endblock %}

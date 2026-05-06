@@ -59,6 +59,14 @@ from app.dependencies import (
     render,
 )
 from app.drawer_service import list_drawer_groups, list_rows_for_drawer
+from app.game_service import (
+    create_game,
+    delete_game,
+    end_game,
+    get_deck_record,
+    get_game,
+    list_games,
+)
 from app.import_service import (
     normalize_finish,
     parse_scanner_csv,
@@ -1494,6 +1502,9 @@ def deck_detail_page(
     collection_results = []
     deck_total_value = 0.0
     total_cards = 0
+    deck_record = (
+        get_deck_record(session, deck_id) if deck else {"wins": 0, "losses": 0, "total": 0}
+    )
 
     if deck:
         # Auto-tag untagged rows from oracle text patterns (non-destructive).
@@ -1645,6 +1656,7 @@ def deck_detail_page(
             "analytics": analytics,
             "health": health,
             "consistency": consistency,
+            "deck_record": deck_record,
             "health_filter": health_filter if health_filter in _VALID_HEALTH_FILTERS else "",
             "current_user": current_user,
             "use_drawer_sorter": use_drawer_sorter,
@@ -2072,3 +2084,138 @@ def set_detail_page(
             "current_user": current_user,
         },
     )
+
+
+# ---------------------------------------------------------------------------
+# Game tracker routes
+# ---------------------------------------------------------------------------
+
+
+@app.get("/games")
+def games_list_page(
+    request: Request,
+    session: Session = Depends(get_db_session),
+    current_user: User = Depends(get_current_user),
+):
+    games = list_games(session, current_user.id)
+    return render(
+        request,
+        "games.html",
+        {"title": "Game History", "games": games, "current_user": current_user},
+    )
+
+
+@app.get("/games/new")
+def game_new_page(
+    request: Request,
+    session: Session = Depends(get_db_session),
+    current_user: User = Depends(get_current_user),
+):
+    decks = session.query(Deck).filter(Deck.user_id == current_user.id).order_by(Deck.name).all()
+    return render(
+        request,
+        "game_new.html",
+        {"title": "New Game", "decks": decks, "current_user": current_user},
+    )
+
+
+@app.post("/games")
+def game_create(
+    request: Request,
+    player_count: int = Form(...),
+    format: str = Form(""),
+    player_names: list[str] = Form(...),
+    deck_ids: list[str] = Form(...),
+    starting_life: int = Form(40),
+    session: Session = Depends(get_db_session),
+    current_user: User = Depends(get_current_user),
+    _: None = CsrfRequired,
+):
+    seats = []
+    for i in range(player_count):
+        name = player_names[i].strip() if i < len(player_names) else f"Player {i + 1}"
+        did_raw = deck_ids[i] if i < len(deck_ids) else ""
+        try:
+            deck_id = int(did_raw) if did_raw else None
+        except ValueError:
+            deck_id = None
+        seats.append(
+            {
+                "player_name": name or f"Player {i + 1}",
+                "deck_id": deck_id,
+                "starting_life": starting_life,
+            }
+        )
+
+    game = create_game(session, user_id=current_user.id, format=format, seats=seats)
+    return RedirectResponse(f"/games/{game.id}", status_code=303)
+
+
+@app.get("/games/{game_id}")
+def game_detail_page(
+    request: Request,
+    game_id: int,
+    session: Session = Depends(get_db_session),
+    current_user: User = Depends(get_current_user),
+):
+    game = get_game(session, game_id, current_user.id)
+    if not game:
+        raise HTTPException(status_code=404, detail="Game not found")
+    decks = session.query(Deck).filter(Deck.user_id == current_user.id).order_by(Deck.name).all()
+    return render(
+        request,
+        "game_detail.html",
+        {"title": f"Game {game_id}", "game": game, "decks": decks, "current_user": current_user},
+    )
+
+
+@app.post("/games/{game_id}/end")
+async def game_end(
+    request: Request,
+    game_id: int,
+    session: Session = Depends(get_db_session),
+    current_user: User = Depends(get_current_user),
+    _: None = CsrfRequired,
+):
+    form_data = await request.form()
+
+    game = get_game(session, game_id, current_user.id)
+    if not game:
+        raise HTTPException(status_code=404, detail="Game not found")
+
+    placements: dict[int, int] = {}
+    final_lives: dict[int, int | None] = {}
+    for seat in game.seats:
+        p_val = form_data.get(f"placement_{seat.id}", "")
+        l_val = form_data.get(f"final_life_{seat.id}", "")
+        if p_val:
+            try:
+                placements[seat.id] = int(p_val)
+            except ValueError:
+                pass
+        if l_val:
+            try:
+                final_lives[seat.id] = int(l_val)
+            except ValueError:
+                pass
+
+    turn_count_raw = form_data.get("turn_count", "")
+    notes = str(form_data.get("notes", ""))
+    try:
+        tc = int(turn_count_raw) if str(turn_count_raw).strip() else None
+    except ValueError:
+        tc = None
+
+    end_game(session, game_id, current_user.id, placements, final_lives, tc, notes)
+    return RedirectResponse(f"/games/{game_id}", status_code=303)
+
+
+@app.post("/games/{game_id}/delete")
+def game_delete(
+    game_id: int,
+    session: Session = Depends(get_db_session),
+    current_user: User = Depends(get_current_user),
+    _: None = CsrfRequired,
+):
+    delete_game(session, game_id, current_user.id)
+    return RedirectResponse("/games", status_code=303)

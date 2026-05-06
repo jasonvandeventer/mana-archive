@@ -1761,3 +1761,126 @@ td {
   margin-left: 4px;
   vertical-align: middle;
 }
+
+/* Game tracker */
+.player-count-row {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+.player-count-btn {
+  padding: 0.3rem 0.8rem;
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  border-radius: 4px;
+  cursor: pointer;
+  color: var(--text);
+  font-size: 0.9rem;
+}
+.player-count-btn.active {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+.seat-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--border);
+}
+.seat-row-label {
+  width: 70px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+.seat-row-fields {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  flex: 1;
+}
+.life-tracker-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 1rem;
+}
+.life-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 1rem;
+  text-align: center;
+}
+.life-player-name {
+  font-weight: 700;
+  font-size: 1rem;
+  margin-bottom: 0.2rem;
+}
+.life-deck-name {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  margin-bottom: 0.4rem;
+}
+.life-placement {
+  font-size: 0.82rem;
+  font-weight: 600;
+  margin-bottom: 0.3rem;
+}
+.placement-1 {
+  color: #f59e0b;
+}
+.placement-2 {
+  color: #94a3b8;
+}
+.placement-3 {
+  color: #b45309;
+}
+.life-total {
+  font-size: 3rem;
+  font-weight: 800;
+  line-height: 1;
+  margin: 0.5rem 0;
+}
+.life-controls {
+  display: flex;
+  gap: 0.3rem;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-top: 0.5rem;
+}
+.life-btn {
+  padding: 0.3rem 0.6rem;
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  color: var(--text);
+  min-width: 36px;
+}
+.life-btn:hover {
+  background: var(--bg-hover, var(--border));
+}
+.life-btn-up {
+  color: #22c55e;
+  border-color: #22c55e44;
+}
+.end-game-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.4rem 0;
+  border-bottom: 1px solid var(--border);
+}
+.end-game-player {
+  width: 130px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+.deck-record {
+  font-weight: 600;
+  color: var(--accent);
+}

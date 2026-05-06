@@ -10,6 +10,7 @@ from scripts.migrate_v3_9_5_row_tags import main as migrate_v3_9_5_row_tags
 from scripts.migrate_v3_9_6_legalities import main as migrate_v3_9_6_legalities
 from scripts.migrate_v3_11_3_clear_deck_pending import main as migrate_v3_11_3_clear_deck_pending
 from scripts.migrate_v3_11_display_name import main as migrate_v3_11_display_name
+from scripts.migrate_v3_13_games import main as migrate_v3_13_games
 
 
 def _is_applied(name: str) -> bool:
@@ -96,6 +97,13 @@ def run():
         _mark_applied("v3_11_3_clear_deck_pending")
     else:
         print("v3.11.3 clear_deck_pending already applied, skipping")
+
+    if not _is_applied("v3_13_games"):
+        print("Running v3.13 games migration...")
+        migrate_v3_13_games()
+        _mark_applied("v3_13_games")
+    else:
+        print("v3.13 games already applied, skipping")
 
     print("Migration runner complete")
 

@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block content %}
+  <section class="panel page-hero compact-hero">
+    <div>
+      <div class="eyebrow">Play</div>
+      <h2 class="panel-title">New Game</h2>
+    </div>
+  </section>
+  <section class="panel">
+    <form method="post" action="/games" id="game-new-form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <input type="hidden" name="player_count" id="player_count_hidden" value="4">
+      <div class="stack-form">
+        <label>Format</label>
+        <select name="format">
+          <option value="">— any —</option>
+          <option value="Commander">Commander</option>
+          <option value="Standard">Standard</option>
+          <option value="Modern">Modern</option>
+          <option value="Legacy">Legacy</option>
+          <option value="Vintage">Vintage</option>
+          <option value="Draft">Draft</option>
+          <option value="Sealed">Sealed</option>
+        </select>
+        <label>Starting Life Total</label>
+        <select name="starting_life" id="starting_life">
+          <option value="40" selected>40 (Commander)</option>
+          <option value="20">20 (Standard/Modern)</option>
+          <option value="30">30 (Brawl)</option>
+        </select>
+        <label>Number of Players</label>
+        <div class="player-count-row">
+          {% for n in [2, 3, 4, 5, 6, 7, 8] %}
+            <button type="button"
+                    class="player-count-btn{% if n == 4 %} active{% endif %}"
+                    onclick="setPlayerCount({{ n }})">{{ n }}</button>
+          {% endfor %}
+        </div>
+      </div>
+      <div id="seat-rows" style="margin-top:1.5rem"></div>
+      <div style="margin-top:1.5rem">
+        <button type="submit">Start Game</button>
+        <a href="/games">
+          <button type="button" style="margin-left:0.5rem">Cancel</button>
+        </a>
+      </div>
+    </form>
+  </section>
+{% endblock %}
+{% block extra_scripts %}
+  <script>
+const decks = {{ decks | tojson }};
+let playerCount = 4;
+
+function setPlayerCount(n) {
+  playerCount = n;
+  document.getElementById('player_count_hidden').value = n;
+  document.querySelectorAll('.player-count-btn').forEach(b => b.classList.remove('active'));
+  event.target.classList.add('active');
+  renderSeats();
+}
+
+function renderSeats() {
+  const container = document.getElementById('seat-rows');
+  container.innerHTML = '';
+  for (let i = 0; i < playerCount; i++) {
+    const div = document.createElement('div');
+    div.className = 'seat-row';
+    div.innerHTML = `
+      <div class="seat-row-label">Player ${i + 1}</div>
+      <div class="seat-row-fields">
+        <input type="text" name="player_names" placeholder="Name" style="width:160px">
+        <select name="deck_ids">
+          <option value="">— no deck —</option>
+          ${decks.map(d => `<option value="${d.id}">${d.name}</option>`).join('')}
+        </select>
+      </div>
+    `;
+    container.appendChild(div);
+  }
+}
+
+renderSeats();
+  </script>
+{% endblock %}
