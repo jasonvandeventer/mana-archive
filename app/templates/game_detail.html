@@ -341,10 +341,12 @@ function buildDynamicGrid() {
     seats.forEach((s, idx) => {
       const slotEl = document.getElementById(`slot-${s.id}`);
       if (!slotEl) return;
-      slotEl.style.gridRow = String(gridRow);
-      slotEl.style.gridColumn = `${Math.round(idx * span) + 1} / ${Math.round((idx + 1) * span) + 1}`;
+      // gridArea is the shorthand for gridRow + gridColumn — clear it FIRST or
+      // it will wipe out the explicit values set after.
       slotEl.style.gridArea = '';
       slotEl.style.order = '';
+      slotEl.style.gridRow = String(gridRow);
+      slotEl.style.gridColumn = `${Math.round(idx * span) + 1} / ${Math.round((idx + 1) * span) + 1}`;
       const card = document.getElementById(`card-${s.id}`);
       if (card) card.dataset.rotate = String(s.rotate);
     });
@@ -359,10 +361,10 @@ function buildDynamicGrid() {
   const setSlot = (seat, colStart, colEnd) => {
     const el = document.getElementById(`slot-${seat.id}`);
     if (!el) return;
-    el.style.gridRow = String(midRow);
-    el.style.gridColumn = `${colStart} / ${colEnd}`;
     el.style.gridArea = '';
     el.style.order = '';
+    el.style.gridRow = String(midRow);
+    el.style.gridColumn = `${colStart} / ${colEnd}`;
     const card = document.getElementById(`card-${seat.id}`);
     if (card) card.dataset.rotate = String(seat.rotate);
   };
