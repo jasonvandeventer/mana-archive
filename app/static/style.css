@@ -1918,32 +1918,24 @@ body.game-mode {
 /* Player grid — fixed full viewport, gap acts as divider lines */
 .tracker-grid {
   position: fixed;
-  inset: 0;
+  top: 42px;    /* clear the floating topbar */
+  bottom: 38px; /* clear the history bar (overridden to 0 for ended games) */
+  left: 0;
+  right: 0;
   display: grid;
   gap: 3px;
   background: #0b0f06;
   z-index: 500;
-  /* Fixed 8-seat topology — JS assigns grid-area per slot */
-  grid-template-areas:
-    "p1 p2 p3"
-    "p8 tc p4"
-    "p7 p6 p5";
-  grid-template-columns: 1fr 1fr 1fr;
-  grid-template-rows: 1fr 2fr 1fr;
+  /* Layout computed dynamically by JS — buildDynamicGrid() / applyLayout() */
 }
 
-/* Portrait mode — 2-column auto-flow, no rotations, turn info moves to topbar */
+/* Ended games have no histbar, so no bottom offset needed */
+.game-app[data-ended] .tracker-grid {
+  bottom: 0;
+}
+
+/* Portrait mode — grid layout handled by JS applyLayout(); only CSS needed is turn row visibility */
 @media (orientation: portrait) {
-  .tracker-grid {
-    grid-template-areas: unset;
-    grid-template-columns: 1fr 1fr;
-    grid-template-rows: unset;
-    grid-auto-rows: 1fr;
-    grid-auto-flow: row;
-  }
-  .card-slot-center {
-    display: none;
-  }
   .portrait-turn-row {
     display: flex !important;
     align-items: center;
@@ -2060,7 +2052,8 @@ body.game-mode {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
   transition: opacity 0.2s;
 }
 .tracker-card.tc-eliminated {
@@ -2306,30 +2299,61 @@ body.game-mode {
   color: #ef4444;
 }
 
-/* C / P / E counter pills */
+/* Life center column — holds life total + pill row, bounded by button cols */
+.tc-life-center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
+/* P / E counter pills with inline ± buttons */
 .tc-cpill-row {
   display: flex;
-  gap: 0.4rem;
+  gap: 0.35rem;
   justify-content: center;
   border-top: 1px solid var(--border);
-  padding-top: 0.5rem;
+  padding-top: 0.35rem;
   flex-shrink: 0;
+  width: 100%;
 }
 .tc-cpill {
   display: flex;
   align-items: center;
-  gap: 0.25rem;
-  padding: 0.2rem 0.55rem;
+  gap: 0.2rem;
+  padding: 0.15rem 0.3rem;
   border-radius: 6px;
   font-size: 0.78rem;
   font-weight: 700;
-  letter-spacing: 0.04em;
   border: 1px solid;
 }
-.tc-cpill-c {
-  background: #1e293b;
-  border-color: #334155;
-  color: #94a3b8;
+.tc-cpill-lbl {
+  font-size: 0.85rem;
+  margin-right: 0.1rem;
+}
+.tc-cpill-btn {
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.06);
+  color: inherit;
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  line-height: 1;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  flex-shrink: 0;
+}
+.tc-cpill-btn:active {
+  background: rgba(255, 255, 255, 0.18);
+  transform: scale(0.9);
 }
 .tc-cpill-p {
   background: #1e1a2e;
@@ -2342,8 +2366,8 @@ body.game-mode {
   color: #86efac;
 }
 .tc-cpill-val {
-  min-width: 1.4ch;
-  text-align: right;
+  min-width: 1.6ch;
+  text-align: center;
 }
 .tc-ctr-btn {
   width: 32px;

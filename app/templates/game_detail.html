@@ -2,7 +2,7 @@
 {% block content %}
   {% set is_ended = game.seats | selectattr('placement', 'ne', none) | list | length > 0 %}
   {% set winner = game.seats | selectattr('placement', 'eq', 1) | first | default(none) %}
-  <div class="game-app" id="game-app">
+  <div class="game-app" id="game-app"{% if is_ended %} data-ended="1"{% endif %}>
     {# ── Floating top bar ──────────────────────────────────────── #}
     <div class="game-topbar" id="game-topbar">
       <a href="/games" class="game-topbar-link">← Games</a>
@@ -99,8 +99,36 @@
                           onclick="adjustLife({{ seat.id }}, 1)">+1</button>
                 </div>
               {% endif %}
-              <div class="tc-life" id="life-{{ seat.id }}">
-                {{ seat.final_life if seat.final_life is not none else seat.starting_life }}
+              <div class="tc-life-center">
+                <div class="tc-life" id="life-{{ seat.id }}">
+                  {{ seat.final_life if seat.final_life is not none else seat.starting_life }}
+                </div>
+                {% if is_ended %}
+                  {% if seat.final_life is not none %}<div class="tc-final-note">Final life: {{ seat.final_life }}</div>{% endif %}
+                {% else %}
+                  <div class="tc-cpill-row">
+                    <div class="tc-cpill tc-cpill-p">
+                      <span class="tc-cpill-lbl">☣</span>
+                      <button type="button"
+                              class="tc-cpill-btn"
+                              onclick="adjustPoison({{ seat.id }}, -1)">−</button>
+                      <span class="tc-cpill-val" id="poison-{{ seat.id }}">0</span>
+                      <button type="button"
+                              class="tc-cpill-btn"
+                              onclick="adjustPoison({{ seat.id }}, 1)">+</button>
+                    </div>
+                    <div class="tc-cpill tc-cpill-e">
+                      <span class="tc-cpill-lbl">⚡</span>
+                      <button type="button"
+                              class="tc-cpill-btn"
+                              onclick="adjustExp({{ seat.id }}, -1)">−</button>
+                      <span class="tc-cpill-val" id="exp-{{ seat.id }}">0</span>
+                      <button type="button"
+                              class="tc-cpill-btn"
+                              onclick="adjustExp({{ seat.id }}, 1)">+</button>
+                    </div>
+                  </div>
+                {% endif %}
               </div>
               {% if not is_ended %}
                 <div class="tc-life-btn-col">
@@ -116,21 +144,7 @@
                 </div>
               {% endif %}
             </div>
-            {% if is_ended %}
-              {% if seat.final_life is not none %}<div class="tc-final-note">Final life: {{ seat.final_life }}</div>{% endif %}
-            {% else %}
-              <div class="tc-cpill-row">
-                <div class="tc-cpill tc-cpill-c">
-                  C<span class="tc-cpill-val" id="cmd-total-{{ seat.id }}">0</span>
-                </div>
-                <div class="tc-cpill tc-cpill-p">
-                  P<span class="tc-cpill-val" id="poison-{{ seat.id }}">0</span>
-                </div>
-                <div class="tc-cpill tc-cpill-e">
-                  E<span class="tc-cpill-val" id="exp-{{ seat.id }}">0</span>
-                </div>
-              </div>
-              {% if game.seats | length > 1 %}
+              {% if not is_ended and game.seats | length > 1 %}
                 <details class="tc-cmd-details">
                   <summary class="tc-cmd-summary">Commander Damage ▸</summary>
                   <div class="tc-cmd-grid">
@@ -149,7 +163,6 @@
                   </div>
                 </details>
               {% endif %}
-            {% endif %}
           </div>
         </div>
       {% endfor %}
@@ -282,57 +295,118 @@ seatDefs.forEach((s, i) => {
 // Seats sorted in clockwise order (for turn sequencing and badges)
 const clockwiseSeats = seatDefs.slice().sort((a, b) => a.turnOrder - b.turnOrder);
 
-let emptySlots = [];
+// Logical row and column rank for each position in the 3×3 topology
+const ROW_OF = { p1: 0, p2: 0, p3: 0, p8: 1, p4: 1, p7: 2, p6: 2, p5: 2 };
+const COL_RANK = { p1: 0, p2: 1, p3: 2, p8: 0, p4: 2, p7: 0, p6: 1, p5: 2 };
 
 function initGrid() {
-  // Assign turn-order badges
   seatDefs.forEach(s => {
     const badge = document.getElementById(`badge-${s.id}`);
     if (badge) badge.textContent = clockwiseSeats.findIndex(cs => cs.id === s.id) + 1;
   });
-
-  // Create empty placeholder cells for unused positions (landscape only)
-  const usedPos = new Set(seatDefs.map(s => s.position));
-  const grid = document.getElementById('tracker-grid');
-  ALL_POSITIONS.forEach(pos => {
-    if (!usedPos.has(pos)) {
-      const ph = document.createElement('div');
-      ph.className = 'card-slot card-slot-empty';
-      ph.style.gridArea = pos;
-      grid.insertBefore(ph, grid.firstChild);
-      emptySlots.push(ph);
-    }
-  });
-
   applyLayout();
 }
 
 const portraitMQ = window.matchMedia('(orientation: portrait)');
 function isPortrait() { return portraitMQ.matches; }
 
+function buildDynamicGrid() {
+  // Group seats by logical row, sorted by column rank within each row
+  const rowSeats = [[], [], []];
+  seatDefs.forEach(s => rowSeats[ROW_OF[s.position]].push(s));
+  rowSeats.forEach(row => row.sort((a, b) => COL_RANK[a.position] - COL_RANK[b.position]));
+
+  // Active rows: any row with players + always include middle row for tc
+  const activeRows = [0, 1, 2].filter(r => r === 1 || rowSeats[r].length > 0);
+  const rowToGrid = {};
+  activeRows.forEach((r, i) => { rowToGrid[r] = i + 1; });
+
+  const gridEl = document.getElementById('tracker-grid');
+  gridEl.style.gridTemplateAreas = 'none';
+  gridEl.style.gridTemplateRows = activeRows.map(() => '1fr').join(' ');
+  gridEl.style.gridTemplateColumns = 'repeat(6, 1fr)';
+  gridEl.style.gridAutoRows = '';
+  gridEl.style.gridAutoFlow = '';
+
+  // Top (row 0) and bottom (row 2): distribute n seats evenly across 6 columns
+  [0, 2].forEach(logRow => {
+    const seats = rowSeats[logRow];
+    if (!seats.length) return;
+    const gridRow = rowToGrid[logRow];
+    const span = 6 / seats.length;
+    seats.forEach((s, idx) => {
+      const slotEl = document.getElementById(`slot-${s.id}`);
+      if (!slotEl) return;
+      slotEl.style.gridRow = String(gridRow);
+      slotEl.style.gridColumn = `${Math.round(idx * span) + 1} / ${Math.round((idx + 1) * span) + 1}`;
+      slotEl.style.gridArea = '';
+      slotEl.style.order = '';
+      const card = document.getElementById(`card-${s.id}`);
+      if (card) card.dataset.rotate = String(s.rotate);
+    });
+  });
+
+  // Middle row: p8 (left), tc (center), p4 (right) — 6-column division
+  const midRow = rowToGrid[1];
+  const p8seat = rowSeats[1].find(s => s.position === 'p8');
+  const p4seat = rowSeats[1].find(s => s.position === 'p4');
+  const tcSlot = document.getElementById('slot-center');
+
+  const setSlot = (seat, colStart, colEnd) => {
+    const el = document.getElementById(`slot-${seat.id}`);
+    if (!el) return;
+    el.style.gridRow = String(midRow);
+    el.style.gridColumn = `${colStart} / ${colEnd}`;
+    el.style.gridArea = '';
+    el.style.order = '';
+    const card = document.getElementById(`card-${seat.id}`);
+    if (card) card.dataset.rotate = String(seat.rotate);
+  };
+
+  if (p8seat && p4seat) {
+    setSlot(p8seat, 1, 3);
+    if (tcSlot) { tcSlot.style.gridRow = String(midRow); tcSlot.style.gridColumn = '3 / 5'; tcSlot.style.display = ''; }
+    setSlot(p4seat, 5, 7);
+  } else if (p8seat) {
+    setSlot(p8seat, 1, 4);
+    if (tcSlot) { tcSlot.style.gridRow = String(midRow); tcSlot.style.gridColumn = '4 / 7'; tcSlot.style.display = ''; }
+  } else if (p4seat) {
+    if (tcSlot) { tcSlot.style.gridRow = String(midRow); tcSlot.style.gridColumn = '1 / 4'; tcSlot.style.display = ''; }
+    setSlot(p4seat, 4, 7);
+  } else {
+    if (tcSlot) { tcSlot.style.gridRow = String(midRow); tcSlot.style.gridColumn = '1 / 7'; tcSlot.style.display = ''; }
+  }
+
+  requestAnimationFrame(sizeRotatedCards);
+}
+
 function applyLayout() {
-  const portrait = isPortrait();
+  if (isPortrait()) {
+    const gridEl = document.getElementById('tracker-grid');
+    gridEl.style.gridTemplateAreas = 'none';
+    gridEl.style.gridTemplateRows = '';
+    gridEl.style.gridTemplateColumns = '1fr 1fr';
+    gridEl.style.gridAutoRows = '1fr';
+    gridEl.style.gridAutoFlow = 'row';
 
-  // Show/hide empty placeholder cells — only meaningful in landscape topology
-  emptySlots.forEach(el => { el.style.display = portrait ? 'none' : ''; });
-
-  seatDefs.forEach((s, i) => {
-    const slotEl = document.getElementById(`slot-${s.id}`);
-    const card = document.getElementById(`card-${s.id}`);
-    if (!slotEl || !card) return;
-
-    if (portrait) {
+    seatDefs.forEach(s => {
+      const slotEl = document.getElementById(`slot-${s.id}`);
+      const card = document.getElementById(`card-${s.id}`);
+      if (!slotEl || !card) return;
+      slotEl.style.gridRow = '';
+      slotEl.style.gridColumn = '';
       slotEl.style.gridArea = 'auto';
       slotEl.style.order = String(clockwiseSeats.findIndex(cs => cs.id === s.id));
       card.dataset.rotate = '0';
-    } else {
-      slotEl.style.gridArea = s.position;
-      slotEl.style.order = '';
-      card.dataset.rotate = String(s.rotate);
-    }
-  });
+    });
 
-  requestAnimationFrame(sizeRotatedCards);
+    const tcSlot = document.getElementById('slot-center');
+    if (tcSlot) tcSlot.style.display = 'none';
+
+    requestAnimationFrame(sizeRotatedCards);
+  } else {
+    buildDynamicGrid();
+  }
 }
 
 function sizeRotatedCards() {
@@ -524,14 +598,6 @@ function render() {
     }
     const expEl = document.getElementById(`exp-${s.id}`);
     if (expEl) expEl.textContent = state.exp[s.id] ?? 0;
-
-    const cmdTotal = Object.values(state.cmd[s.id] || {}).reduce((a, b) => a + b, 0);
-    const cmdTotalEl = document.getElementById(`cmd-total-${s.id}`);
-    if (cmdTotalEl) {
-      cmdTotalEl.textContent = cmdTotal;
-      cmdTotalEl.className = 'tc-cpill-val' +
-        (cmdTotal >= 21 ? ' tc-counter-danger' : cmdTotal >= 16 ? ' tc-counter-warn' : '');
-    }
 
     s.otherIds.forEach(oid => {
       const el = document.getElementById(`cmd-${s.id}-${oid}`);
