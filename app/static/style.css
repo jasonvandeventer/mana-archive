@@ -1863,6 +1863,53 @@ body.game-mode {
   grid-template-rows: 1fr 2fr 1fr;
 }
 
+/* Portrait mode — 2-column auto-flow, no rotations, turn info moves to topbar */
+@media (orientation: portrait) {
+  .tracker-grid {
+    grid-template-areas: unset;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: unset;
+    grid-auto-rows: 1fr;
+    grid-auto-flow: row;
+  }
+  .card-slot-center {
+    display: none;
+  }
+  .portrait-turn-row {
+    display: flex !important;
+    align-items: center;
+    gap: 0.4rem;
+  }
+}
+
+/* Portrait turn controls — hidden in landscape */
+.portrait-turn-row {
+  display: none;
+}
+.portrait-turn-name {
+  font-weight: 700;
+  color: var(--text);
+  max-width: 90px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.portrait-next-btn {
+  padding: 0.15rem 0.5rem;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.07);
+  color: var(--text);
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  touch-action: manipulation;
+  min-height: 28px;
+}
+.portrait-next-btn:active {
+  transform: scale(0.92);
+}
+
 /* Card slot — grid item wrapper; tracker-card fills it absolutely */
 .card-slot {
   position: relative;

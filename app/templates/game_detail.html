@@ -14,6 +14,12 @@
                 onclick="undoLast()"
                 disabled>↩ Undo</button>
         <button type="button" class="game-topbar-end-btn" onclick="toggleEndGame()">End Game</button>
+        <span class="portrait-turn-row">
+          <span class="game-topbar-sep">|</span>
+          <span class="turn-label">T<span id="portrait-turn-counter">1</span></span>
+          <span id="portrait-turn-name" class="portrait-turn-name">—</span>
+          <button type="button" class="portrait-next-btn" onclick="nextTurn()">→</button>
+        </span>
       {% else %}
         <span>{{ game.played_at.strftime("%Y-%m-%d") }}</span>
         {% if game.format %}<span class="game-topbar-sep">·</span><span>{{ game.format }}</span>{% endif %}
@@ -265,18 +271,16 @@ seatDefs.forEach((s, i) => {
 // Seats sorted in clockwise order (for turn sequencing and badges)
 const clockwiseSeats = seatDefs.slice().sort((a, b) => a.turnOrder - b.turnOrder);
 
+let emptySlots = [];
+
 function initGrid() {
+  // Assign turn-order badges
   seatDefs.forEach(s => {
-    const slotEl = document.getElementById(`slot-${s.id}`);
-    const card = document.getElementById(`card-${s.id}`);
-    if (!slotEl || !card) return;
-    slotEl.style.gridArea = s.position;
-    card.dataset.rotate = String(s.rotate);
     const badge = document.getElementById(`badge-${s.id}`);
     if (badge) badge.textContent = clockwiseSeats.findIndex(cs => cs.id === s.id) + 1;
   });
 
-  // Add empty placeholder cells for unused positions
+  // Create empty placeholder cells for unused positions (landscape only)
   const usedPos = new Set(seatDefs.map(s => s.position));
   const grid = document.getElementById('tracker-grid');
   ALL_POSITIONS.forEach(pos => {
@@ -285,6 +289,34 @@ function initGrid() {
       ph.className = 'card-slot card-slot-empty';
       ph.style.gridArea = pos;
       grid.insertBefore(ph, grid.firstChild);
+      emptySlots.push(ph);
+    }
+  });
+
+  applyLayout();
+}
+
+function isPortrait() { return window.innerHeight > window.innerWidth; }
+
+function applyLayout() {
+  const portrait = isPortrait();
+
+  // Show/hide empty placeholder cells — only meaningful in landscape topology
+  emptySlots.forEach(el => { el.style.display = portrait ? 'none' : ''; });
+
+  seatDefs.forEach((s, i) => {
+    const slotEl = document.getElementById(`slot-${s.id}`);
+    const card = document.getElementById(`card-${s.id}`);
+    if (!slotEl || !card) return;
+
+    if (portrait) {
+      slotEl.style.gridArea = 'auto';
+      slotEl.style.order = String(clockwiseSeats.findIndex(cs => cs.id === s.id));
+      card.dataset.rotate = '0';
+    } else {
+      slotEl.style.gridArea = s.position;
+      slotEl.style.order = '';
+      card.dataset.rotate = String(s.rotate);
     }
   });
 
@@ -309,7 +341,7 @@ function sizeRotatedCards() {
 
 document.body.classList.add('game-mode');
 initGrid();
-window.addEventListener('resize', sizeRotatedCards);
+window.addEventListener('resize', () => { applyLayout(); });
 
 {% if not is_ended %}
 // ── State ─────────────────────────────────────────────────────
@@ -474,14 +506,19 @@ function render() {
     card.classList.toggle('tc-eliminated', !!state.eliminated[s.id]);
   });
 
+  const active = seatDefs.find(s => s.id === state.currentTurnId);
+  const turnVal = state.turn ?? 1;
+  const activeName = active?.name ?? '—';
+
   const turnEl = document.getElementById('turn-counter');
-  if (turnEl) turnEl.textContent = state.turn ?? 1;
+  if (turnEl) turnEl.textContent = turnVal;
+  const portraitTurnEl = document.getElementById('portrait-turn-counter');
+  if (portraitTurnEl) portraitTurnEl.textContent = turnVal;
 
   const turnNameEl = document.getElementById('turn-center-name');
-  if (turnNameEl) {
-    const active = seatDefs.find(s => s.id === state.currentTurnId);
-    turnNameEl.textContent = active?.name ?? '—';
-  }
+  if (turnNameEl) turnNameEl.textContent = activeName;
+  const portraitNameEl = document.getElementById('portrait-turn-name');
+  if (portraitNameEl) portraitNameEl.textContent = activeName;
 
   const histEl = document.getElementById('history-list');
   if (histEl) {
