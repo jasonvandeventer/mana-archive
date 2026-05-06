@@ -6,6 +6,7 @@
     {# ── Floating top bar ──────────────────────────────────────── #}
     <div class="game-topbar" id="game-topbar">
       <a href="/games" class="game-topbar-link">← Games</a>
+      <button type="button" class="fs-btn" id="fs-btn" onclick="toggleFullscreen()" title="Toggle fullscreen">⛶</button>
       <span class="game-topbar-sep">|</span>
       {% if not is_ended %}
         <button type="button"
@@ -36,6 +37,16 @@
                 onclick="return confirm('Delete this game record?')">Delete</button>
       </form>
     </div>
+    {# ── Launch overlay (active games) ────────────────────────── #}
+    {% if not is_ended %}
+      <div class="game-launch-overlay" id="game-launch-overlay">
+        <div class="game-launch-inner">
+          <div class="game-launch-format">{{ game.format or 'Commander' }} · {{ game.seats | length }} players</div>
+          <button type="button" class="game-launch-btn" onclick="dismissLaunch(true)">⛶ Go Fullscreen</button>
+          <button type="button" class="game-launch-skip" onclick="dismissLaunch(false)">Continue without fullscreen</button>
+        </div>
+      </div>
+    {% endif %}
     {# ── Player grid — fixed 8-seat topology ───────────────────── #}
     {# Positions: p1=top-left p2=top-ctr p3=top-right             #}
     {#            p8=left-end    tc=ctr     p4=right-end           #}
@@ -296,7 +307,8 @@ function initGrid() {
   applyLayout();
 }
 
-function isPortrait() { return window.innerHeight > window.innerWidth; }
+const portraitMQ = window.matchMedia('(orientation: portrait)');
+function isPortrait() { return portraitMQ.matches; }
 
 function applyLayout() {
   const portrait = isPortrait();
@@ -339,9 +351,36 @@ function sizeRotatedCards() {
   });
 }
 
+// ── Fullscreen ────────────────────────────────────────────────
+function enterFullscreen() {
+  const el = document.documentElement;
+  (el.requestFullscreen || el.webkitRequestFullscreen)?.call(el);
+}
+function toggleFullscreen() {
+  const fs = document.fullscreenElement || document.webkitFullscreenElement;
+  if (fs) (document.exitFullscreen || document.webkitExitFullscreen)?.call(document);
+  else enterFullscreen();
+}
+function dismissLaunch(goFs) {
+  const overlay = document.getElementById('game-launch-overlay');
+  if (overlay) overlay.style.display = 'none';
+  if (goFs) enterFullscreen();
+}
+document.addEventListener('fullscreenchange', () => {
+  const btn = document.getElementById('fs-btn');
+  if (btn) btn.textContent = (document.fullscreenElement || document.webkitFullscreenElement) ? '⊠' : '⛶';
+  applyLayout();
+});
+document.addEventListener('webkitfullscreenchange', () => {
+  const btn = document.getElementById('fs-btn');
+  if (btn) btn.textContent = (document.fullscreenElement || document.webkitFullscreenElement) ? '⊠' : '⛶';
+  applyLayout();
+});
+
 document.body.classList.add('game-mode');
 initGrid();
 window.addEventListener('resize', () => { applyLayout(); });
+portraitMQ.addEventListener('change', () => { applyLayout(); });
 
 {% if not is_ended %}
 // ── State ─────────────────────────────────────────────────────
