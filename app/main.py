@@ -2117,16 +2117,27 @@ def game_new_page(
     session: Session = Depends(get_db_session),
     current_user: User = Depends(get_current_user),
 ):
-    decks = session.query(Deck).filter(Deck.user_id == current_user.id).order_by(Deck.name).all()
-    decks_json = [{"id": d.id, "name": d.name} for d in decks]
+    all_users = (
+        session.query(User)
+        .filter(User.is_active.is_(True))
+        .order_by(User.display_name, User.username)
+        .all()
+    )
+    all_decks = session.query(Deck).order_by(Deck.name).all()
+    # JSON-safe: users list and deck lookup by user_id for JS filtering
+    users_json = [{"id": u.id, "name": u.display_name or u.username} for u in all_users]
+    decks_by_user_json = {}
+    for d in all_decks:
+        decks_by_user_json.setdefault(str(d.user_id), []).append({"id": d.id, "name": d.name})
     return render(
         request,
         "game_new.html",
         {
             "title": "New Game",
-            "decks": decks,
-            "decks_json": decks_json,
+            "users_json": users_json,
+            "decks_by_user_json": decks_by_user_json,
             "current_user": current_user,
+            "current_user_id": current_user.id,
         },
     )
 

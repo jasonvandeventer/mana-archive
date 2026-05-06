@@ -2,7 +2,7 @@
 
 Self-hosted web application for managing a physical Magic: The Gathering collection.
 
-**Current version: v3.13.0** · [Platform repo](https://github.com/jasonvandeventer/mana-archive-platform)
+**Current version: v3.13.1** · [Platform repo](https://github.com/jasonvandeventer/mana-archive-platform)
 
 ---
 
@@ -52,6 +52,18 @@ Self-hosted web application for managing a physical Magic: The Gathering collect
 - Admin panel: create/delete users, toggle admin/active, reset passwords
 - Display names shown throughout the UI; email used as login identifier
 - Per-user data isolation; drawer sorter is opt-in per username
+
+### Game Tracker
+
+- Log Commander games: format, starting life total, 2–8 players with optional user + deck linkage
+- **Full in-browser life tracking**: ±1/±5/±10 life buttons, per-player color coding
+- **Commander damage matrix**: track damage dealt per commander, auto-adjusts receiver's life total
+- **Poison and experience counters** with danger/warning thresholds
+- **Turn counter** and recent action history bar
+- **Undo**: reverses last action (including both sides of commander damage)
+- **Elimination toggle**: mark players as eliminated; auto-detects winner when 1 player remains
+- State persisted to `localStorage` — survives page refresh mid-game
+- End Game records placements, final life totals, and turn count; W/L record shown on each deck's detail page
 
 ### Sets
 

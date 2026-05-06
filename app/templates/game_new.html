@@ -14,7 +14,7 @@
         <label>Format</label>
         <select name="format">
           <option value="">— any —</option>
-          <option value="Commander">Commander</option>
+          <option value="Commander" selected>Commander</option>
           <option value="Standard">Standard</option>
           <option value="Modern">Modern</option>
           <option value="Legacy">Legacy</option>
@@ -33,7 +33,7 @@
           {% for n in [2, 3, 4, 5, 6, 7, 8] %}
             <button type="button"
                     class="player-count-btn{% if n == 4 %} active{% endif %}"
-                    onclick="setPlayerCount({{ n }})">{{ n }}</button>
+                    onclick="setPlayerCount({{ n }}, event)">{{ n }}</button>
           {% endfor %}
         </div>
       </div>
@@ -49,34 +49,79 @@
 {% endblock %}
 {% block extra_scripts %}
   <script>
-const decks = {{ decks_json | tojson }};
+const users = {{ users_json | tojson }};
+const decksByUser = {{ decks_by_user_json | tojson }};
+const currentUserId = {{ current_user_id }};
 let playerCount = 4;
 
-function setPlayerCount(n) {
+function setPlayerCount(n, event) {
   playerCount = n;
   document.getElementById('player_count_hidden').value = n;
   document.querySelectorAll('.player-count-btn').forEach(b => b.classList.remove('active'));
-  event.target.classList.add('active');
+  if (event && event.target) event.target.classList.add('active');
   renderSeats();
+}
+
+function onUserChange(seatIndex, selectEl) {
+  const userId = selectEl.value;
+  const deckSel = document.getElementById(`deck-sel-${seatIndex}`);
+  deckSel.innerHTML = '<option value="">— no deck —</option>';
+  const decks = decksByUser[userId] || [];
+  decks.forEach(d => {
+    const opt = document.createElement('option');
+    opt.value = d.id;
+    opt.textContent = d.name;
+    deckSel.appendChild(opt);
+  });
 }
 
 function renderSeats() {
   const container = document.getElementById('seat-rows');
   container.innerHTML = '';
   for (let i = 0; i < playerCount; i++) {
+    const isFirst = i === 0;
+    const userOptions = users.map(u =>
+      `<option value="${u.id}"${isFirst && u.id === currentUserId ? ' selected' : ''}>${u.name}</option>`
+    ).join('');
+
     const div = document.createElement('div');
     div.className = 'seat-row';
     div.innerHTML = `
-      <div class="seat-row-label">Player ${i + 1}</div>
+      <div class="seat-row-label">Seat ${i + 1}</div>
       <div class="seat-row-fields">
-        <input type="text" name="player_names" placeholder="Name" style="width:160px">
-        <select name="deck_ids">
+        <input type="text" name="player_names" placeholder="Player name" id="name-${i}" style="width:140px">
+        <select name="user_ids" id="user-sel-${i}" onchange="onUserChange(${i}, this)" style="min-width:160px">
+          <option value="">— no user —</option>
+          ${userOptions}
+        </select>
+        <select name="deck_ids" id="deck-sel-${i}" style="min-width:180px">
           <option value="">— no deck —</option>
-          ${decks.map(d => `<option value="${d.id}">${d.name}</option>`).join('')}
         </select>
       </div>
     `;
     container.appendChild(div);
+
+    // Pre-populate current user's decks for seat 0
+    if (isFirst) {
+      const userSel = document.getElementById(`user-sel-${i}`);
+      onUserChange(i, userSel);
+    }
+
+    // Auto-fill name from user selection
+    document.getElementById(`user-sel-${i}`).addEventListener('change', function() {
+      const nameInput = document.getElementById(`name-${i}`);
+      const selected = users.find(u => String(u.id) === this.value);
+      if (selected && !nameInput.value) {
+        nameInput.value = selected.name;
+      }
+      onUserChange(i, this);
+    });
+  }
+  // Pre-fill name for seat 0 from current user
+  const firstNameInput = document.getElementById('name-0');
+  const currentUserObj = users.find(u => u.id === currentUserId);
+  if (firstNameInput && currentUserObj && !firstNameInput.value) {
+    firstNameInput.value = currentUserObj.name;
   }
 }
 

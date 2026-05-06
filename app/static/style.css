@@ -1762,7 +1762,289 @@ td {
   vertical-align: middle;
 }
 
-/* Game tracker */
+/* ── Game tracker ──────────────────────────────────────────── */
+.game-hero-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  align-items: flex-start;
+}
+.undo-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+/* Turn + history bar */
+.tracker-turn-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.4rem 0.75rem;
+  margin-bottom: 0.75rem;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  flex-wrap: wrap;
+  overflow: hidden;
+}
+.turn-label {
+  font-weight: 700;
+  color: var(--text);
+}
+.turn-val {
+  font-weight: 800;
+  font-size: 1rem;
+  min-width: 24px;
+  text-align: center;
+  color: var(--text);
+}
+.history-label {
+  font-weight: 600;
+}
+.history-entries {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+  flex: 1;
+}
+.history-entry {
+  background: var(--border);
+  border-radius: 3px;
+  padding: 1px 6px;
+  white-space: nowrap;
+  font-size: 0.78rem;
+}
+
+/* Player grid */
+.tracker-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+/* Individual player card */
+.tracker-card {
+  --player-color: #3b82f6;
+  background: var(--bg-card);
+  border: 2px solid var(--player-color);
+  border-radius: 12px;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  transition:
+    opacity 0.2s,
+    border-color 0.2s;
+}
+.tracker-card.tc-eliminated {
+  opacity: 0.35;
+  border-style: dashed;
+}
+
+/* Card header */
+.tc-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+.tc-player {
+  font-weight: 700;
+  font-size: 1rem;
+  color: var(--player-color);
+}
+.tc-deck {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-top: 0.1rem;
+}
+.tc-elim-btn {
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  cursor: pointer;
+  padding: 0.15rem 0.4rem;
+  font-size: 0.95rem;
+  opacity: 0.45;
+  color: var(--text);
+}
+.tc-elim-btn:hover {
+  opacity: 1;
+  background: #ef444420;
+  border-color: #ef4444;
+}
+.tc-placement {
+  font-size: 1rem;
+  font-weight: 700;
+}
+.placement-1 {
+  color: #f59e0b;
+}
+.placement-2 {
+  color: #94a3b8;
+}
+.placement-3 {
+  color: #b45309;
+}
+
+/* Life section */
+.tc-life-section {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  flex: 1;
+}
+.tc-life-btn-col {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+.tc-life-btn {
+  padding: 0.4rem 0.7rem;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  cursor: pointer;
+  font-size: 0.82rem;
+  font-weight: 600;
+  min-width: 46px;
+  text-align: center;
+  background: var(--bg-card);
+  color: var(--text);
+}
+.tc-life-plus {
+  color: #22c55e;
+  border-color: #22c55e55;
+}
+.tc-life-plus:hover {
+  background: #22c55e18;
+}
+.tc-life-minus {
+  color: #ef4444aa;
+  border-color: #ef444455;
+}
+.tc-life-minus:hover {
+  background: #ef444418;
+}
+.tc-life {
+  font-size: clamp(3rem, 7vw, 5rem);
+  font-weight: 900;
+  line-height: 1;
+  min-width: 72px;
+  text-align: center;
+  color: var(--player-color);
+  font-variant-numeric: tabular-nums;
+  transition: color 0.2s;
+}
+.tc-life.tc-life-dead {
+  color: #ef4444;
+}
+
+/* Counters row */
+.tc-counters {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  border-top: 1px solid var(--border);
+  padding-top: 0.5rem;
+}
+.tc-counter {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.85rem;
+}
+.tc-counter-icon {
+  font-size: 0.95rem;
+}
+.tc-ctr-btn {
+  width: 26px;
+  height: 26px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  cursor: pointer;
+  background: var(--bg-card);
+  color: var(--text);
+  font-size: 0.9rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+.tc-ctr-btn:hover {
+  background: var(--border);
+}
+.tc-counter-val {
+  min-width: 22px;
+  text-align: center;
+  font-weight: 700;
+  font-size: 0.95rem;
+}
+.tc-counter-danger {
+  color: #ef4444;
+}
+.tc-counter-warn {
+  color: #f59e0b;
+}
+
+/* Commander damage */
+.tc-cmd-details {
+  border-top: 1px solid var(--border);
+  padding-top: 0.4rem;
+}
+.tc-cmd-summary {
+  cursor: pointer;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  list-style: none;
+  user-select: none;
+}
+.tc-cmd-summary:hover {
+  color: var(--text);
+}
+.tc-cmd-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin-top: 0.5rem;
+}
+.tc-cmd-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+.tc-cmd-from {
+  flex: 1;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+.tc-final-note {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+/* End game form */
+.end-game-panel {
+  margin-top: 1rem;
+}
+.end-game-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.4rem 0;
+  border-bottom: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+.end-game-player {
+  width: 130px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+/* New game form */
 .player-count-row {
   display: flex;
   gap: 0.4rem;
@@ -1784,16 +2066,18 @@ td {
 }
 .seat-row {
   display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 0.5rem 0;
+  align-items: flex-start;
+  gap: 0.6rem;
+  padding: 0.75rem 0;
   border-bottom: 1px solid var(--border);
+  flex-wrap: wrap;
 }
 .seat-row-label {
   width: 70px;
-  font-weight: 600;
+  font-weight: 700;
   font-size: 0.9rem;
   color: var(--text-muted);
+  padding-top: 0.3rem;
   flex-shrink: 0;
 }
 .seat-row-fields {
@@ -1802,85 +2086,16 @@ td {
   flex-wrap: wrap;
   flex: 1;
 }
-.life-tracker-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-  gap: 1rem;
+.seat-row-fields input {
+  width: 140px;
 }
-.life-card {
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 1rem;
-  text-align: center;
+.seat-row-fields select {
+  flex: 1;
+  min-width: 160px;
 }
-.life-player-name {
-  font-weight: 700;
-  font-size: 1rem;
-  margin-bottom: 0.2rem;
-}
-.life-deck-name {
-  font-size: 0.78rem;
-  color: var(--text-muted);
-  margin-bottom: 0.4rem;
-}
-.life-placement {
-  font-size: 0.82rem;
-  font-weight: 600;
-  margin-bottom: 0.3rem;
-}
-.placement-1 {
-  color: #f59e0b;
-}
-.placement-2 {
-  color: #94a3b8;
-}
-.placement-3 {
-  color: #b45309;
-}
-.life-total {
-  font-size: 3rem;
-  font-weight: 800;
-  line-height: 1;
-  margin: 0.5rem 0;
-}
-.life-controls {
-  display: flex;
-  gap: 0.3rem;
-  justify-content: center;
-  flex-wrap: wrap;
-  margin-top: 0.5rem;
-}
-.life-btn {
-  padding: 0.3rem 0.6rem;
-  border: 1px solid var(--border);
-  background: var(--bg-card);
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 0.85rem;
-  color: var(--text);
-  min-width: 36px;
-}
-.life-btn:hover {
-  background: var(--bg-hover, var(--border));
-}
-.life-btn-up {
-  color: #22c55e;
-  border-color: #22c55e44;
-}
-.end-game-row {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 0.4rem 0;
-  border-bottom: 1px solid var(--border);
-}
-.end-game-player {
-  width: 130px;
-  font-weight: 600;
-  flex-shrink: 0;
-}
+
+/* Deck record badge on deck detail */
 .deck-record {
-  font-weight: 600;
+  font-weight: 700;
   color: var(--accent);
 }
