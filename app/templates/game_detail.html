@@ -2,11 +2,17 @@
 {% block content %}
   {% set is_ended = game.seats | selectattr('placement', 'ne', none) | list | length > 0 %}
   {% set winner = game.seats | selectattr('placement', 'eq', 1) | first | default(none) %}
-  <div class="game-app" id="game-app"{% if is_ended %} data-ended="1"{% endif %}>
+  <div class="game-app"
+       id="game-app"
+       {% if is_ended %}data-ended="1"{% endif %}>
     {# ── Floating top bar ──────────────────────────────────────── #}
     <div class="game-topbar" id="game-topbar">
       <a href="/games" class="game-topbar-link">← Games</a>
-      <button type="button" class="fs-btn" id="fs-btn" onclick="toggleFullscreen()" title="Toggle fullscreen">⛶</button>
+      <button type="button"
+              class="fs-btn"
+              id="fs-btn"
+              onclick="toggleFullscreen()"
+              title="Toggle fullscreen">⛶</button>
       <span class="game-topbar-sep">|</span>
       {% if not is_ended %}
         <button type="button"
@@ -144,32 +150,30 @@
                 </div>
               {% endif %}
             </div>
-              {% if not is_ended and game.seats | length > 1 %}
-                <details class="tc-cmd-details">
-                  <summary class="tc-cmd-summary">Commander Damage ▸</summary>
-                  <div class="tc-cmd-grid">
-                    {% for other in game.seats if other.id != seat.id %}
-                      <div class="tc-cmd-row">
-                        <span class="tc-cmd-from">from {{ other.player_name }}</span>
-                        <button type="button"
-                                class="tc-ctr-btn"
-                                onclick="adjustCmd({{ seat.id }}, {{ other.id }}, -1)">−</button>
-                        <span class="tc-counter-val" id="cmd-{{ seat.id }}-{{ other.id }}">0</span>
-                        <button type="button"
-                                class="tc-ctr-btn"
-                                onclick="adjustCmd({{ seat.id }}, {{ other.id }}, 1)">+</button>
-                      </div>
-                    {% endfor %}
-                  </div>
-                </details>
-              {% endif %}
+            {% if not is_ended and game.seats | length > 1 %}
+              <details class="tc-cmd-details">
+                <summary class="tc-cmd-summary">Commander Damage ▸</summary>
+                <div class="tc-cmd-grid">
+                  {% for other in game.seats if other.id != seat.id %}
+                    <div class="tc-cmd-row">
+                      <span class="tc-cmd-from">from {{ other.player_name }}</span>
+                      <button type="button"
+                              class="tc-ctr-btn"
+                              onclick="adjustCmd({{ seat.id }}, {{ other.id }}, -1)">−</button>
+                      <span class="tc-counter-val" id="cmd-{{ seat.id }}-{{ other.id }}">0</span>
+                      <button type="button"
+                              class="tc-ctr-btn"
+                              onclick="adjustCmd({{ seat.id }}, {{ other.id }}, 1)">+</button>
+                    </div>
+                  {% endfor %}
+                </div>
+              </details>
+            {% endif %}
           </div>
         </div>
       {% endfor %}
       {# ── Center cell — turn indicator ──────────────────────── #}
-      <div class="card-slot card-slot-center"
-           id="slot-center"
-           style="grid-area:tc">
+      <div class="card-slot card-slot-center" id="slot-center">
         {% if not is_ended %}
           <div class="turn-center">
             <div class="turn-center-round">
@@ -363,18 +367,25 @@ function buildDynamicGrid() {
     if (card) card.dataset.rotate = String(seat.rotate);
   };
 
+  const placeTc = (row, col) => {
+    if (!tcSlot) return;
+    tcSlot.style.gridArea = '';
+    tcSlot.style.gridRow = String(row);
+    tcSlot.style.gridColumn = col;
+    tcSlot.style.display = '';
+  };
   if (p8seat && p4seat) {
     setSlot(p8seat, 1, 3);
-    if (tcSlot) { tcSlot.style.gridRow = String(midRow); tcSlot.style.gridColumn = '3 / 5'; tcSlot.style.display = ''; }
+    placeTc(midRow, '3 / 5');
     setSlot(p4seat, 5, 7);
   } else if (p8seat) {
     setSlot(p8seat, 1, 4);
-    if (tcSlot) { tcSlot.style.gridRow = String(midRow); tcSlot.style.gridColumn = '4 / 7'; tcSlot.style.display = ''; }
+    placeTc(midRow, '4 / 7');
   } else if (p4seat) {
-    if (tcSlot) { tcSlot.style.gridRow = String(midRow); tcSlot.style.gridColumn = '1 / 4'; tcSlot.style.display = ''; }
+    placeTc(midRow, '1 / 4');
     setSlot(p4seat, 4, 7);
   } else {
-    if (tcSlot) { tcSlot.style.gridRow = String(midRow); tcSlot.style.gridColumn = '1 / 7'; tcSlot.style.display = ''; }
+    placeTc(midRow, '1 / 7');
   }
 
   requestAnimationFrame(sizeRotatedCards);
@@ -466,14 +477,19 @@ function freshState() {
     cmd[s.id] = {};
     s.otherIds.forEach(oid => { cmd[s.id][oid] = 0; });
   });
-  return { lives, poison, exp, eliminated, cmd, history: [],
+  return { _fp: gameFingerprint(), lives, poison, exp, eliminated, cmd, history: [],
            turn: 1, currentTurnId: clockwiseSeats[0]?.id ?? seatDefs[0]?.id };
+}
+
+function gameFingerprint() {
+  return seatDefs.map(s => `${s.id}:${s.startingLife}:${s.name}`).join('|');
 }
 
 let state;
 try {
   const raw = localStorage.getItem(storageKey);
-  state = raw ? JSON.parse(raw) : freshState();
+  const loaded = raw ? JSON.parse(raw) : null;
+  state = (loaded && loaded._fp === gameFingerprint()) ? loaded : freshState();
   if (state.currentTurnId === undefined) state.currentTurnId = clockwiseSeats[0]?.id ?? seatDefs[0]?.id;
 } catch(e) { state = freshState(); }
 

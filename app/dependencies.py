@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import secrets
+import subprocess
 from collections.abc import Generator
 
 from fastapi import Depends, Form, HTTPException, Request, status
@@ -17,7 +18,31 @@ from app.models import User
 DRAWER_SORTER_USERNAMES: frozenset[str] = frozenset({"jason.v", "test"})
 
 templates = Jinja2Templates(directory="app/templates")
-templates.env.globals["app_version"] = os.getenv("APP_VERSION", "dev")
+
+
+def _dev_version() -> str:
+    try:
+        tag = (
+            subprocess.check_output(
+                ["git", "describe", "--tags", "--exact-match"],
+                stderr=subprocess.DEVNULL,
+            )
+            .decode()
+            .strip()
+        )
+    except subprocess.CalledProcessError:
+        tag = (
+            subprocess.check_output(
+                ["git", "rev-parse", "--short", "HEAD"],
+                stderr=subprocess.DEVNULL,
+            )
+            .decode()
+            .strip()
+        )
+    return f"dev-{tag}"
+
+
+templates.env.globals["app_version"] = os.getenv("APP_VERSION") or _dev_version()
 templates.env.globals["drawer_sorter_usernames"] = DRAWER_SORTER_USERNAMES
 templates.env.globals["card_role_tags"] = CARD_ROLE_TAGS
 

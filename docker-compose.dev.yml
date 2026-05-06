@@ -6,4 +6,6 @@ services:
       - "8000:8000"
     volumes:
       - ./data:/app/data
+    environment:
+      - APP_VERSION=dev-version
     restart: unless-stopped
