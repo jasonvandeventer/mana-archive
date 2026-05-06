@@ -235,7 +235,7 @@ const LAYOUT_OPTIONS = {
       areas: '"top top" "bl br"', cols: '1fr 1fr', rows: '1fr 1fr',
       seats: [{ area: 'bl', rotate: 0 }, { area: 'br', rotate: 0 }, { area: 'top', rotate: 180 }] },
     { id: 'sides', label: 'Triangle (1 each side + far)',
-      areas: '"top top" "l r"', cols: '1fr 1fr', rows: '1fr 2fr',
+      areas: '"l top r"', cols: '1fr 2fr 1fr', rows: '1fr',
       seats: [{ area: 'r', rotate: 270 }, { area: 'top', rotate: 180 }, { area: 'l', rotate: 90 }] }
   ],
   4: [
@@ -246,7 +246,7 @@ const LAYOUT_OPTIONS = {
         { area: 'tl', rotate: 180 }, { area: 'tr', rotate: 180 }
       ] },
     { id: 'compass', label: 'Compass (1 per side)',
-      areas: '"top top" "l r" "bot bot"', cols: '1fr 1fr', rows: '1fr 2fr 1fr',
+      areas: '"l top r" "l bot r"', cols: '1fr 2fr 1fr', rows: '1fr 1fr',
       seats: [
         { area: 'bot', rotate: 0 }, { area: 'r', rotate: 270 },
         { area: 'top', rotate: 180 }, { area: 'l', rotate: 90 }
