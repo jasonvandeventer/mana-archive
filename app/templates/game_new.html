@@ -49,7 +49,7 @@
 {% endblock %}
 {% block extra_scripts %}
   <script>
-const decks = {{ decks | tojson }};
+const decks = {{ decks_json | tojson }};
 let playerCount = 4;
 
 function setPlayerCount(n) {

@@ -2118,10 +2118,16 @@ def game_new_page(
     current_user: User = Depends(get_current_user),
 ):
     decks = session.query(Deck).filter(Deck.user_id == current_user.id).order_by(Deck.name).all()
+    decks_json = [{"id": d.id, "name": d.name} for d in decks]
     return render(
         request,
         "game_new.html",
-        {"title": "New Game", "decks": decks, "current_user": current_user},
+        {
+            "title": "New Game",
+            "decks": decks,
+            "decks_json": decks_json,
+            "current_user": current_user,
+        },
     )
 
 
