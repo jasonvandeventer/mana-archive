@@ -322,17 +322,16 @@ function buildDynamicGrid() {
 
   const p4Seat = rowSeats[1].find(s => s.position === 'p4');
   const p8Seat = rowSeats[1].find(s => s.position === 'p8');
-  // Side player gets a tall vertical strip when no top/bottom edge conflicts on that side
-  const tallP4 = !!(p4Seat && !rowSeats[0].some(s => s.position === 'p3') && !rowSeats[2].some(s => s.position === 'p5'));
-  const tallP8 = !!(p8Seat && !rowSeats[0].some(s => s.position === 'p1') && !rowSeats[2].some(s => s.position === 'p7'));
-  const shortP4 = p4Seat && !tallP4;
-  const shortP8 = p8Seat && !tallP8;
+  // Side players are ALWAYS tall narrow strips spanning the full grid height
+  // (top to bottom of viewport) when present — top/bottom row players coexist
+  // with them in the inner column range.
+  const tallP4 = !!p4Seat;
+  const tallP8 = !!p8Seat;
 
-  // TC is a floating overlay (CSS), not a grid cell — only include middle row
-  // when a short side player needs to live there.
+  // TC is a floating overlay; middle row is never used for cells now that
+  // sides are always tall.
   const activeRows = [];
   if (rowSeats[0].length) activeRows.push(0);
-  if (shortP4 || shortP8) activeRows.push(1);
   if (rowSeats[2].length) activeRows.push(2);
   if (!activeRows.length) activeRows.push(0);  // safety: always at least one row
   const rowToGrid = {};
@@ -341,13 +340,14 @@ function buildDynamicGrid() {
   const gridEl = document.getElementById('tracker-grid');
   gridEl.style.gridTemplateAreas = 'none';
   gridEl.style.gridTemplateRows = activeRows.map(() => '1fr').join(' ');
-  gridEl.style.gridTemplateColumns = 'repeat(24, 1fr)';
+  // 36-col grid: sides take 6 cols (~16.7%) — clean division for 1/2/3 in inner.
+  gridEl.style.gridTemplateColumns = 'repeat(36, 1fr)';
   gridEl.style.gridAutoRows = '';
   gridEl.style.gridAutoFlow = '';
 
-  // Tall sides take 4 of 24 cols (~16.7%) — narrow vertical strips
-  const leftBound = tallP8 ? 5 : 1;
-  const rightBound = tallP4 ? 21 : 25;
+  // Tall sides take 6 of 36 cols (~16.7%) — narrow vertical strips
+  const leftBound = tallP8 ? 7 : 1;
+  const rightBound = tallP4 ? 31 : 37;
   const innerCols = rightBound - leftBound;
 
   const writeSlot = (seat, rowSpec, colStart, colEnd) => {
@@ -372,17 +372,10 @@ function buildDynamicGrid() {
     });
   });
 
-  // Tall side players span all active rows
+  // Side players span all active rows as narrow vertical strips
   const totalRows = activeRows.length;
-  if (tallP4) writeSlot(p4Seat, `1 / ${totalRows + 1}`, rightBound, 25);
+  if (tallP4) writeSlot(p4Seat, `1 / ${totalRows + 1}`, rightBound, 37);
   if (tallP8) writeSlot(p8Seat, `1 / ${totalRows + 1}`, 1, leftBound);
-
-  // Short side players in middle row (8-col strips matching the 3-up/3-down topology)
-  if (shortP4 || shortP8) {
-    const midRow = String(rowToGrid[1]);
-    if (shortP8) writeSlot(p8Seat, midRow, 1, 9);
-    if (shortP4) writeSlot(p4Seat, midRow, 17, 25);
-  }
 
   // TC is no longer a grid cell — it's a floating center overlay (see CSS).
   // Clear any leftover inline grid placement / display from earlier states.
