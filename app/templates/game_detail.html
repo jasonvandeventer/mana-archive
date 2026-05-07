@@ -66,10 +66,6 @@
                data-rotate="0">
             <div class="tc-seat-badge" id="badge-{{ seat.id }}">—</div>
             <div class="tc-header">
-              <div class="tc-names">
-                <div class="tc-player">{{ seat.player_name }}</div>
-                {% if seat.deck %}<div class="tc-deck">{{ seat.deck.name }}</div>{% endif %}
-              </div>
               {% if is_ended %}
                 {% if seat.placement %}
                   <span class="tc-placement placement-{{ seat.placement }}">
@@ -106,6 +102,10 @@
                 </div>
               {% endif %}
               <div class="tc-life-center">
+                <div class="tc-names">
+                  <div class="tc-player">{{ seat.player_name }}</div>
+                  {% if seat.deck %}<div class="tc-deck">{{ seat.deck.name }}</div>{% endif %}
+                </div>
                 <div class="tc-life" id="life-{{ seat.id }}">
                   {{ seat.final_life if seat.final_life is not none else seat.starting_life }}
                 </div>
@@ -506,14 +506,32 @@ function pushHistory(entry) {
 }
 
 // ── Actions ───────────────────────────────────────────────────
+// MTG loss conditions: 0 life, 10 poison counters, or 21 cmd damage from a
+// single commander. Once any threshold is crossed the seat is auto-eliminated;
+// it stays eliminated even if the value moves back below the threshold (per
+// MTG rules — dead is dead). Manual toggleEliminate still works for revive.
+function checkElimination(seatId) {
+  if (state.eliminated[seatId]) return;
+  const life = state.lives[seatId];
+  const poison = state.poison[seatId] || 0;
+  const cmdMap = state.cmd[seatId] || {};
+  const cmdValues = Object.values(cmdMap);
+  const maxCmd = cmdValues.length ? Math.max(...cmdValues) : 0;
+  if ((life !== undefined && life <= 0) || poison >= 10 || maxCmd >= 21) {
+    state.eliminated[seatId] = true;
+  }
+}
+
 function adjustLife(seatId, delta) {
   state.lives[seatId] = (state.lives[seatId] || 0) + delta;
   pushHistory({ type: 'life', seatId, delta });
+  checkElimination(seatId);
   save(); render();
 }
 function adjustPoison(seatId, delta) {
   state.poison[seatId] = Math.max(0, (state.poison[seatId] || 0) + delta);
   pushHistory({ type: 'poison', seatId, delta });
+  checkElimination(seatId);
   save(); render();
 }
 function adjustExp(seatId, delta) {
@@ -528,6 +546,7 @@ function adjustCmd(receiverId, senderId, delta) {
   const actualDelta = state.cmd[receiverId][senderId] - prev;
   state.lives[receiverId] = (state.lives[receiverId] || 0) - actualDelta;
   pushHistory({ type: 'cmd', seatId: receiverId, senderId, delta: actualDelta });
+  checkElimination(receiverId);
   save(); render();
 }
 function toggleEliminate(seatId) {

@@ -2194,20 +2194,24 @@ body.game-mode {
   color: #fff;
 }
 
-/* Card header */
+/* Card header — now only holds the elim button or placement badge,
+   right-aligned (player names moved into .tc-life-center above the life total). */
 .tc-header {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-end;
   align-items: flex-start;
   flex-shrink: 0;
 }
+.tc-names {
+  text-align: center;
+}
 .tc-player {
   font-weight: 700;
-  font-size: clamp(0.85rem, 1.5vw, 1.2rem);
-  color: var(--player-color);
+  font-size: clamp(0.95rem, 1.7vw, 1.3rem);
+  color: #000;
 }
 .tc-deck {
-  font-size: 0.72rem;
+  font-size: 0.75rem;
   color: var(--text-muted);
   margin-top: 0.1rem;
 }
