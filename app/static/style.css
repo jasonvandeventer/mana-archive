@@ -2116,19 +2116,28 @@ body.game-mode {
   flex-direction: column-reverse;
 }
 
-/* 90° (left-side player): JS sets width=slotH, height=slotW; CSS rotates */
+/* 90°/270° rotated cards (side players): override the base inset:0 + margin:auto
+   centering — that combo is over-constrained when JS sets explicit width/height
+   and was rendering the card as a thin sliver in some browsers. Position the
+   card's center at the slot center, then translate + rotate around that origin. */
+.tracker-card[data-rotate="90"],
+.tracker-card[data-rotate="270"] {
+  inset: auto;
+  margin: 0;
+  top: 50%;
+  left: 50%;
+  transform-origin: center center;
+}
 .tracker-card[data-rotate="90"] {
-  transform: rotate(90deg);
+  transform: translate(-50%, -50%) rotate(90deg);
   border-top: none;
   border-right: 4px solid var(--player-color);
 }
 .tracker-card[data-rotate="90"] .tc-life-section {
   flex-direction: row-reverse;
 }
-
-/* 270° (right-side player): JS sets width=slotH, height=slotW; CSS rotates */
 .tracker-card[data-rotate="270"] {
-  transform: rotate(270deg);
+  transform: translate(-50%, -50%) rotate(270deg);
   border-top: none;
   border-left: 4px solid var(--player-color);
 }
