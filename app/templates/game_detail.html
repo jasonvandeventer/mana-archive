@@ -340,14 +340,15 @@ function buildDynamicGrid() {
   const gridEl = document.getElementById('tracker-grid');
   gridEl.style.gridTemplateAreas = 'none';
   gridEl.style.gridTemplateRows = activeRows.map(() => '1fr').join(' ');
-  // 36-col grid: sides take 6 cols (~16.7%) — clean division for 1/2/3 in inner.
+  // 36-col grid: sides take 9 cols (25%) so the side player visually "covers"
+  // the right/left of the table; inner 27 cols still divides 3-ways cleanly.
   gridEl.style.gridTemplateColumns = 'repeat(36, 1fr)';
   gridEl.style.gridAutoRows = '';
   gridEl.style.gridAutoFlow = '';
 
-  // Tall sides take 6 of 36 cols (~16.7%) — narrow vertical strips
-  const leftBound = tallP8 ? 7 : 1;
-  const rightBound = tallP4 ? 31 : 37;
+  // Tall sides take 9 of 36 cols (25%) — substantial vertical strips
+  const leftBound = tallP8 ? 10 : 1;
+  const rightBound = tallP4 ? 28 : 37;
   const innerCols = rightBound - leftBound;
 
   const writeSlot = (seat, rowSpec, colStart, colEnd) => {
@@ -387,6 +388,12 @@ function buildDynamicGrid() {
     tcSlot.style.gridColumn = '';
   }
 
+  // Force a synchronous reflow before sizing rotated cards so slot dimensions
+  // are stable. Reading offsetHeight on the grid forces layout flush. Then run
+  // sizeRotatedCards twice — once now (layout is fresh) and once on next RAF
+  // (catches any post-paint adjustments like fullscreen transitions).
+  void gridEl.offsetHeight;
+  sizeRotatedCards();
   requestAnimationFrame(sizeRotatedCards);
 }
 
