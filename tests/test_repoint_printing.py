@@ -8,12 +8,15 @@ mismatch) or a Scryfall lookup failure. Scryfall is mocked — no network.
 
 from __future__ import annotations
 
+import re
+
 import pytest
 
 from app import inventory_service
 from app.inventory_service import InventoryRowNotFound, repoint_inventory_row_printing
 from app.models import (
     Card,
+    Deck,
     DeckCardShare,
     InventoryRow,
     ShowcaseItem,
@@ -21,6 +24,83 @@ from app.models import (
     TradeItem,
     TransactionLog,
 )
+
+
+def test_deck_modal_corrects_unowned_printing(client, db, user, monkeypatch, tmp_path):
+    """Follow the rendered form: one physical card, no spare copy to swap in."""
+    from app.routes import decks
+
+    old = _card(db, "src-1", "Blackblade Reforged", "dmc", "178")
+    old.set_name = "Dominaria United Commander"
+    loc = StorageLocation(user_id=user.id, name="Percussive Maintenance", type="deck")
+    db.add(loc)
+    db.flush()
+    deck = Deck(user_id=user.id, name=loc.name, storage_location_id=loc.id)
+    db.add(deck)
+    db.flush()
+    row = _row(db, user.id, old, storage_location_id=loc.id, role="commander", notes="Keep me")
+    target = {
+        "scryfall_id": "tgt-2",
+        "name": old.name,
+        "set_code": "dom",
+        "set_name": "Dominaria",
+        "collector_number": "211",
+    }
+    printings = [
+        dict(
+            target,
+            finishes=["nonfoil", "foil"],
+            released_at="2018-04-27",
+            frame_effects=[],
+            image_uri_normal=None,
+            image_uri_small=None,
+        ),
+        dict(
+            target,
+            scryfall_id=old.scryfall_id,
+            set_code="dmc",
+            collector_number="178",
+            set_name=old.set_name,
+        ),
+    ]
+    printings[1].update(
+        finishes=["nonfoil"],
+        released_at="2022-09-09",
+        frame_effects=[],
+        image_uri_normal=None,
+        image_uri_small=None,
+    )
+    monkeypatch.setattr(decks, "fetch_card_printings", lambda name: printings)
+    _mock_scryfall(monkeypatch, {"src-1": "ORA", "tgt-2": "ORA"}, {"tgt-2": target})
+    page = client.get(f"/decks/{deck.id}/rows/{row.id}/printings-modal")
+    assert page.status_code == 200
+    (tmp_path / "modal.html").write_text(page.text)
+    forms = re.findall(r"<form\b([^>]*)>(.*?)</form>", page.text, re.S)
+    corrections = [(attrs, body) for attrs, body in forms if "repoint-printing" in attrs]
+    assert len(corrections) == 2, "The modal must offer correction without owning a spare"
+    attrs, body = next((a, b) for a, b in corrections if 'value="tgt-2"' in b)
+    assert "disabled" not in body
+    assert "hx-post" not in attrs  # full redirect refreshes the card AND hero totals
+    current = next(b for a, b in corrections if 'value="src-1"' in b)
+    assert "disabled" in current
+    action = re.search(r'action="([^"]+)"', attrs).group(1)
+    data = dict(re.findall(r'name="([^"]+)" value="([^"]*)"', body))
+    referer = f"http://testserver/decks/{deck.id}?sort=price&direction=desc"
+    response = client.post(action, data=data, headers={"referer": referer}, follow_redirects=False)
+    assert response.status_code == 303
+    assert response.headers["location"] == referer
+    db.refresh(row)
+    assert db.get(Card, row.card_id).scryfall_id == "tgt-2"
+    assert (row.quantity, row.storage_location_id, row.finish, row.role, row.notes) == (
+        1,
+        loc.id,
+        "normal",
+        "commander",
+        "Keep me",
+    )
+    assert db.query(InventoryRow).filter_by(user_id=user.id).count() == 1
+    log = db.query(TransactionLog).filter_by(inventory_row_id=row.id).one()
+    assert (log.event_type, log.quantity_delta) == ("repoint_printing", 0)
 
 
 def _card(db, scryfall_id, name, set_code, coll):

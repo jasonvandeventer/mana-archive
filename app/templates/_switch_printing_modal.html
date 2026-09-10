@@ -9,7 +9,9 @@
    Owned-printings section ("In your collection") shows first so the user
    picks what they actually have first — the source-of-truth positioning
    the roadmap entry calls out. Full printings list follows, with the
-   current row's set highlighted.
+   current row's set highlighted. Its correction forms use the existing
+   inventory repoint route, not the owned-swap route. A full redirect refreshes
+   the whole deck page, including its pricing and hero totals.
 #}
 <article class="switch-printing-modal modal-open"
          role="dialog"
@@ -33,7 +35,7 @@
     {% if owned_printings %}
       <section class="switch-printing-section switch-printing-section-owned">
         <h4 class="switch-printing-section-title">In your collection</h4>
-        <p class="muted switch-printing-section-blurb">Pick a printing you already own.</p>
+        <p class="muted switch-printing-section-blurb">Swap in a loose copy you own; the current copy returns to Pending.</p>
         <ul class="switch-printing-list">
           {% for entry in owned_printings %}
             <li class="switch-printing-row owned"
@@ -81,8 +83,8 @@
           <p class="muted">No printings returned from Scryfall.</p>
         {% else %}
           <p class="muted switch-printing-section-blurb">
-            Newest reprint first. Finish buttons show only the finishes that
-            actually exist for that printing.
+            Correct the printing recorded for this card. Quantity, location, and finish
+            stay the same. No spare copy is needed.
           </p>
           <ul class="switch-printing-list">
             {% for p in printings %}
@@ -103,33 +105,17 @@
                   {% endif %}
                 </span>
                 <span class="switch-printing-row-finishes">
-                  {% for finish in p.finishes %}
-                    <form action="/decks/{{ deck.id }}/rows/{{ row.id }}/switch-printing"
-                          method="post"
-                          class="switch-printing-finish-form"
-                          hx-post="/decks/{{ deck.id }}/rows/{{ row.id }}/switch-printing"
-                          hx-target="#deck-card-list"
-                          hx-swap="innerHTML"
-                          hx-on::after-request="document.dispatchEvent(new Event('switchprinting:close'))">
-                      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-                      <input type="hidden" name="scryfall_id" value="{{ p.scryfall_id }}">
-                      <input type="hidden" name="finish" value="{{ finish }}">
-                      {% set owned = p.owned_finishes.get(finish) %}
-                      {% set owned_total = owned.total if owned else 0 %}
-                      {% set owned_loose = owned.loose if owned else 0 %}
-                      {% set is_current = p.set_code == current_set_code
-                        and p.collector_number == current_collector_number
-                        and finish == current_finish %}
-                      <button type="submit"
-                        class="switch-printing-finish-btn finish-{{ finish }}
-                        {% if owned_loose %}owned{% endif %}"
-                        {% if is_current or owned_loose == 0 %}disabled{% endif %}
-                        {% if owned_loose == 0 and not is_current %}title="{% if owned_total %}All copies are in other decks{% else %}You don't own this printing{% endif %}"{% endif %}>
-                          {{ finish|capitalize }}
-                          {% if owned_loose %}<span class="switch-printing-owned-count">({{ owned_loose }})</span>{% endif %}
-                        </button>
-                      </form>
-                    {% endfor %}
+                  <form action="/inventory/rows/{{ row.id }}/repoint-printing"
+                        method="post"
+                        class="switch-printing-finish-form">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                    <input type="hidden" name="scryfall_id" value="{{ p.scryfall_id }}">
+                    <button type="submit"
+                            class="switch-printing-finish-btn"
+                            {% if p.scryfall_id == row.card.scryfall_id %}disabled{% endif %}>
+                      Correct printing
+                    </button>
+                  </form>
                   </span>
                 </li>
               {% endfor %}

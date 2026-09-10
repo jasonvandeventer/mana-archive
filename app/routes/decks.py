@@ -2064,21 +2064,6 @@ def deck_row_printings_modal(
     card_name = row.card.name if row.card else ""
     printings = fetch_card_printings(card_name) if card_name else []
     owned_printings = list_user_printings_for_card(session, current_user.id, card_name)
-    # Build a lookup of owned (set, collector) → list of finish entries so
-    # the template can mark which finishes the user owns of each printing.
-    owned_by_key: dict[tuple[str, str], dict[str, dict[str, int]]] = {}
-    for entry in owned_printings:
-        key = (entry["set_code"], entry["collector_number"])
-        owned_by_key.setdefault(key, {})[entry["finish"]] = {
-            "total": entry["quantity"],
-            "loose": entry["loose_quantity"],
-        }
-    # Annotate every printing with owned_finishes so the template renders
-    # toggle buttons with owned/loose hints and disables what can't be swapped.
-    for p in printings:
-        key = (p["set_code"], p["collector_number"])
-        p["owned_finishes"] = owned_by_key.get(key, {})
-
     return render(
         request,
         "_switch_printing_modal.html",

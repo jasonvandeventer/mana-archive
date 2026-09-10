@@ -53,10 +53,8 @@ _ALLOWED_UNRENDERED = {
     "manual_preview.html": "HTMX fragment of the manual add flow",
     "manual_search_results.html": "HTMX fragment of the manual add flow",
     "_review_tags_panel_content.html": "HTMX fragment of the tag review panel",
-    # Partials worth real render tests — highest value in this list, because
-    # both carry price formatting of the kind that has already caused a 500.
+    # This partial still needs a render test for its price formatting.
     "_collection_row.html": "partial; needs a parent context (carries effective_price formatting)",
-    "_switch_printing_modal.html": "partial; needs a parent context (carries price formatting)",
 }
 
 
