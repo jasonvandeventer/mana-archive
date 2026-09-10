@@ -1,5 +1,17 @@
 [
   {
+    "version": "4.19.1",
+    "date": "2026-09-09",
+    "added": [],
+    "refined": [
+      "Switch Printing now explains the difference between swapping in a loose copy from your collection and correcting the printing recorded for the card already in your deck."
+    ],
+    "resolved": [
+      "All printings now offers Correct printing even when you do not own a spare copy. The correction keeps the card's quantity, location, finish, and commander role, then refreshes the deck page."
+    ],
+    "archivist_note": "We offered a swap where a correction was needed. A card with the wrong set recorded should not require a second copy to put its record right. Both actions now have a place in the printing picker, with their effects stated before you choose."
+  },
+  {
     "version": "4.19.0",
     "date": "2026-08-29",
     "added": [
